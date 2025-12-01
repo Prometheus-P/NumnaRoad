@@ -1,0 +1,68 @@
+{
+  "name": "esim-vault",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Automated eSIM sales platform with 24/7 order processing",
+  "keywords": [
+    "esim",
+    "travel",
+    "automation",
+    "ecommerce",
+    "pocketbase",
+    "nextjs"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/esim-vault.git"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "pocketbase:serve": "cd pocketbase && ./pocketbase serve",
+    "pocketbase:migrate": "cd pocketbase && ./pocketbase migrate",
+    "seed": "tsx scripts/seed-products.ts",
+    "backup": "bash scripts/backup.sh"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "pocketbase": "^0.21.0",
+    "@tanstack/react-query": "^5.0.0",
+    "stripe": "^14.0.0",
+    "zod": "^3.22.0",
+    "date-fns": "^3.0.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.20.0",
+    "@typescript-eslint/parser": "^6.20.0",
+    "prettier": "^3.2.0",
+    "prettier-plugin-tailwindcss": "^0.5.0",
+    "tsx": "^4.7.0",
+    "jest": "^29.7.0",
+    "@testing-library/react": "^14.1.0",
+    "@testing-library/jest-dom": "^6.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
