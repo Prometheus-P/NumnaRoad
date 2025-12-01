@@ -1,4 +1,4 @@
-# eSIM Vault
+# NumnaRoad
 
 **자동화된 eSIM 판매 플랫폼 | Automated eSIM Sales Platform**
 
@@ -111,7 +111,7 @@
 ## 📁 프로젝트 구조
 
 ```
-esim-vault/
+numnaroad/
 ├── apps/
 │   ├── web/                    # Next.js 고객용 사이트
 │   │   ├── app/
@@ -188,8 +188,8 @@ PocketBase 0.22+
 ### 2. 설치
 ```bash
 # 저장소 클론
-git clone https://github.com/yourusername/esim-vault.git
-cd esim-vault
+git clone https://github.com/Prometheus-P/NumnaRoad.git
+cd NumnaRoad
 
 # 의존성 설치
 npm install
@@ -318,7 +318,7 @@ MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
 
 프로젝트 관리자: [@yourusername](https://github.com/yourusername)
 
-프로젝트 링크: [https://github.com/yourusername/esim-vault](https://github.com/yourusername/esim-vault)
+프로젝트 링크: [https://github.com/Prometheus-P/NumnaRoad](https://github.com/Prometheus-P/NumnaRoad)
 
 ---
 

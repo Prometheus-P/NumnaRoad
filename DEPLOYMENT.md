@@ -23,8 +23,8 @@ Git
 
 ```bash
 # 저장소 클론
-git clone https://github.com/yourusername/esim-vault.git
-cd esim-vault
+git clone https://github.com/Prometheus-P/NumnaRoad.git
+cd NumnaRoad
 
 # 의존성 설치
 npm install
@@ -69,7 +69,7 @@ npm run dev
 
 1. [Railway](https://railway.app) 가입
 2. "New Project" → "Deploy from GitHub repo"
-3. 저장소 선택: `esim-vault`
+3. 저장소 선택: `NumnaRoad`
 
 **Step 2: PocketBase 서비스 생성**
 
@@ -201,14 +201,14 @@ curl -L https://fly.io/install.sh | sh
 flyctl auth login
 
 # 앱 생성
-flyctl launch --name esim-vault-pb
+flyctl launch --name numnaroad-pb
 
 # fly.toml 수정
 ```
 
 **fly.toml:**
 ```toml
-app = "esim-vault-pb"
+app = "numnaroad-pb"
 primary_region = "nrt"  # Tokyo
 
 [build]
@@ -311,7 +311,7 @@ systemctl start pocketbase
 ### 4-3. Nginx 설정
 
 ```nginx
-# /etc/nginx/sites-available/esim-vault
+# /etc/nginx/sites-available/numnaroad
 server {
     listen 80;
     server_name pocketbase.yourdomain.com;
@@ -339,7 +339,7 @@ server {
 
 ```bash
 # 심볼릭 링크 생성
-ln -s /etc/nginx/sites-available/esim-vault /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/numnaroad /etc/nginx/sites-enabled/
 
 # Nginx 재시작
 nginx -t

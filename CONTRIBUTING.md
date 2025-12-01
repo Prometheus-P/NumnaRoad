@@ -1,6 +1,6 @@
-# Contributing to eSIM Vault
+# Contributing to NumnaRoad
 
-기여해주셔서 감사합니다! 이 문서는 eSIM Vault 프로젝트에 기여하는 방법을 안내합니다.
+기여해주셔서 감사합니다! 이 문서는 NumnaRoad 프로젝트에 기여하는 방법을 안내합니다.
 
 ## 목차
 1. [Code of Conduct](#code-of-conduct)
@@ -30,11 +30,11 @@
 
 ```bash
 # 저장소 포크 및 클론
-git clone https://github.com/YOUR_USERNAME/esim-vault.git
-cd esim-vault
+git clone https://github.com/YOUR_USERNAME/NumnaRoad.git
+cd NumnaRoad
 
 # 원본 저장소를 upstream으로 추가
-git remote add upstream https://github.com/original/esim-vault.git
+git remote add upstream https://github.com/Prometheus-P/NumnaRoad.git
 
 # 의존성 설치
 npm install
@@ -58,7 +58,7 @@ npm run dev
 
 ### 1. Issue 확인 또는 생성
 
-기여하기 전에 [Issues](https://github.com/yourusername/esim-vault/issues)를 확인하세요:
+기여하기 전에 [Issues](https://github.com/Prometheus-P/NumnaRoad/issues)를 확인하세요:
 - 이미 다른 사람이 작업 중인지 확인
 - 새로운 기능이나 버그 수정은 먼저 Issue를 생성하고 논의
 
@@ -319,10 +319,10 @@ Closes #123
 
 ## 질문이 있나요?
 
-- [Discussions](https://github.com/yourusername/esim-vault/discussions)에서 질문하기
-- [Issue](https://github.com/yourusername/esim-vault/issues/new)로 버그 리포트
+- [Discussions](https://github.com/Prometheus-P/NumnaRoad/discussions)에서 질문하기
+- [Issue](https://github.com/Prometheus-P/NumnaRoad/issues/new)로 버그 리포트
 - 이메일: your.email@example.com
 
 ---
 
-**감사합니다! 함께 더 나은 eSIM Vault를 만들어갑시다!**
+**감사합니다! 함께 더 나은 NumnaRoad를 만들어갑시다!**

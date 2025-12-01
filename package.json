@@ -1,8 +1,8 @@
 {
-  "name": "esim-vault",
+  "name": "numnaroad",
   "version": "0.1.0",
   "private": true,
-  "description": "Automated eSIM sales platform with 24/7 order processing",
+  "description": "NumnaRoad - Automated travel connectivity platform with 24/7 order processing",
   "keywords": [
     "esim",
     "travel",
@@ -15,7 +15,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/esim-vault.git"
+    "url": "https://github.com/Prometheus-P/NumnaRoad.git"
   },
   "scripts": {
     "dev": "next dev",
