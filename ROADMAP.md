@@ -192,7 +192,7 @@
 - [ ] 메타 태그 설정
   ```typescript
   export const metadata: Metadata = {
-    title: "일본 eSIM | 즉시 발급 | eSIM Vault",
+    title: "일본 eSIM | 즉시 발급 | NumnaRoad",
     description: "일본 여행 7일 무제한 eSIM 12,000원...",
   }
   ```
