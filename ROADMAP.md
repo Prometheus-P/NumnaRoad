@@ -192,7 +192,7 @@
 - [ ] 메타 태그 설정
   ```typescript
   export const metadata: Metadata = {
-    title: "일본 eSIM | 즉시 발급 | eSIM Vault",
+    title: "일본 eSIM | 즉시 발급 | NumnaRoad",
     description: "일본 여행 7일 무제한 eSIM 12,000원...",
   }
   ```
@@ -224,7 +224,7 @@
 - [ ] Slack 알림 통합
 
 #### Day 40-41: 프로덕션 배포
-- [ ] 도메인 구매 (esimvault.com)
+- [ ] 도메인 구매 (numnaroad.com)
 - [ ] Railway/Vercel 배포
 - [ ] SSL 인증서 설정
 - [ ] 환경변수 프로덕션으로 교체
