@@ -4,7 +4,7 @@
 
 > 해외여행 eSIM을 24/7 자동으로 판매하는 무인 시스템. 주문부터 발급까지 인간 개입 없이 10초 내 완료.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![PocketBase](https://img.shields.io/badge/PocketBase-0.22-green)](https://pocketbase.io/)
@@ -447,7 +447,7 @@ ROI: 초기 투자 5,000,000원 → 1개월 만에 회수
 
 ## 🤝 기여하기 (Contributing)
 
-NumnaRoad는 오픈소스 프로젝트입니다. 기여를 환영합니다!
+NumnaRoad는 비공개 프로젝트입니다. 승인된 팀원 및 계약자만 접근 가능합니다.
 
 ### 기여 절차
 
@@ -471,9 +471,9 @@ NumnaRoad는 오픈소스 프로젝트입니다. 기여를 환영합니다!
 
 ## 📝 라이선스 (License)
 
-MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
+**Proprietary License** - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
 
-NumnaRoad는 상업적 사용, 수정, 배포, 사적 사용이 자유롭습니다.
+이 소프트웨어는 NumnaRoad의 독점 자산입니다. 무단 사용, 복제, 배포가 금지됩니다.
 
 ---
 
