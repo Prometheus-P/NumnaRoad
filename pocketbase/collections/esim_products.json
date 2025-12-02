@@ -1,0 +1,197 @@
+{
+  "id": "esim_products",
+  "name": "esim_products",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "name",
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": null,
+        "max": null,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "slug",
+      "name": "slug",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {
+        "min": null,
+        "max": null,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "country",
+      "name": "country",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 2,
+        "max": 2,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "country_name",
+      "name": "country_name",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "region",
+      "name": "region",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "duration",
+      "name": "duration",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": null
+      }
+    },
+    {
+      "id": "data_limit",
+      "name": "data_limit",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "speed",
+      "name": "speed",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "provider",
+      "name": "provider",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["eSIM Card", "MobiMatter", "Airalo"]
+      }
+    },
+    {
+      "id": "provider_product_id",
+      "name": "provider_product_id",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "wholesale_price",
+      "name": "wholesale_price",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "retail_price",
+      "name": "retail_price",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "margin_percent",
+      "name": "margin_percent",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": 100
+      }
+    },
+    {
+      "id": "stock",
+      "name": "stock",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "is_featured",
+      "name": "is_featured",
+      "type": "bool",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "image",
+      "name": "image",
+      "type": "file",
+      "required": false,
+      "options": {
+        "maxSelect": 1,
+        "maxSize": 5242880,
+        "mimeTypes": ["image/jpeg", "image/png", "image/webp"]
+      }
+    },
+    {
+      "id": "description",
+      "name": "description",
+      "type": "editor",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "features",
+      "name": "features",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "sort_order",
+      "name": "sort_order",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_country ON esim_products (country)",
+    "CREATE INDEX idx_is_active ON esim_products (is_active)",
+    "CREATE INDEX idx_slug ON esim_products (slug)",
+    "CREATE UNIQUE INDEX idx_slug_unique ON esim_products (slug)"
+  ],
+  "listRule": "",
+  "viewRule": "",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": "@request.auth.id != ''",
+  "deleteRule": "@request.auth.id != ''"
+}
