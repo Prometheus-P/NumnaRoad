@@ -27,23 +27,31 @@
 
 ### 🎯 New to NumnaRoad? Start here:
 
-1. **[CONTEXT.md](./CONTEXT.md)** - 프로젝트 전체 맥락, 비전, 아키텍처 (Single Source of Truth)
-2. **[ENVIRONMENT.md](./ENVIRONMENT.md)** - 완전한 환경 설정 가이드 (Prerequisites → API Keys → Troubleshooting)
-3. **[plan.md](./plan.md)** - TDD 기반 개발 태스크 리스트 (Red-Green-Refactor)
+1. **[docs/community/CONTEXT.md](./docs/community/CONTEXT.md)** - 프로젝트 전체 맥락, 비전, 아키텍처 (Single Source of Truth)
+2. **[docs/setup/ENVIRONMENT.md](./docs/setup/ENVIRONMENT.md)** - 완전한 환경 설정 가이드 (Prerequisites → API Keys → Troubleshooting)
+3. **[docs/planning/plan.md](./docs/planning/plan.md)** - TDD 기반 개발 태스크 리스트 (Red-Green-Refactor)
 4. **README.md (현재 문서)** - 빠른 시작 가이드 (5분 내 로컬 실행)
 
 ### 📖 Additional Documentation:
 
-| 문서 | 설명 |
-|------|------|
-| [PLANNING.md](./PLANNING.md) | 사업 모델 및 시장 분석 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 시스템 설계 및 자동화 플로우 |
-| [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | PocketBase Collections 스키마 |
-| [API_DOCS.md](./docs/API_DOCS.md) | REST API 레퍼런스 |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | 프로덕션 배포 가이드 |
-| [ROADMAP.md](./ROADMAP.md) | 개발 일정 및 마일스톤 |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | 기여 가이드라인 |
-| [CHANGELOG.md](./CHANGELOG.md) | 버전 히스토리 |
+전체 문서 구조는 **[docs/README.md](./docs/README.md)** 참조
+
+| 카테고리 | 문서 | 설명 |
+|---------|------|------|
+| **기획** | [PRD.md](./docs/planning/PRD.md) | 제품 요구사항 문서 |
+| | [PLANNING.md](./docs/planning/PLANNING.md) | 사업 모델 및 시장 분석 |
+| | [ROADMAP.md](./docs/planning/ROADMAP.md) | 개발 일정 및 마일스톤 |
+| **아키텍처** | [ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) | 시스템 설계 및 자동화 플로우 |
+| | [DATABASE_SCHEMA.md](./docs/architecture/DATABASE_SCHEMA.md) | PocketBase Collections 스키마 |
+| | [DATA_MODEL.md](./docs/architecture/DATA_MODEL.md) | 데이터 모델 |
+| **API** | [API_SPEC.md](./docs/api/API_SPEC.md) | API 전체 스펙 |
+| | [API_DOCS.md](./docs/api/API_DOCS.md) | REST API 레퍼런스 |
+| **배포** | [DEPLOYMENT.md](./docs/deployment/DEPLOYMENT.md) | 프로덕션 배포 가이드 |
+| **개발** | [CODE_REVIEW_GUIDE.md](./docs/development/CODE_REVIEW_GUIDE.md) | 코드 리뷰 가이드 |
+| | [VERSIONING_GUIDE.md](./docs/development/VERSIONING_GUIDE.md) | 버전 관리 가이드 |
+| **커뮤니티** | [CONTRIBUTING.md](./docs/community/CONTRIBUTING.md) | 기여 가이드라인 |
+| | [CODE_OF_CONDUCT.md](./docs/community/CODE_OF_CONDUCT.md) | 행동 강령 |
+| **기타** | [CHANGELOG.md](./CHANGELOG.md) | 버전 히스토리 |
 
 ---
 

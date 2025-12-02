@@ -1,0 +1,253 @@
+{
+  "name": "Payment Webhook Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stripe-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Stripe",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "stripe-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.type}}",
+              "operation": "equals",
+              "value2": "checkout.session.completed"
+            }
+          ]
+        }
+      },
+      "name": "IF Checkout Completed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "order_id",
+              "name": "order_id",
+              "value": "={{$json.data.object.metadata.order_id}}",
+              "type": "string"
+            },
+            {
+              "id": "payment_intent",
+              "name": "payment_intent",
+              "value": "={{$json.data.object.payment_intent}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "name": "Extract Order Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [690, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records",
+        "authentication": "none",
+        "options": {
+          "qs": {
+            "parameters": [
+              {
+                "name": "filter",
+                "value": "order_id=\"{{$json.order_id}}\""
+              }
+            ]
+          }
+        }
+      },
+      "name": "Get Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records/{{$json.items[0].id}}",
+        "method": "PATCH",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "payment_status",
+              "value": "paid"
+            },
+            {
+              "name": "payment_id",
+              "value": "={{$node['Extract Order Data'].json.payment_intent}}"
+            },
+            {
+              "name": "status",
+              "value": "processing"
+            }
+          ]
+        }
+      },
+      "name": "Update Payment Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/order-paid",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "order_id",
+              "value": "={{$json.order_id}}"
+            },
+            {
+              "name": "product_id",
+              "value": "={{$json.product}}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{$json.customer_email}}"
+            },
+            {
+              "name": "amount",
+              "value": "={{$json.amount}}"
+            }
+          ]
+        }
+      },
+      "name": "Trigger Order Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\"received\": true} }}"
+      },
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.type}}",
+              "operation": "equals",
+              "value2": "payment_intent.payment_failed"
+            }
+          ]
+        }
+      },
+      "name": "IF Payment Failed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records",
+        "authentication": "none",
+        "options": {
+          "qs": {
+            "parameters": [
+              {
+                "name": "filter",
+                "value": "payment_id=\"{{$json.data.object.id}}\""
+              }
+            ]
+          }
+        }
+      },
+      "name": "Get Order By Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [910, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records/{{$json.items[0].id}}",
+        "method": "PATCH",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "payment_status",
+              "value": "failed"
+            },
+            {
+              "name": "status",
+              "value": "failed"
+            },
+            {
+              "name": "error_message",
+              "value": "={{$json.data.object.last_payment_error.message}}"
+            }
+          ]
+        }
+      },
+      "name": "Update Failed Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1130, 400]
+    },
+    {
+      "parameters": {
+        "content": "❌ Payment Failed\nOrder: {{$json.items[0].order_id}}\nReason: {{$json.data.object.last_payment_error.message}}"
+      },
+      "name": "Slack - Payment Failed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1350, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Stripe": {
+      "main": [[{"node": "IF Checkout Completed", "type": "main", "index": 0}]]
+    },
+    "IF Checkout Completed": {
+      "main": [
+        [{"node": "Extract Order Data", "type": "main", "index": 0}],
+        [{"node": "IF Payment Failed", "type": "main", "index": 0}]
+      ]
+    },
+    "Extract Order Data": {
+      "main": [[{"node": "Get Order", "type": "main", "index": 0}]]
+    },
+    "Get Order": {
+      "main": [[{"node": "Update Payment Status", "type": "main", "index": 0}]]
+    },
+    "Update Payment Status": {
+      "main": [[{"node": "Trigger Order Processing", "type": "main", "index": 0}]]
+    },
+    "Trigger Order Processing": {
+      "main": [[{"node": "Respond - Success", "type": "main", "index": 0}]]
+    },
+    "IF Payment Failed": {
+      "main": [[{"node": "Get Order By Payment", "type": "main", "index": 0}]]
+    },
+    "Get Order By Payment": {
+      "main": [[{"node": "Update Failed Status", "type": "main", "index": 0}]]
+    },
+    "Update Failed Status": {
+      "main": [[{"node": "Slack - Payment Failed", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "tags": ["webhook", "payment"]
+}
