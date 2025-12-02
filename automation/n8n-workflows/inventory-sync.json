@@ -1,0 +1,188 @@
+{
+  "name": "Inventory Sync Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Cron - Daily Midnight",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/esim_products/records",
+        "authentication": "none",
+        "options": {
+          "qs": {
+            "parameters": [
+              {
+                "name": "filter",
+                "value": "is_active=true"
+              },
+              {
+                "name": "perPage",
+                "value": "500"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Get All Products",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Products",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "provider_url",
+              "name": "provider_url",
+              "value": "={{ $json.provider === 'eSIM Card' ? $env.ESIM_CARD_API_URL : ($json.provider === 'MobiMatter' ? $env.MOBIMATTER_API_URL : $env.AIRALO_API_URL) }}",
+              "type": "string"
+            },
+            {
+              "id": "api_key",
+              "name": "api_key",
+              "value": "={{ $json.provider === 'eSIM Card' ? $env.ESIM_CARD_API_KEY : ($json.provider === 'MobiMatter' ? $env.MOBIMATTER_API_KEY : $env.AIRALO_API_KEY) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Provider Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.provider_url}}/products/{{$json.provider_product_id}}/stock",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Check Stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.POCKETBASE_URL}}/api/collections/esim_products/records/{{$json.id}}",
+        "method": "PATCH",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "stock",
+              "value": "={{$json.available || $json.stock || 0}}"
+            }
+          ]
+        }
+      },
+      "name": "Update Stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.stock}}",
+              "operation": "smaller",
+              "value2": 10
+            }
+          ]
+        }
+      },
+      "name": "IF Low Stock",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1570, 300]
+    },
+    {
+      "parameters": {
+        "content": "⚠️ Low Stock Alert\nProduct: {{$json.name}}\nCurrent Stock: {{$json.stock}}\nProvider: {{$json.provider}}"
+      },
+      "name": "Slack - Low Stock",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1790, 200]
+    },
+    {
+      "parameters": {},
+      "name": "Aggregation",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1790, 400]
+    },
+    {
+      "parameters": {
+        "content": "✅ Inventory Sync Complete\nTotal Products: {{$json.total}}\nLow Stock: {{$json.low_stock}}"
+      },
+      "name": "Slack - Summary",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [2010, 400]
+    }
+  ],
+  "connections": {
+    "Cron - Daily Midnight": {
+      "main": [[{"node": "Get All Products", "type": "main", "index": 0}]]
+    },
+    "Get All Products": {
+      "main": [[{"node": "Split Products", "type": "main", "index": 0}]]
+    },
+    "Split Products": {
+      "main": [[{"node": "Set Provider Config", "type": "main", "index": 0}]]
+    },
+    "Set Provider Config": {
+      "main": [[{"node": "Check Stock", "type": "main", "index": 0}]]
+    },
+    "Check Stock": {
+      "main": [[{"node": "Update Stock", "type": "main", "index": 0}]]
+    },
+    "Update Stock": {
+      "main": [[{"node": "IF Low Stock", "type": "main", "index": 0}]]
+    },
+    "IF Low Stock": {
+      "main": [
+        [{"node": "Slack - Low Stock", "type": "main", "index": 0}],
+        [{"node": "Aggregation", "type": "main", "index": 0}]
+      ]
+    },
+    "Aggregation": {
+      "main": [[{"node": "Slack - Summary", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["scheduled", "inventory"]
+}

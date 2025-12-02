@@ -42,18 +42,22 @@ const PROVIDER_PRIORITY = {
  * 공급사 인스턴스 가져오기
  */
 export function getProvider(name: string): ESIMProvider {
+  // Dynamic import를 사용하여 provider 로드
   switch (name) {
-    case 'eSIM Card':
-      // return new ESIMCardProvider();
-      throw new Error('eSIM Card provider not implemented');
+    case 'eSIM Card': {
+      const { ESIMCardProvider } = require('./esimcard-provider');
+      return new ESIMCardProvider();
+    }
 
-    case 'MobiMatter':
-      // return new MobiMatterProvider();
-      throw new Error('MobiMatter provider not implemented');
+    case 'MobiMatter': {
+      const { MobiMatterProvider } = require('./mobimatter-provider');
+      return new MobiMatterProvider();
+    }
 
-    case 'Airalo':
-      // return new AiraloProvider();
-      throw new Error('Airalo provider not implemented');
+    case 'Airalo': {
+      const { AiraloProvider } = require('./airalo-provider');
+      return new AiraloProvider();
+    }
 
     default:
       throw new Error(`Unknown provider: ${name}`);

@@ -10,15 +10,66 @@ echo "🚀 NumnaRoad Development Setup Starting..."
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 1. PocketBase 다운로드
 echo -e "\n${BLUE}[1/5] Downloading PocketBase...${NC}"
 if [ ! -f "pocketbase/pocketbase" ]; then
+  # OS 및 아키텍처 감지
+  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+  ARCH=$(uname -m)
+
+  # 아키텍처 정규화
+  case "$ARCH" in
+    x86_64|amd64)
+      ARCH="amd64"
+      ;;
+    arm64|aarch64)
+      ARCH="arm64"
+      ;;
+    *)
+      echo -e "${RED}✗ Unsupported architecture: $ARCH${NC}"
+      exit 1
+      ;;
+  esac
+
+  # PocketBase 버전
+  PB_VERSION="0.22.0"
+
+  # OS별 바이너리 URL 설정
+  case "$OS" in
+    darwin)
+      PB_FILE="pocketbase_${PB_VERSION}_darwin_${ARCH}.zip"
+      ;;
+    linux)
+      PB_FILE="pocketbase_${PB_VERSION}_linux_${ARCH}.zip"
+      ;;
+    *)
+      echo -e "${RED}✗ Unsupported operating system: $OS${NC}"
+      exit 1
+      ;;
+  esac
+
+  PB_URL="https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/${PB_FILE}"
+
+  echo "Detected: $OS $ARCH"
+  echo "Downloading: $PB_FILE"
+
   cd pocketbase
-  wget https://github.com/pocketbase/pocketbase/releases/download/v0.22.0/pocketbase_0.22.0_linux_amd64.zip
-  unzip -o pocketbase_0.22.0_linux_amd64.zip
-  rm pocketbase_0.22.0_linux_amd64.zip
+
+  # curl 또는 wget 사용
+  if command -v curl &> /dev/null; then
+    curl -L -o "$PB_FILE" "$PB_URL"
+  elif command -v wget &> /dev/null; then
+    wget "$PB_URL"
+  else
+    echo -e "${RED}✗ Neither curl nor wget found. Please install one of them.${NC}"
+    exit 1
+  fi
+
+  unzip -o "$PB_FILE"
+  rm "$PB_FILE"
   chmod +x pocketbase
   cd ..
   echo -e "${GREEN}✓ PocketBase downloaded${NC}"
