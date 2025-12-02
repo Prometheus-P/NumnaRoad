@@ -1,5 +1,29 @@
 # 🏗️ NumnaRoad 시스템 아키텍처
 
+---
+
+## 📋 Document Metadata
+
+| 항목 | 내용 |
+|------|------|
+| **문서 유형** | Technical Specification |
+| **대상 독자** | 개발자, DevOps, 시스템 아키텍트 |
+| **최종 수정** | 2024-12-01 |
+| **버전** | 2.0.0 |
+| **연관 문서** | [PRD.md](./PRD.md), [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md), [API_DOCS.md](./docs/API_DOCS.md) |
+| **우선순위** | ⭐⭐⭐ (Core) |
+
+---
+
+## 📚 Quick Links
+
+- 📋 **[PRD.md](./PRD.md)** - Product Requirements Document
+- 🗄️ **[DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md)** - DB 스키마
+- 📡 **[API_DOCS.md](./docs/API_DOCS.md)** - API 문서
+- 🎯 **[CONTEXT.md](./CONTEXT.md)** - 프로젝트 맥락
+
+---
+
 ## 목차
 1. [시스템 개요](#시스템-개요)
 2. [아키텍처 다이어그램](#아키텍처-다이어그램)
