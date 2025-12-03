@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: NumnaRoad Stripe Webhook API
+  description: Webhook endpoint for Stripe payment events
+  version: 1.0.0
+
+servers:
+  - url: /api/webhooks
+    description: Webhook endpoints
+
+paths:
+  /stripe:
+    post:
+      operationId: handleStripeWebhook
+      summary: Handle Stripe webhook events
+      description: |
+        Receives and processes Stripe webhook events.
+        - Validates webhook signature using STRIPE_WEBHOOK_SECRET
+        - Implements idempotency via stripe_event_id tracking
+        - Handles checkout.session.completed for order creation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeEvent'
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          description: Stripe webhook signature for verification
+          schema:
+            type: string
+            example: "t=1234567890,v1=abc123..."
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error during processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    StripeEvent:
+      type: object
+      required:
+        - id
+        - type
+        - data
+      properties:
+        id:
+          type: string
+          description: Unique event identifier (idempotency key)
+          example: "evt_1234567890"
+        type:
+          type: string
+          description: Event type
+          enum:
+            - checkout.session.completed
+            - payment_intent.succeeded
+            - payment_intent.payment_failed
+          example: "checkout.session.completed"
+        data:
+          type: object
+          properties:
+            object:
+              $ref: '#/components/schemas/CheckoutSession'
+
+    CheckoutSession:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "cs_1234567890"
+        payment_intent:
+          type: string
+          example: "pi_1234567890"
+        customer_email:
+          type: string
+          format: email
+          example: "customer@example.com"
+        metadata:
+          type: object
+          properties:
+            product_id:
+              type: string
+              description: PocketBase product record ID
+            order_id:
+              type: string
+              description: Pre-created order ID (optional)
+        amount_total:
+          type: integer
+          description: Total amount in smallest currency unit
+          example: 15000
+        currency:
+          type: string
+          example: "krw"
+        status:
+          type: string
+          enum: [complete, expired, open]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Webhook signature verification failed"
+        code:
+          type: string
+          example: "INVALID_SIGNATURE"
