@@ -1,174 +1,194 @@
 {
-  "name": "Order Processing Workflow",
+  "name": "Order Processing - Single Provider (MVP)",
   "nodes": [
     {
       "parameters": {
-        "path": "order-paid",
+        "httpMethod": "POST",
+        "path": "order-processing",
+        "authentication": "headerAuth",
         "responseMode": "responseNode",
         "options": {}
       },
-      "name": "Webhook - Order Paid",
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 300],
-      "webhookId": "order-paid"
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "order-processing"
     },
     {
       "parameters": {
-        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records/{{$json.order_id}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBasicAuth",
-        "options": {}
-      },
-      "name": "Get Order Details",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [470, 300]
-    },
-    {
-      "parameters": {
-        "url": "={{$env.ESIM_CARD_API_URL}}/orders",
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/orders/records/{{ $json.orderId }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "product_id",
-              "value": "={{$json.product.provider_product_id}}"
-            },
-            {
-              "name": "customer_email",
-              "value": "={{$json.customer_email}}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000
-        }
+        "options": {}
       },
-      "name": "Issue eSIM",
+      "id": "get-order",
+      "name": "Get Order",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [690, 300]
+      "typeVersion": 4.2,
+      "position": [460, 300]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "conditions": [
             {
-              "value1": "={{$json.status}}",
-              "operation": "equals",
-              "value2": "success"
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": { "type": "string", "operation": "equals" }
             }
           ]
         }
       },
-      "name": "IF Success",
+      "id": "check-status",
+      "name": "Check Status",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [910, 300]
-    },
-    {
-      "parameters": {
-        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records/{{$node['Get Order Details'].json.id}}",
-        "method": "PATCH",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "status",
-              "value": "completed"
-            },
-            {
-              "name": "esim_qr_code_url",
-              "value": "={{$json.qr_code_url}}"
-            },
-            {
-              "name": "esim_activation_code",
-              "value": "={{$json.activation_code}}"
-            },
-            {
-              "name": "delivered_at",
-              "value": "={{new Date().toISOString()}}"
-            }
-          ]
-        }
-      },
-      "name": "Update Order - Success",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1130, 200]
-    },
-    {
-      "parameters": {
-        "fromEmail": "noreply@yourdomain.com",
-        "toEmail": "={{$node['Get Order Details'].json.customer_email}}",
-        "subject": "Your eSIM is Ready! 🎉",
-        "emailType": "html",
-        "message": "<h1>Your eSIM is Ready!</h1><p>Thank you for your order. Your eSIM has been issued successfully.</p><img src='{{$json.qr_code_url}}' /><p>Activation Code: {{$json.activation_code}}</p>"
-      },
-      "name": "Send Email - Success",
-      "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1350, 200]
+      "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "={{$env.POCKETBASE_URL}}/api/collections/orders/records/{{$node['Get Order Details'].json.id}}",
         "method": "PATCH",
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/orders/records/{{ $json.id }}",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "status",
-              "value": "failed"
-            },
-            {
-              "name": "error_message",
-              "value": "={{$json.error}}"
-            }
+        "bodyParameters": { "parameters": [{ "name": "status", "value": "processing" }] }
+      },
+      "id": "update-processing",
+      "name": "Update to Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/esim_products/records/{{ $json.product_id }}"
+      },
+      "id": "get-product",
+      "name": "Get Product",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/esim_providers/records?filter=(is_active=true)&sort=-priority&perPage=1"
+      },
+      "id": "get-provider",
+      "name": "Get Primary Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.items[0].api_endpoint }}/esim/purchase",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"sku\": \"{{ $('Get Product').item.json.provider_sku }}\", \"customer_email\": \"{{ $('Get Order').item.json.customer_email }}\" }",
+        "options": { "timeout": 30000 }
+      },
+      "id": "call-provider",
+      "name": "Call eSIM Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
           ]
         }
       },
-      "name": "Update Order - Failed",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1130, 400]
+      "id": "check-result",
+      "name": "Check Provider Result",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 200]
     },
     {
       "parameters": {
-        "content": "⚠️ Order Failed\nOrder ID: {{$node['Get Order Details'].json.order_id}}\nError: {{$json.error}}"
+        "method": "PATCH",
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/orders/records/{{ $('Get Order').item.json.id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"status\": \"completed\", \"esim_qr_code\": \"{{ $json.data.qr_code_url }}\", \"esim_iccid\": \"{{ $json.data.iccid }}\" }"
       },
-      "name": "Slack Alert",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 1,
-      "position": [1350, 400]
+      "id": "update-completed",
+      "name": "Update to Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"from\": \"{{ $env.RESEND_FROM_EMAIL }}\", \"to\": \"{{ $('Get Order').item.json.customer_email }}\", \"subject\": \"Your eSIM is ready\", \"html\": \"<h1>eSIM Ready</h1><img src='{{ $('Check Provider Result').item.json.data.qr_code_url }}'/>\" }"
+      },
+      "id": "send-email",
+      "name": "Send eSIM Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 100]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.POCKETBASE_URL }}/api/collections/orders/records/{{ $('Get Order').item.json.id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"status\": \"failed\", \"error_message\": \"Provider failed\" }"
+      },
+      "id": "update-failed",
+      "name": "Update to Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "{ \"success\": true }" },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2440, 100]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "{ \"success\": false }" },
+      "id": "respond-failed",
+      "name": "Respond Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "{ \"skipped\": true }" },
+      "id": "respond-skipped",
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 400]
     }
   ],
   "connections": {
-    "Webhook - Order Paid": {
-      "main": [[{"node": "Get Order Details", "type": "main", "index": 0}]]
-    },
-    "Get Order Details": {
-      "main": [[{"node": "Issue eSIM", "type": "main", "index": 0}]]
-    },
-    "Issue eSIM": {
-      "main": [[{"node": "IF Success", "type": "main", "index": 0}]]
-    },
-    "IF Success": {
-      "main": [
-        [{"node": "Update Order - Success", "type": "main", "index": 0}],
-        [{"node": "Update Order - Failed", "type": "main", "index": 0}]
-      ]
-    },
-    "Update Order - Success": {
-      "main": [[{"node": "Send Email - Success", "type": "main", "index": 0}]]
-    },
-    "Update Order - Failed": {
-      "main": [[{"node": "Slack Alert", "type": "main", "index": 0}]]
-    }
+    "Webhook Trigger": { "main": [[{ "node": "Get Order", "type": "main", "index": 0 }]] },
+    "Get Order": { "main": [[{ "node": "Check Status", "type": "main", "index": 0 }]] },
+    "Check Status": { "main": [[{ "node": "Update to Processing", "type": "main", "index": 0 }], [{ "node": "Respond Skipped", "type": "main", "index": 0 }]] },
+    "Update to Processing": { "main": [[{ "node": "Get Product", "type": "main", "index": 0 }]] },
+    "Get Product": { "main": [[{ "node": "Get Primary Provider", "type": "main", "index": 0 }]] },
+    "Get Primary Provider": { "main": [[{ "node": "Call eSIM Provider", "type": "main", "index": 0 }]] },
+    "Call eSIM Provider": { "main": [[{ "node": "Check Provider Result", "type": "main", "index": 0 }], [{ "node": "Update to Failed", "type": "main", "index": 0 }]] },
+    "Check Provider Result": { "main": [[{ "node": "Update to Completed", "type": "main", "index": 0 }], [{ "node": "Update to Failed", "type": "main", "index": 0 }]] },
+    "Update to Completed": { "main": [[{ "node": "Send eSIM Email", "type": "main", "index": 0 }]] },
+    "Send eSIM Email": { "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]] },
+    "Update to Failed": { "main": [[{ "node": "Respond Failed", "type": "main", "index": 0 }]] }
   },
-  "settings": {},
-  "tags": ["production", "orders"]
+  "settings": { "executionOrder": "v1" }
 }
