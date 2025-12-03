@@ -1,139 +1,556 @@
 /**
  * eSIM Provider Factory
  *
- * 다양한 eSIM 공급사를 통합 관리하고 자동 전환을 지원합니다.
+ * Base interface and factory for eSIM provider adapters.
+ * Handles provider instantiation and priority-based selection.
+ *
+ * Task: T025
  */
 
-export interface ESIMProvider {
-  name: string;
-  issueESIM(productId: string, email: string): Promise<ESIMResponse>;
-  getInventory(productId: string): Promise<number>;
-  getProducts(): Promise<Product[]>;
-}
+import type {
+  EsimProviderAdapter,
+  EsimProvider,
+  EsimPurchaseRequest,
+  EsimPurchaseResult,
+  ProviderSlug,
+} from './types';
 
-export interface ESIMResponse {
-  orderId: string;
-  qrCodeUrl: string;
-  activationCode: string;
-  iccid?: string;
-  provider: string;
-}
+/**
+ * Base class for eSIM provider adapters
+ *
+ * Provides common functionality for all providers:
+ * - API key retrieval
+ * - Timeout handling
+ * - Error classification
+ */
+export abstract class BaseProvider implements EsimProviderAdapter {
+  abstract readonly slug: ProviderSlug;
 
-export interface Product {
-  id: string;
-  name: string;
-  country: string;
-  duration: number;
-  dataLimit: string;
-  price: number;
+  protected readonly config: EsimProvider;
+  protected apiKey: string = '';
+
+  constructor(config: EsimProvider) {
+    this.config = config;
+    // API key loaded lazily to avoid circular dependency
+  }
+
+  /**
+   * Initialize API key from environment
+   */
+  protected loadApiKey(): string {
+    if (!this.apiKey) {
+      const value = process.env[this.config.apiKeyEnvVar];
+      if (!value) {
+        throw new Error(`Missing provider API key: ${this.config.apiKeyEnvVar}`);
+      }
+      this.apiKey = value;
+    }
+    return this.apiKey;
+  }
+
+  abstract purchase(request: EsimPurchaseRequest): Promise<EsimPurchaseResult>;
+
+  abstract healthCheck(): Promise<boolean>;
+
+  /**
+   * Make HTTP request with timeout
+   */
+  protected async fetchWithTimeout(
+    url: string,
+    options: RequestInit
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.config.timeoutMs
+    );
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Get base API URL
+   */
+  protected get baseUrl(): string {
+    return this.config.apiEndpoint;
+  }
 }
 
 /**
- * 공급사별 우선순위
- * 높은 숫자가 우선
+ * Provider registry - maps slugs to adapter constructors
  */
-const PROVIDER_PRIORITY = {
-  'eSIM Card': 100,
-  'MobiMatter': 80,
-  'Airalo': 60,
+type ProviderConstructor = new (config: EsimProvider) => EsimProviderAdapter;
+
+const providerRegistry = new Map<ProviderSlug, ProviderConstructor>();
+
+/**
+ * Register a provider adapter constructor
+ */
+export function registerProvider(
+  slug: ProviderSlug,
+  constructor: ProviderConstructor
+): void {
+  providerRegistry.set(slug, constructor);
+}
+
+/**
+ * Create provider adapter instance from config
+ */
+export function createProvider(config: EsimProvider): EsimProviderAdapter {
+  const Constructor = providerRegistry.get(config.slug);
+
+  if (!Constructor) {
+    throw new Error(`No adapter registered for provider: ${config.slug}`);
+  }
+
+  return new Constructor(config);
+}
+
+/**
+ * Get providers sorted by priority (highest first)
+ */
+export function sortProvidersByPriority(
+  providers: EsimProvider[]
+): EsimProvider[] {
+  return [...providers].sort((a, b) => b.priority - a.priority);
+}
+
+/**
+ * Get active providers only
+ */
+export function filterActiveProviders(
+  providers: EsimProvider[]
+): EsimProvider[] {
+  return providers.filter((p) => p.isActive);
+}
+
+/**
+ * Get providers in failover order (highest priority, active only)
+ */
+export function getProvidersInFailoverOrder(
+  providers: EsimProvider[]
+): EsimProvider[] {
+  return sortProvidersByPriority(filterActiveProviders(providers));
+}
+
+// =============================================================================
+// Exponential Backoff and Retry Logic (T038)
+// =============================================================================
+
+const DEFAULT_BASE_DELAY = 1000; // 1 second
+const DEFAULT_MAX_DELAY = 30000; // 30 seconds
+
+/**
+ * Calculate exponential backoff delay
+ */
+export function calculateBackoffDelay(
+  attempt: number,
+  baseDelay: number = DEFAULT_BASE_DELAY,
+  maxDelay: number = DEFAULT_MAX_DELAY
+): number {
+  const delay = baseDelay * Math.pow(2, attempt);
+  return Math.min(delay, maxDelay);
+}
+
+/**
+ * Calculate backoff delay with jitter (±30%)
+ */
+export function calculateBackoffDelayWithJitter(
+  attempt: number,
+  baseDelay: number = DEFAULT_BASE_DELAY,
+  maxDelay: number = DEFAULT_MAX_DELAY
+): number {
+  const delay = calculateBackoffDelay(attempt, baseDelay, maxDelay);
+  const jitter = (Math.random() - 0.5) * 0.6 * delay; // ±30%
+  return Math.max(0, Math.floor(delay + jitter));
+}
+
+/**
+ * Sleep for specified milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry a provider purchase with exponential backoff
+ */
+export async function retryWithBackoff(
+  adapter: EsimProviderAdapter,
+  request: EsimPurchaseRequest,
+  maxRetries: number,
+  onRetry?: (attempt: number, error: EsimPurchaseResult) => void
+): Promise<EsimPurchaseResult> {
+  let lastResult: EsimPurchaseResult | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const result = await adapter.purchase(request);
+
+    if (result.success) {
+      return result;
+    }
+
+    lastResult = result;
+
+    // Don't retry non-retryable errors
+    if (!result.isRetryable) {
+      return result;
+    }
+
+    // Don't sleep after last attempt
+    if (attempt < maxRetries) {
+      const delay = calculateBackoffDelayWithJitter(attempt);
+      onRetry?.(attempt, result);
+      await sleep(delay);
+    }
+  }
+
+  return lastResult!;
+}
+
+// =============================================================================
+// Error Classification (T039)
+// =============================================================================
+
+import { isRetryableError as isRetryableErrorType } from './types';
+
+/**
+ * Re-export for convenience
+ */
+export const isRetryableError = isRetryableErrorType;
+
+// =============================================================================
+// Provider Cascade Failover (T040)
+// =============================================================================
+
+/**
+ * Failover event for logging
+ */
+export interface FailoverEvent {
+  fromProvider: string;
+  toProvider: string;
+  reason: string;
+  attempt: number;
+}
+
+/**
+ * Failover result with metadata
+ */
+export interface FailoverResult extends EsimPurchaseResult {
+  providerUsed?: string;
+  attemptedProviders: string[];
+  failoverEvents: FailoverEvent[];
+  failureReasons: Record<string, string>;
+}
+
+/**
+ * Failover options
+ */
+export interface FailoverOptions {
+  onFailover?: (event: FailoverEvent) => void;
+  onAllFailed?: (result: FailoverResult) => void;
+}
+
+// =============================================================================
+// Circuit Breaker (T062, FR-011, FR-012)
+// =============================================================================
+
+/**
+ * Circuit breaker states
+ */
+export type CircuitState = 'closed' | 'open' | 'half-open';
+
+/**
+ * Circuit breaker configuration per FR-011
+ */
+export interface CircuitBreakerConfig {
+  /** Number of consecutive failures to open circuit (default: 5) */
+  failureThreshold: number;
+  /** Time in ms before attempting half-open (default: 30000) */
+  resetTimeout: number;
+  /** Number of successes in half-open to close circuit (default: 2) */
+  successThreshold: number;
+}
+
+const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
+  failureThreshold: 5,
+  resetTimeout: 30000,
+  successThreshold: 2,
 };
 
 /**
- * 공급사 인스턴스 가져오기
+ * Circuit breaker state for a single provider
  */
-export function getProvider(name: string): ESIMProvider {
-  // Dynamic import를 사용하여 provider 로드
-  switch (name) {
-    case 'eSIM Card': {
-      const { ESIMCardProvider } = require('./esimcard-provider');
-      return new ESIMCardProvider();
-    }
+interface CircuitBreakerState {
+  state: CircuitState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime: number | null;
+  lastStateChange: number;
+}
 
-    case 'MobiMatter': {
-      const { MobiMatterProvider } = require('./mobimatter-provider');
-      return new MobiMatterProvider();
-    }
+/**
+ * In-memory circuit breaker state store
+ * Key: provider slug
+ */
+const circuitBreakers = new Map<string, CircuitBreakerState>();
 
-    case 'Airalo': {
-      const { AiraloProvider } = require('./airalo-provider');
-      return new AiraloProvider();
-    }
-
-    default:
-      throw new Error(`Unknown provider: ${name}`);
+/**
+ * Get or create circuit breaker state for a provider
+ */
+function getCircuitState(providerSlug: string): CircuitBreakerState {
+  if (!circuitBreakers.has(providerSlug)) {
+    circuitBreakers.set(providerSlug, {
+      state: 'closed',
+      failureCount: 0,
+      successCount: 0,
+      lastFailureTime: null,
+      lastStateChange: Date.now(),
+    });
   }
+  return circuitBreakers.get(providerSlug)!;
 }
 
 /**
- * 모든 공급사 목록 (우선순위 순)
+ * Check if circuit should transition from open to half-open
  */
-export function getAllProviders(): ESIMProvider[] {
-  return Object.keys(PROVIDER_PRIORITY)
-    .sort((a, b) => PROVIDER_PRIORITY[b] - PROVIDER_PRIORITY[a])
-    .map(name => getProvider(name));
+function shouldAttemptReset(
+  state: CircuitBreakerState,
+  config: CircuitBreakerConfig
+): boolean {
+  if (state.state !== 'open') return false;
+  if (!state.lastFailureTime) return false;
+
+  const elapsed = Date.now() - state.lastFailureTime;
+  return elapsed >= config.resetTimeout;
 }
 
 /**
- * eSIM 발급 (자동 전환 지원)
+ * Record a successful call for a provider
+ */
+export function recordSuccess(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): CircuitState {
+  const state = getCircuitState(providerSlug);
+
+  if (state.state === 'half-open') {
+    state.successCount++;
+    if (state.successCount >= config.successThreshold) {
+      // Close the circuit
+      state.state = 'closed';
+      state.failureCount = 0;
+      state.successCount = 0;
+      state.lastStateChange = Date.now();
+    }
+  } else if (state.state === 'closed') {
+    // Reset failure count on success
+    state.failureCount = 0;
+  }
+
+  return state.state;
+}
+
+/**
+ * Record a failed call for a provider
+ */
+export function recordFailure(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): CircuitState {
+  const state = getCircuitState(providerSlug);
+
+  state.failureCount++;
+  state.lastFailureTime = Date.now();
+
+  if (state.state === 'half-open') {
+    // Any failure in half-open immediately opens the circuit
+    state.state = 'open';
+    state.successCount = 0;
+    state.lastStateChange = Date.now();
+  } else if (state.state === 'closed') {
+    if (state.failureCount >= config.failureThreshold) {
+      state.state = 'open';
+      state.lastStateChange = Date.now();
+    }
+  }
+
+  return state.state;
+}
+
+/**
+ * Check if a provider's circuit allows calls
+ */
+export function isCircuitClosed(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): boolean {
+  const state = getCircuitState(providerSlug);
+
+  // Check for automatic transition from open to half-open
+  if (shouldAttemptReset(state, config)) {
+    state.state = 'half-open';
+    state.successCount = 0;
+    state.lastStateChange = Date.now();
+  }
+
+  return state.state !== 'open';
+}
+
+/**
+ * Get current circuit state for a provider
+ */
+export function getCircuitBreakerState(providerSlug: string): CircuitState {
+  return getCircuitState(providerSlug).state;
+}
+
+/**
+ * Get full circuit breaker info for a provider
+ */
+export function getCircuitBreakerInfo(providerSlug: string): {
+  state: CircuitState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime: number | null;
+} {
+  const state = getCircuitState(providerSlug);
+  return {
+    state: state.state,
+    failureCount: state.failureCount,
+    successCount: state.successCount,
+    lastFailureTime: state.lastFailureTime,
+  };
+}
+
+/**
+ * Reset circuit breaker for a provider (for testing)
+ */
+export function resetCircuitBreaker(providerSlug: string): void {
+  circuitBreakers.delete(providerSlug);
+}
+
+/**
+ * Reset all circuit breakers (for testing)
+ */
+export function resetAllCircuitBreakers(): void {
+  circuitBreakers.clear();
+}
+
+/**
+ * Filter providers that have closed or half-open circuits
+ * Per FR-012: skip providers with open circuits during failover
+ */
+export function filterByCircuitState(
+  providers: EsimProvider[],
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): EsimProvider[] {
+  return providers.filter((p) => isCircuitClosed(p.slug, config));
+}
+
+/**
+ * Purchase with multi-provider failover
  *
- * @param productId 상품 ID
- * @param email 고객 이메일
- * @param maxRetries 최대 재시도 횟수
+ * Tries each provider in priority order with retry logic.
+ * Fails over to next provider on non-retryable errors or after max retries.
  */
-export async function issueESIMWithFallback(
-  productId: string,
-  email: string,
-  maxRetries: number = 3
-): Promise<ESIMResponse> {
-  const providers = getAllProviders();
-  const errors: Array<{ provider: string; error: Error }> = [];
+export async function purchaseWithFailover(
+  providers: EsimProvider[],
+  request: EsimPurchaseRequest,
+  options?: FailoverOptions & { circuitBreakerConfig?: CircuitBreakerConfig }
+): Promise<FailoverResult> {
+  const activeProviders = getProvidersInFailoverOrder(providers);
 
-  for (const provider of providers) {
-    console.log(`Trying provider: ${provider.name}`);
+  // FR-012: Filter out providers with open circuits
+  const orderedProviders = filterByCircuitState(
+    activeProviders,
+    options?.circuitBreakerConfig
+  );
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const result = await provider.issueESIM(productId, email);
-        console.log(`Success with ${provider.name} on attempt ${attempt}`);
-        return result;
-      } catch (error) {
-        console.error(`${provider.name} failed (attempt ${attempt}):`, error);
+  if (orderedProviders.length === 0) {
+    // Check if we have active providers but all circuits are open
+    const hasActiveButBlocked = activeProviders.length > 0;
+    return {
+      success: false,
+      errorType: 'provider_error',
+      errorMessage: hasActiveButBlocked
+        ? 'All provider circuits are open'
+        : 'No active providers available',
+      isRetryable: hasActiveButBlocked, // Retry later if circuits might reset
+      attemptedProviders: [],
+      failoverEvents: [],
+      failureReasons: {},
+    };
+  }
 
-        if (attempt === maxRetries) {
-          errors.push({ provider: provider.name, error: error as Error });
-        } else {
-          // 재시도 전 대기 (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        }
-      }
+  const attemptedProviders: string[] = [];
+  const failoverEvents: FailoverEvent[] = [];
+  const failureReasons: Record<string, string> = {};
+
+  for (let i = 0; i < orderedProviders.length; i++) {
+    const providerConfig = orderedProviders[i];
+    const adapter = createProvider(providerConfig);
+
+    attemptedProviders.push(providerConfig.slug);
+
+    // Try this provider with retries
+    const result = await retryWithBackoff(
+      adapter,
+      request,
+      providerConfig.maxRetries
+    );
+
+    if (result.success) {
+      // Record success for circuit breaker
+      recordSuccess(providerConfig.slug, options?.circuitBreakerConfig);
+      return {
+        ...result,
+        providerUsed: providerConfig.slug,
+        attemptedProviders,
+        failoverEvents,
+        failureReasons,
+      };
+    }
+
+    // Record failure for circuit breaker
+    recordFailure(providerConfig.slug, options?.circuitBreakerConfig);
+    failureReasons[providerConfig.slug] = result.errorMessage;
+
+    // Trigger failover to next provider
+    const nextProvider = orderedProviders[i + 1];
+    if (nextProvider) {
+      const event: FailoverEvent = {
+        fromProvider: providerConfig.slug,
+        toProvider: nextProvider.slug,
+        reason: result.errorMessage,
+        attempt: i,
+      };
+      failoverEvents.push(event);
+      options?.onFailover?.(event);
     }
   }
 
-  // 모든 공급사에서 실패
-  throw new Error(
-    `All providers failed. Details: ${errors.map(e => `${e.provider}: ${e.error.message}`).join('; ')}`
-  );
-}
+  // All providers failed
+  const finalResult: FailoverResult = {
+    success: false,
+    errorType: 'provider_error',
+    errorMessage: `All providers failed: ${Object.entries(failureReasons)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('; ')}`,
+    isRetryable: false,
+    attemptedProviders,
+    failoverEvents,
+    failureReasons,
+  };
 
-/**
- * 재고 조회 (모든 공급사)
- */
-export async function getInventoryFromAllProviders(
-  productId: string
-): Promise<Record<string, number>> {
-  const providers = getAllProviders();
-  const inventory: Record<string, number> = {};
+  options?.onAllFailed?.(finalResult);
 
-  await Promise.allSettled(
-    providers.map(async (provider) => {
-      try {
-        inventory[provider.name] = await provider.getInventory(productId);
-      } catch (error) {
-        console.error(`Failed to get inventory from ${provider.name}:`, error);
-        inventory[provider.name] = 0;
-      }
-    })
-  );
-
-  return inventory;
+  return finalResult;
 }

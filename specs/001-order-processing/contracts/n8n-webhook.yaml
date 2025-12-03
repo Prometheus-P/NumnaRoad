@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: NumnaRoad n8n Webhook Contracts
+  description: Internal webhook contracts between PocketBase and n8n
+  version: 1.0.0
+
+servers:
+  - url: ${N8N_WEBHOOK_URL}/webhook
+    description: n8n webhook endpoints
+
+paths:
+  /order-paid:
+    post:
+      operationId: triggerOrderProcessing
+      summary: Trigger order processing workflow
+      description: |
+        Called by PocketBase hook when order is created with payment_status=paid.
+        Initiates the eSIM provisioning workflow with multi-provider failover.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPaidPayload'
+      responses:
+        '200':
+          description: Workflow triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '500':
+          description: n8n error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    OrderPaidPayload:
+      type: object
+      required:
+        - order_id
+        - product_id
+        - customer_email
+        - correlation_id
+      properties:
+        order_id:
+          type: string
+          description: PocketBase order record ID
+          example: "abc123xyz"
+        product_id:
+          type: string
+          description: PocketBase product record ID
+          example: "prod_bolivia_5gb"
+        product_sku:
+          type: string
+          description: Provider-specific product SKU
+          example: "BOL-5GB-7D"
+        customer_email:
+          type: string
+          format: email
+          example: "traveler@example.com"
+        customer_name:
+          type: string
+          example: "John Traveler"
+        stripe_payment_intent:
+          type: string
+          example: "pi_1234567890"
+        correlation_id:
+          type: string
+          format: uuid
+          description: Unique ID for tracing through logs
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        created_at:
+          type: string
+          format: date-time
+
+    WorkflowResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        execution_id:
+          type: string
+          description: n8n execution ID for debugging
+        message:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        execution_id:
+          type: string

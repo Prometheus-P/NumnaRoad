@@ -1,58 +1,229 @@
-# Dependencies
-node_modules/
-/.pnp
-.pnp.js
+# =============================================================================
+# NumnaRoad .gitignore
+# Security-First Configuration
+# =============================================================================
 
-# Testing
-/coverage
+# =============================================================================
+# SECURITY-CRITICAL: Secrets and Credentials
+# =============================================================================
 
-# Next.js
-/.next/
-/out/
-.next
-out
+# Environment files (contain API keys, database credentials, secrets)
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+!.env.example
+!.env.template
 
-# Production
-/build
-dist
-*.tsbuildinfo
-next-env.d.ts
-
-# Misc
-.DS_Store
+# Private keys and certificates
 *.pem
-.idea
-.vscode
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
 
-# Debug
+# API keys and tokens (commonly named files)
+**/secrets/
+**/credentials/
+**/private/
+*.secret
+*.secrets
+api-key*
+apikey*
+*token*.json
+*credentials*.json
+service-account*.json
+firebase-adminsdk*.json
+
+# OAuth and authentication files
+oauth*.json
+auth*.json
+client_secret*.json
+
+# SSH keys (should never be in repo)
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.ppk
+
+# AWS credentials
+.aws/
+aws-credentials*
+credentials.csv
+
+# Google Cloud credentials
+gcloud/
+*.gcp.json
+
+# Database dumps and exports
+*.sql
+*.dump
+*.sqlite
+*.db
+!**/migrations/*.sql
+
+# =============================================================================
+# AI/Development Tools Configuration (Personal/Excluded)
+# =============================================================================
+# Note: .claude/commands/ and .specify/ are VERSION CONTROLLED to share dev settings
+# Only exclude personal AI tool configs that contain local preferences
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# Cursor AI (personal settings)
+.cursor/
+
+# GitHub Copilot (personal settings)
+.copilot/
+
+# Other AI tools (personal settings)
+.aider/
+.continue/
+.codeium/
+.tabnine/
+
+# =============================================================================
+# PocketBase
+# =============================================================================
+
+# Database and data files
+pocketbase/pb_data/
+
+# Binary executables (download per environment)
+pocketbase/pocketbase
+pocketbase/pocketbase.exe
+
+# Temporary migration files
+pocketbase/pb_migrations_temp/
+
+# PocketBase logs
+pocketbase/*.log
+
+# Third-party docs (not needed in repo)
+pocketbase/CHANGELOG.md
+pocketbase/LICENSE.md
+
+# =============================================================================
+# Dependencies
+# =============================================================================
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# =============================================================================
+# Next.js
+# =============================================================================
+.next/
+out/
+.swc/
+
+# =============================================================================
+# Build Outputs
+# =============================================================================
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# =============================================================================
+# Testing
+# =============================================================================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# =============================================================================
+# IDE and Editors
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# =============================================================================
+# OS Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Logs
+# =============================================================================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Local env files
-.env
-.env*.local
-.env.production
-
-# PocketBase
-pocketbase/pb_data/
-pocketbase/pocketbase
-
-# Vercel
+# =============================================================================
+# Deployment
+# =============================================================================
 .vercel
+.netlify/
+.serverless/
+.firebase/
 
-# Typescript
-*.tsbuildinfo
-
-# Backups
+# =============================================================================
+# Backups and Temporary Files
+# =============================================================================
 backups/
 *.backup
 *.bak
+*.tmp
+*.temp
+*.cache
+.cache/
+tmp/
+temp/
 
-# Logs
-logs/
-*.log
+# =============================================================================
+# Misc
+# =============================================================================
 
-# Development Tools
-.claude/
-.specify/
+# Local history (VS Code extension)
+.history/
+
+# Editor config backups
+*.orig
+
+# Lock file backups
+package-lock.json.backup
+yarn.lock.backup
+
+# Storybook
+storybook-static/
+
+# Sentry
+.sentryclirc

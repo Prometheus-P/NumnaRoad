@@ -1,0 +1,173 @@
+{
+  "common": {
+    "appName": "NumnaRoad",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "noResults": "No results found"
+  },
+  "order": {
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "tracking": {
+      "title": "Order Tracking",
+      "subtitle": "Check your order status",
+      "orderId": "Order ID",
+      "orderDate": "Order Date",
+      "productName": "Product",
+      "country": "Country",
+      "dataLimit": "Data",
+      "duration": "Validity",
+      "qrCode": "eSIM QR Code",
+      "activationCode": "Activation Code",
+      "notFound": "Order not found",
+      "checkOrderId": "Please check your order ID"
+    },
+    "installation": {
+      "title": "Installation Guide",
+      "iosTab": "iPhone / iPad",
+      "androidTab": "Android",
+      "beforeYouStart": "Before You Start",
+      "beforeYouStartText": "Make sure you have a stable Wi-Fi connection. Your device must support eSIM functionality.",
+      "iosSteps": [
+        "Open Settings on your iPhone",
+        "Tap 'Cellular' or 'Mobile Data'",
+        "Tap 'Add eSIM' or 'Add Cellular Plan'",
+        "Choose 'Use QR Code'",
+        "Scan the QR code above",
+        "Wait for the eSIM to download and activate",
+        "Label the plan (e.g., 'Travel Data')",
+        "Choose this plan for data while traveling"
+      ],
+      "androidSteps": [
+        "Open Settings on your Android device",
+        "Tap 'Network & Internet' or 'Connections'",
+        "Tap 'SIMs' or 'Mobile Networks'",
+        "Tap 'Add' or '+' to add a new SIM",
+        "Select 'Download a SIM instead'",
+        "Scan the QR code above",
+        "Wait for the eSIM to activate",
+        "Enable the eSIM for mobile data"
+      ],
+      "importantNotes": "Important Notes",
+      "notes": [
+        "Do NOT delete the eSIM after installation - you cannot re-download it",
+        "The eSIM activates when you connect to a network in the destination country",
+        "Keep your primary SIM active for calls and texts",
+        "Data usage counts from first connection abroad"
+      ],
+      "troubleshooting": "Troubleshooting",
+      "troubleshootingSteps": [
+        "Restart your device if the eSIM does not appear",
+        "Ensure you have the latest OS version",
+        "Check that your device supports eSIM",
+        "Contact support if issues persist"
+      ],
+      "step1": "Go to Settings > Cellular > Add eSIM",
+      "step2": "Scan the QR code or enter manually",
+      "step3": "Follow the on-screen instructions",
+      "step4": "Activate the eSIM after arriving at your destination",
+      "note": "The QR code can only be used once",
+      "scanQr": "Scan QR Code",
+      "manualEntry": "Manual Entry",
+      "copyCode": "Copy Code",
+      "copied": "Copied"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "An error occurred while processing your order. Please contact support.",
+      "supportEmail": "support@numnaroad.com",
+      "supportHours": "Mon-Fri 09:00 - 18:00 (KST)"
+    },
+    "progress": {
+      "paymentReceived": "Payment Received",
+      "processing": "Issuing eSIM",
+      "emailSent": "Email Sent",
+      "ready": "Ready to Use"
+    }
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "orders": "Order Management",
+    "providers": "Provider Status",
+    "stats": {
+      "total": "Total Orders",
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "today": "Today",
+      "thisWeek": "This Week",
+      "thisMonth": "This Month"
+    },
+    "orderList": {
+      "title": "Order List",
+      "id": "Order ID",
+      "customer": "Customer",
+      "product": "Product",
+      "status": "Status",
+      "provider": "Provider",
+      "createdAt": "Created At",
+      "completedAt": "Completed At",
+      "actions": "Actions",
+      "viewDetails": "View Details"
+    },
+    "orderDetail": {
+      "title": "Order Details",
+      "customerEmail": "Customer Email",
+      "correlationId": "Correlation ID",
+      "paymentIntent": "Payment Intent",
+      "qrCode": "QR Code",
+      "iccid": "ICCID",
+      "activationCode": "Activation Code",
+      "errorMessage": "Error Message",
+      "processingLogs": "Processing Logs"
+    },
+    "providerHealth": {
+      "title": "Provider Health",
+      "name": "Name",
+      "priority": "Priority",
+      "status": "Status",
+      "successRate": "Success Rate",
+      "lastSuccess": "Last Success",
+      "lastFailure": "Last Failure",
+      "circuitBreaker": "Circuit Breaker",
+      "open": "Open",
+      "closed": "Closed",
+      "halfOpen": "Half-Open",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "filter": {
+      "status": "By Status",
+      "dateRange": "By Date",
+      "provider": "By Provider",
+      "all": "All",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "providers": "Providers",
+      "settings": "Settings"
+    }
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidDate": "Please enter a valid date"
+  }
+}

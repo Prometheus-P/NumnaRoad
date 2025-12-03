@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: NumnaRoad eSIM Provider Interface
+  description: |
+    Unified interface for eSIM provider integrations.
+    All providers implement this contract through adapters.
+  version: 1.0.0
+
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary: Create eSIM order
+      description: |
+        Provisions a new eSIM from the provider.
+        Each provider adapter translates this to provider-specific API.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: eSIM provisioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderError'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderError'
+        '404':
+          description: Product not found or out of stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderError'
+        '429':
+          description: Rate limited
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderError'
+        '500':
+          description: Provider server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderError'
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrderStatus
+      summary: Get order status
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatus'
+
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required:
+        - productId
+        - email
+        - quantity
+      properties:
+        productId:
+          type: string
+          description: Provider-specific product SKU
+          example: "BOL-5GB-7D"
+        email:
+          type: string
+          format: email
+          description: Customer email for delivery
+          example: "traveler@example.com"
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+
+    CreateOrderResponse:
+      type: object
+      required:
+        - success
+        - orderId
+        - iccid
+        - qrCodeUrl
+        - provider
+      properties:
+        success:
+          type: boolean
+          example: true
+        orderId:
+          type: string
+          description: Provider's order ID
+          example: "ORD-123456"
+        iccid:
+          type: string
+          description: eSIM ICCID identifier
+          example: "8901234567890123456"
+        qrCodeUrl:
+          type: string
+          format: uri
+          description: URL to QR code image (always HTTPS)
+          example: "https://provider.com/qr/abc123.png"
+        activationCode:
+          type: string
+          description: Manual activation code (LPA format)
+          example: "LPA:1$smdp.provider.com$ACTIVATION-CODE"
+        expiresAt:
+          type: string
+          format: date-time
+          description: eSIM expiration date
+        provider:
+          type: string
+          description: Provider name for tracking
+          example: "esimcard"
+
+    OrderStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, active, expired, failed]
+        iccid:
+          type: string
+        qrCodeUrl:
+          type: string
+          format: uri
+        dataUsed:
+          type: string
+          example: "2.5GB"
+        dataRemaining:
+          type: string
+          example: "2.5GB"
+
+    ProviderError:
+      type: object
+      required:
+        - type
+        - message
+        - retryable
+      properties:
+        type:
+          type: string
+          enum:
+            - timeout
+            - rate_limit
+            - out_of_stock
+            - invalid_product
+            - authentication
+            - server_error
+            - unknown
+        message:
+          type: string
+          example: "Product out of stock"
+        retryable:
+          type: boolean
+          description: Whether this error should trigger retry
+          example: false
+        statusCode:
+          type: integer
+          example: 404
+        retryAfterSeconds:
+          type: integer
+          description: Seconds to wait before retrying (if retryable)
+          example: 60
+        providerCode:
+          type: string
+          description: Provider-specific error code
+          example: "STOCK_EMPTY"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Used by eSIM Card
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Used by MobiMatter and Airalo
