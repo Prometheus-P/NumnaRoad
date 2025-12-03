@@ -71,23 +71,21 @@ gcloud/
 !**/migrations/*.sql
 
 # =============================================================================
-# AI/Development Tools Configuration
+# AI/Development Tools Configuration (Personal/Excluded)
 # =============================================================================
+# Note: .claude/commands/ and .specify/ are VERSION CONTROLLED to share dev settings
+# Only exclude personal AI tool configs that contain local preferences
 
-# Claude Code (Anthropic AI assistant)
-.claude/
-CLAUDE.md
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
 
-# SpecKit (specification management)
-.specify/
-
-# Cursor AI
+# Cursor AI (personal settings)
 .cursor/
 
-# GitHub Copilot
+# GitHub Copilot (personal settings)
 .copilot/
 
-# Other AI tools
+# Other AI tools (personal settings)
 .aider/
 .continue/
 .codeium/
