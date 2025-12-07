@@ -214,6 +214,7 @@ temp/
 
 # Local history (VS Code extension)
 .history/
+GEMINI.md
 
 # Editor config backups
 *.orig
