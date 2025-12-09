@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ThemeProvider } from '@mui/material/styles';
-import { theme } from '../../../apps/web/components/ui/theme/m3-theme';
+import { ThemeProvider } from '../../../apps/web/components/providers/ThemeProvider'; // Corrected import
 import OrderCard from '../../../apps/web/components/ui/OrderCard';
 
-// Test wrapper with theme
+// Test wrapper with custom ThemeProvider
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <ThemeProvider theme={theme}>{children}</ThemeProvider>
+  <ThemeProvider>{children}</ThemeProvider>
 );
 
 describe('OrderCard Component', () => {

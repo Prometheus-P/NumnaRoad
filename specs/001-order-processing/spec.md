@@ -8,14 +8,16 @@
 
 ## Clarifications
 
-### Session 2025-12-02
-- Q: Should M3 design system be applied to admin UI, customer UI, or both? → A: Both admin dashboard UI (order monitoring, logs viewer) and customer-facing UI (checkout, order tracking pages)
-- Q: Which M3 component library for React/Next.js? → A: MUI (Material UI) v6+ with M3 theme
-- Q: Brand primary color for M3 theme? → A: #6366F1 (Indigo)
-- Q: Language localization requirements? → A: Korean primary, English secondary (bilingual with Korean as default)
-- Q: Mobile/responsive design requirements? → A: Mobile-first for customer UI, desktop-optimized for admin dashboard
+### Session 2025년 12월 9일
+- Q: For admin order filtering (US5), what specific fields, beyond status and date range, should be filterable? → A: Customer Email, Product Name, Provider Used
+- Q: Clarification on project scope regarding 'backend-only' vs UIs and admin login. → A: Retain Admin Dashboard UI and Customer Order Tracking UI as separate frontend interfaces built on top of the core backend processing service.
+- Q: Is Google Sheets an alternative to eSIM providers, or an additional method, and what data would it contain/process for eSIM dispatch? → A: Alternative eSIM dispatch method. It would process customer email, eSIM details (QR/LPA code), and basic order metadata (order ID).
+- Q: What is the expected authentication flow for admin users accessing the dashboard? (e.g., standard login form, SSO, external provider). → A: Standard login form using PocketBase admin authentication.
 
 ## User Scenarios & Testing *(mandatory)*
+
+**Context**: The core of this project is a fully automated backend service for order processing. The Admin Dashboard UI (User Story 5) and Customer Order Tracking UI (User Story 4) are separate frontend interfaces built on top of this core backend service for monitoring and customer information purposes, respectively.
+**Sales Channels**: Orders originate from external e-commerce sites (e.g., Smartstore, Cafe24) and feed into this backend system.
 
 ### User Story 1 - Complete Order Fulfillment (Priority: P1)
 
@@ -31,8 +33,8 @@ As a customer who just completed payment, I want my eSIM to be automatically iss
 2. **Given** an order with status "pending", **When** the n8n workflow triggers, **Then** the primary eSIM provider API is called within 1 second
 3. **Given** the eSIM provider returns a QR code, **When** the response is received, **Then** the customer receives an email with the QR code within 5 seconds
 4. **Given** the email is sent successfully, **When** the workflow completes, **Then** the order status is updated to "completed" with timestamp
+5. **Given** the primary eSIM provider fails and Google Sheets is configured as an alternative, **When** the workflow triggers Google Sheets dispatch, **Then** the Google Sheet is updated with customer email, eSIM details (QR/LPA code), and order ID within 5 seconds.
 
----
 
 ### User Story 2 - Multi-Provider Failover (Priority: P2)
 
@@ -104,7 +106,7 @@ As an admin, I want a dashboard to monitor orders, view processing logs, and man
 1. **Given** an admin is logged in, **When** they view the dashboard, **Then** they see order summary stats (pending, processing, completed, failed counts)
 2. **Given** an admin views order list, **When** they click an order, **Then** they see complete processing timeline with log entries
 3. **Given** an admin views provider health, **When** a circuit breaker is open, **Then** the provider shows warning status with failure count
-4. **Given** an admin searches orders, **When** filtering by status or date range, **Then** results update in real-time
+4. **Given** an admin searches orders, **When** filtering by status, date range, customer email, product name, or provider used, **Then** results update in real-time
 
 **UI Design Requirements (Material Design 3)**:
 - Use M3 Navigation Rail for dashboard sections
@@ -177,3 +179,5 @@ As an admin, I want a dashboard to monitor orders, view processing logs, and man
 - **SC-003**: Zero orders stuck in "processing" state for more than 30 seconds without resolution or escalation
 - **SC-004**: 100% of order state transitions are logged with correlation_id
 - **SC-005**: System handles 100 concurrent orders without degradation (per constitution)
+
+
