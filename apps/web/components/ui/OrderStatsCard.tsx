@@ -1,143 +1,93 @@
-/**
- * OrderStatsCard Component
- *
- * Dashboard stats card showing order metrics with trend indicators.
- *
- * Task: T103
- */
-
 'use client';
 
 import React from 'react';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActionArea from '@mui/material/CardActionArea';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import Skeleton from '@mui/material/Skeleton';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
+import { Box, Card, CardContent, Typography, CircularProgress, Skeleton, Chip, SvgIcon } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import SyncIcon from '@mui/icons-material/Sync';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import { useTheme, alpha } from '@mui/material/styles';
 
-/**
- * Stat types
- */
-export type StatType = 'total' | 'pending' | 'processing' | 'completed' | 'failed' | 'revenue';
-export type TimePeriod = 'today' | 'week' | 'month' | 'all';
+// Types for OrderStatsCard (from tests/unit/components/OrderStatsCard.test.tsx)
+type StatType = 'total' | 'pending' | 'processing' | 'completed' | 'failed' | 'revenue';
+type TimePeriod = 'today' | 'week' | 'month' | 'all';
 
-/**
- * Component props
- */
-export interface OrderStatsCardProps {
+interface OrderStatsCardProps {
   type: StatType;
   value: number;
   previousValue?: number;
   period: TimePeriod;
   loading?: boolean;
   onClick?: () => void;
-  label?: string;
+  labels?: {
+    total?: string;
+    pending?: string;
+    processing?: string;
+    completed?: string;
+    failed?: string;
+    revenue?: string;
+    today?: string;
+    week?: string;
+    month?: string;
+    all?: string;
+    changeUp?: string;
+    changeDown?: string;
+    changeNeutral?: string;
+  };
 }
 
-/**
- * Configuration for each stat type
- */
-const statConfig: Record<
-  StatType,
-  {
-    icon: React.ReactNode;
-    color: 'primary' | 'warning' | 'info' | 'success' | 'error' | 'secondary';
-    labelKo: string;
-    labelEn: string;
-  }
-> = {
-  total: {
-    icon: <ShoppingCartIcon />,
-    color: 'primary',
-    labelKo: '전체 주문',
-    labelEn: 'Total Orders',
-  },
-  pending: {
-    icon: <HourglassEmptyIcon />,
-    color: 'warning',
-    labelKo: '대기중',
-    labelEn: 'Pending',
-  },
-  processing: {
-    icon: <SyncIcon />,
-    color: 'info',
-    labelKo: '처리중',
-    labelEn: 'Processing',
-  },
-  completed: {
-    icon: <CheckCircleIcon />,
-    color: 'success',
-    labelKo: '완료',
-    labelEn: 'Completed',
-  },
-  failed: {
-    icon: <ErrorIcon />,
-    color: 'error',
-    labelKo: '실패',
-    labelEn: 'Failed',
-  },
-  revenue: {
-    icon: <AttachMoneyIcon />,
-    color: 'secondary',
-    labelKo: '매출',
-    labelEn: 'Revenue',
-  },
-};
-
-/**
- * Period labels
- */
-const periodLabels: Record<TimePeriod, { ko: string; en: string }> = {
-  today: { ko: '오늘', en: 'Today' },
-  week: { ko: '이번 주', en: 'This Week' },
-  month: { ko: '이번 달', en: 'This Month' },
-  all: { ko: '전체', en: 'All Time' },
-};
-
-/**
- * Format number with separators
- */
-function formatNumber(value: number, isRevenue: boolean = false): string {
-  if (isRevenue) {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0,
-    }).format(value);
-  }
-  return new Intl.NumberFormat('ko-KR').format(value);
-}
-
-/**
- * Calculate change percentage
- */
-function calculateChange(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
-  return ((current - previous) / previous) * 100;
-}
-
-/**
- * Get trend direction
- */
-function getTrend(current: number, previous: number): 'up' | 'down' | 'neutral' {
+// Helper functions for logic (as tested in unit tests)
+const getTrend = (current: number, previous: number): 'up' | 'down' | 'neutral' => {
   if (current > previous) return 'up';
   if (current < previous) return 'down';
   return 'neutral';
-}
+};
+
+const calculateChangePercentage = (current: number, previous?: number): number => {
+  if (previous === undefined || previous === 0) {
+    return current > 0 ? 100 : 0; // If no previous or previous is zero, and current is positive, 100% growth
+  }
+  return ((current - previous) / previous) * 100;
+};
+
+const formatNumber = (value: number, type: StatType, locale: string = 'ko-KR'): string => {
+  if (type === 'revenue') {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'KRW', // Assuming KRW for now, can be dynamic
+    }).format(value);
+  }
+  return new Intl.NumberFormat(locale).format(value);
+};
+
+// Icon mapping
+const IconMap: Record<StatType, React.ElementType> = {
+  total: ShoppingCartIcon,
+  pending: HourglassEmptyIcon,
+  processing: SyncIcon,
+  completed: CheckCircleIcon,
+  failed: ErrorIcon,
+  revenue: AttachMoneyIcon,
+};
+
+// Color mapping (using MUI palette names)
+const ColorMap: Record<StatType, 'primary' | 'warning' | 'info' | 'success' | 'error' | 'secondary'> = {
+  total: 'primary',
+  pending: 'warning',
+  processing: 'info',
+  completed: 'success',
+  failed: 'error',
+  revenue: 'secondary',
+};
 
 /**
- * OrderStatsCard Component
+ * M3 Order Stats Card Component
+ * Displays a single statistic (e.g., total orders, revenue) with trend indicators.
  */
 export function OrderStatsCard({
   type,
@@ -146,141 +96,96 @@ export function OrderStatsCard({
   period,
   loading = false,
   onClick,
-  label,
+  labels = {},
 }: OrderStatsCardProps) {
   const theme = useTheme();
-  const config = statConfig[type];
+  const IconComponent = IconMap[type];
+  const color = ColorMap[type];
 
-  const changePercent = previousValue !== undefined ? calculateChange(value, previousValue) : null;
-  const trend = previousValue !== undefined ? getTrend(value, previousValue) : null;
-
-  const displayLabel = label || config.labelEn;
-  const periodLabel = periodLabels[period].en;
-  const isRevenue = type === 'revenue';
-
-  // Trend color logic
-  const getTrendColor = () => {
-    if (!trend) return 'text.secondary';
-    if (type === 'failed') {
-      // For failed, down is good
-      return trend === 'down' ? 'success.main' : trend === 'up' ? 'error.main' : 'text.secondary';
-    }
-    return trend === 'up' ? 'success.main' : trend === 'down' ? 'error.main' : 'text.secondary';
+  const defaultLabels = {
+    total: 'Total Orders',
+    pending: 'Pending',
+    processing: 'Processing',
+    completed: 'Completed',
+    failed: 'Failed',
+    revenue: 'Revenue',
+    today: 'Today',
+    week: 'This Week',
+    month: 'This Month',
+    all: 'All Time',
+    changeUp: 'increase',
+    changeDown: 'decrease',
+    changeNeutral: 'no change',
   };
 
-  const cardContent = (
-    <CardContent sx={{ p: 2.5 }}>
-      {loading ? (
-        <>
-          <Skeleton variant="circular" width={40} height={40} sx={{ mb: 1 }} />
-          <Skeleton variant="text" width="60%" />
-          <Skeleton variant="text" width="40%" height={36} />
-          <Skeleton variant="text" width="50%" />
-        </>
-      ) : (
-        <>
-          {/* Icon */}
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2,
-              bgcolor: alpha(theme.palette[config.color].main, 0.12),
-              color: `${config.color}.main`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: 1.5,
-            }}
-            aria-hidden="true"
-          >
-            {config.icon}
-          </Box>
+  const statLabel = labels[type] || defaultLabels[type];
+  const periodLabel = labels[period] || defaultLabels[period];
 
-          {/* Label */}
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 0.5 }}
-            id={`stat-label-${type}`}
-          >
-            {displayLabel}
-          </Typography>
+  const changePercentage = calculateChangePercentage(value, previousValue);
+  const trend = getTrend(value, previousValue || 0);
 
-          {/* Value */}
-          <Typography
-            variant="h4"
-            component="div"
-            sx={{ fontWeight: 700, mb: 0.5 }}
-            aria-labelledby={`stat-label-${type}`}
-          >
-            {formatNumber(value, isRevenue)}
-          </Typography>
+  const getTrendIcon = () => {
+    if (trend === 'up') return <ArrowUpwardIcon fontSize="inherit" />;
+    if (trend === 'down') return <ArrowDownwardIcon fontSize="inherit" />;
+    return <RemoveIcon fontSize="inherit" />;
+  };
 
-          {/* Period and Change */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              {periodLabel}
-            </Typography>
+  const getTrendColor = () => {
+    if (trend === 'up') return theme.palette.success.main;
+    if (trend === 'down') return theme.palette.error.main;
+    return theme.palette.text.secondary;
+  };
 
-            {changePercent !== null && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.25,
-                  color: getTrendColor(),
-                }}
-                role="status"
-                aria-live="polite"
-              >
-                {trend === 'up' && <TrendingUpIcon fontSize="small" />}
-                {trend === 'down' && <TrendingDownIcon fontSize="small" />}
-                {trend === 'neutral' && <TrendingFlatIcon fontSize="small" />}
-                <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                  {changePercent >= 0 ? '+' : ''}
-                  {changePercent.toFixed(1)}%
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </>
-      )}
-    </CardContent>
-  );
-
-  if (onClick) {
-    return (
-      <Card
-        data-testid={`stats-${type}`}
-        sx={{
-          height: '100%',
-          borderRadius: 3,
-        }}
-        elevation={1}
-      >
-        <CardActionArea
-          onClick={onClick}
-          sx={{ height: '100%' }}
-          role="button"
-          aria-label={`View ${displayLabel} details`}
-        >
-          {cardContent}
-        </CardActionArea>
-      </Card>
-    );
-  }
+  const getTrendDescription = () => {
+    if (trend === 'up') return labels.changeUp || defaultLabels.changeUp;
+    if (trend === 'down') return labels.changeDown || defaultLabels.changeDown;
+    return labels.changeNeutral || defaultLabels.changeNeutral;
+  };
 
   return (
     <Card
-      data-testid={`stats-${type}`}
       sx={{
-        height: '100%',
+        width: '100%',
         borderRadius: 3,
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': onClick ? { boxShadow: theme.shadows[4] } : {},
       }}
-      elevation={1}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={`${statLabel} ${formatNumber(value, type)} ${periodLabel}`}
     >
-      {cardContent}
+      <CardContent>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            {statLabel} ({periodLabel})
+          </Typography>
+          <SvgIcon component={IconComponent} color={color} />
+        </Box>
+        <Typography variant="h5" component="div">
+          {loading ? <Skeleton width="60%" /> : formatNumber(value, type)}
+        </Typography>
+
+        {previousValue !== undefined && !loading && (
+          <Box display="flex" alignItems="center" mt={1}>
+            <Chip
+              icon={getTrendIcon()}
+              label={`${Math.abs(changePercentage).toFixed(1)}%`}
+              size="small"
+              sx={{
+                bgcolor: getTrendColor(),
+                color: theme.palette.getContrastText(getTrendColor()),
+                mr: 1,
+              }}
+              aria-label={`${Math.abs(changePercentage).toFixed(1)} percent ${getTrendDescription()}`}
+            />
+            <Typography variant="caption" color="text.secondary" aria-live="polite">
+              vs. prev {formatNumber(previousValue, type)}
+            </Typography>
+          </Box>
+        )}
+        {loading && <CircularProgress size={20} sx={{ mt: 1 }} aria-label="Loading statistics" />}
+      </CardContent>
     </Card>
   );
 }

@@ -1,343 +1,235 @@
-/**
- * Admin Orders Page
- *
- * Orders list with DataTable, filtering, and search.
- *
- * Tasks: T107, T108
- */
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Button from '@mui/material/Button';
-import Grid from '@mui/material/Grid';
-import Chip from '@mui/material/Chip';
-import InputAdornment from '@mui/material/InputAdornment';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  TextField,
+  Button,
+  InputAdornment,
+} from '@mui/material';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import DataTable, { Column } from '../../../../components/ui/DataTable';
+import { Order as PBOrder } from '../../../../types/pocketbase-types'; // PocketBase Order type
+import StatusChip from '../../../../components/ui/StatusChip'; // OrderStatus type for display
+import pb from '../../../../lib/pocketbase'; // Actual PocketBase client
+import { useRouter } from 'next/navigation';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { GridColDef } from '@mui/x-data-grid';
-import { DataTable } from '@/components/ui/DataTable';
-import { StatusChip, OrderStatus } from '@/components/ui/StatusChip';
+import { format, isValid } from 'date-fns';
+import OrderDetailDialog from '../../../../components/ui/OrderDetailDialog'; // Import OrderDetailDialog
 
-/**
- * Order data type
- */
-interface Order {
+interface OrderRow {
   id: string;
-  status: OrderStatus;
   customerEmail: string;
   productName: string;
-  country: string;
-  amount: number;
-  provider: string;
+  status: OrderStatus;
+  providerUsed?: string;
   createdAt: string;
-  completedAt: string | null;
+  completedAt?: string;
 }
 
-/**
- * Mock orders data
- */
-const mockOrders: Order[] = [
-  {
-    id: 'abc123def456ghi',
-    status: 'completed',
-    customerEmail: 'john@example.com',
-    productName: 'Korea 5GB - 7 Days',
-    country: 'KR',
-    amount: 15000,
-    provider: 'airalo',
-    createdAt: '2024-01-17T10:30:00Z',
-    completedAt: '2024-01-17T10:32:00Z',
-  },
-  {
-    id: 'def456ghi789jkl',
-    status: 'processing',
-    customerEmail: 'jane@example.com',
-    productName: 'Japan 10GB - 14 Days',
-    country: 'JP',
-    amount: 25000,
-    provider: 'esimcard',
-    createdAt: '2024-01-17T11:00:00Z',
-    completedAt: null,
-  },
-  {
-    id: 'ghi789jkl012mno',
-    status: 'pending',
-    customerEmail: 'bob@example.com',
-    productName: 'Thailand 3GB - 7 Days',
-    country: 'TH',
-    amount: 10000,
-    provider: 'airalo',
-    createdAt: '2024-01-17T11:30:00Z',
-    completedAt: null,
-  },
-  {
-    id: 'jkl012mno345pqr',
-    status: 'failed',
-    customerEmail: 'alice@example.com',
-    productName: 'Vietnam 5GB - 7 Days',
-    country: 'VN',
-    amount: 12000,
-    provider: 'mobimatter',
-    createdAt: '2024-01-17T12:00:00Z',
-    completedAt: null,
-  },
-  {
-    id: 'mno345pqr678stu',
-    status: 'completed',
-    customerEmail: 'charlie@example.com',
-    productName: 'Singapore 10GB - 30 Days',
-    country: 'SG',
-    amount: 35000,
-    provider: 'airalo',
-    createdAt: '2024-01-16T09:00:00Z',
-    completedAt: '2024-01-16T09:05:00Z',
-  },
-];
-
-/**
- * Format date for display
- */
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+// Function to transform PocketBase order record to OrderRow for DataTable
+function transformPbOrderToOrderRow(pbOrder: PBOrder): OrderRow {
+  const productName = pbOrder.expand?.product_id?.name || 'Unknown Product';
+  return {
+    id: pbOrder.id,
+    customerEmail: pbOrder.customer_email,
+    productName: productName,
+    status: pbOrder.status as OrderStatus,
+    providerUsed: pbOrder.provider_used || 'N/A',
+    createdAt: new Date(pbOrder.created_at).toLocaleString(),
+    completedAt: pbOrder.completed_at ? new Date(pbOrder.completed_at).toLocaleString() : undefined,
+  };
 }
 
-/**
- * Format amount
- */
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-  }).format(amount);
-}
-
-/**
- * Column definitions
- */
-const columns: GridColDef<Order>[] = [
-  {
-    field: 'id',
-    headerName: 'Order ID',
-    width: 150,
-    renderCell: (params) => (
-      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-        {params.value.slice(0, 8)}...
-      </Typography>
-    ),
-  },
+// Columns for the Orders DataTable
+const ordersColumns: Column<OrderRow>[] = [
+  { field: 'id', headerName: 'Order ID', width: 150 },
+  { field: 'customerEmail', headerName: 'Customer Email', flex: 1, filterable: true },
+  { field: 'productName', headerName: 'Product', flex: 1 },
   {
     field: 'status',
     headerName: 'Status',
     width: 120,
-    renderCell: (params) => <StatusChip status={params.value} />,
+    renderCell: (params) => <StatusChip status={params.value as OrderStatus} />,
+    sortable: true,
   },
-  {
-    field: 'customerEmail',
-    headerName: 'Customer',
-    width: 200,
-    flex: 1,
-  },
-  {
-    field: 'productName',
-    headerName: 'Product',
-    width: 200,
-    flex: 1,
-  },
-  {
-    field: 'country',
-    headerName: 'Country',
-    width: 80,
-    align: 'center',
-    headerAlign: 'center',
-  },
-  {
-    field: 'amount',
-    headerName: 'Amount',
-    width: 120,
-    align: 'right',
-    headerAlign: 'right',
-    renderCell: (params) => formatAmount(params.value),
-  },
-  {
-    field: 'provider',
-    headerName: 'Provider',
-    width: 100,
-    renderCell: (params) => (
-      <Chip label={params.value} size="small" variant="outlined" />
-    ),
-  },
-  {
-    field: 'createdAt',
-    headerName: 'Created',
-    width: 160,
-    renderCell: (params) => formatDate(params.value),
-  },
+  { field: 'providerUsed', headerName: 'Provider', width: 120 },
+  { field: 'createdAt', headerName: 'Order Date', width: 180, sortable: true },
+  // Add more columns as needed (e.g., actions, total price)
 ];
 
-/**
- * Admin Orders Page
- */
+const allOrderStatuses: OrderStatus[] = ['pending', 'processing', 'completed', 'failed'];
+
 export default function AdminOrdersPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [providerFilter, setProviderFilter] = useState<string>('all');
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  // Filter orders
-  const filteredOrders = useMemo(() => {
-    return mockOrders.filter((order) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          order.customerEmail.toLowerCase().includes(query) ||
-          order.productName.toLowerCase().includes(query) ||
-          order.id.toLowerCase().includes(query);
-        if (!matchesSearch) return false;
+  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let filterQuery = '';
+
+      if (filterStatus !== 'all') {
+        filterQuery += `status = "${filterStatus}"`;
       }
 
-      // Status filter
-      if (statusFilter !== 'all' && order.status !== statusFilter) {
-        return false;
+      if (startDate && isValid(startDate)) {
+        const isoStartDate = format(startDate, "yyyy-MM-dd HH:mm:ss");
+        filterQuery += (filterQuery ? ' && ' : '') + `created >= "${isoStartDate}"`;
       }
 
-      // Provider filter
-      if (providerFilter !== 'all' && order.provider !== providerFilter) {
-        return false;
+      if (endDate && isValid(endDate)) {
+        const isoEndDate = format(endDate, "yyyy-MM-dd HH:mm:ss");
+        filterQuery += (filterQuery ? ' && ' : '') + `created <= "${isoEndDate}"`;
       }
 
-      return true;
-    });
-  }, [searchQuery, statusFilter, providerFilter]);
+      if (searchTerm) {
+        const searchCondition = `(id ~ "${searchTerm}" || customer_email ~ "${searchTerm}" || expand.product_id.name ~ "${searchTerm}")`;
+        filterQuery += (filterQuery ? ' && ' : '') + searchCondition;
+      }
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-    setProviderFilter('all');
+      const result = await pb.collection('orders').getFullList<PBOrder>({
+        sort: '-created_at',
+        expand: 'product_id',
+        filter: filterQuery || undefined, // Pass undefined if no filters
+      });
+      setOrders(result.map(transformPbOrderToOrderRow));
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      setError('Failed to load orders. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, startDate, endDate, searchTerm]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleRowClick = (row: OrderRow) => {
+    setSelectedOrderId(row.id);
+    setDialogOpen(true);
   };
 
-  const handleRowClick = (row: Order) => {
-    // TODO: Open order detail dialog (T109)
-    console.log('Order clicked:', row.id);
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedOrderId(null);
   };
+
+  const handleClearFilters = () => {
+    setFilterStatus('all');
+    setStartDate(null);
+    setEndDate(null);
+    setSearchTerm('');
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mt: 4 }}>
+        {error}
+      </Alert>
+    );
+  }
 
   return (
-    <Box>
-      {/* Page Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Orders
-        </Typography>
-        <Button startIcon={<RefreshIcon />} variant="outlined">
-          Refresh
+    <Box sx={{ p: { xs: 1, md: 3 } }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Order List
+      </Typography>
+
+      {/* Filters */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3, alignItems: 'center' }}>
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel id="status-filter-label">Status</InputLabel>
+          <Select
+            labelId="status-filter-label"
+            value={filterStatus}
+            label="Status"
+            onChange={(e) => setFilterStatus(e.target.value as OrderStatus | 'all')}
+          >
+            <MenuItem value="all">All</MenuItem>
+            {allOrderStatuses.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(date) => setStartDate(date)}
+            renderInput={(params) => <TextField {...params} />}
+          />
+          <DatePicker
+            label="End Date"
+            value={endDate}
+            onChange={(date) => setEndDate(date)}
+            renderInput={(params) => <TextField {...params} />}
+          />
+        </LocalizationProvider>
+
+        <TextField
+          label="Search"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button onClick={handleClearFilters} variant="outlined">
+          Clear Filters
         </Button>
       </Box>
 
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 3, borderRadius: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          {/* Search */}
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search by email, product, or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              data-testid="search-input"
-              aria-label="Search orders"
-            />
-          </Grid>
-
-          {/* Status Filter */}
-          <Grid item xs={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Status"
-                onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
-                data-testid="filter-status"
-              >
-                <MenuItem value="all">All</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="processing">Processing</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
-                <MenuItem value="failed">Failed</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Provider Filter */}
-          <Grid item xs={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Provider</InputLabel>
-              <Select
-                value={providerFilter}
-                label="Provider"
-                onChange={(e) => setProviderFilter(e.target.value)}
-                data-testid="filter-provider"
-              >
-                <MenuItem value="all">All</MenuItem>
-                <MenuItem value="airalo">Airalo</MenuItem>
-                <MenuItem value="esimcard">eSIMCard</MenuItem>
-                <MenuItem value="mobimatter">MobiMatter</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Reset Button */}
-          <Grid item xs={12} md={2}>
-            <Button
-              startIcon={<FilterListIcon />}
-              onClick={handleResetFilters}
-              fullWidth
-              data-testid="filter-reset"
-            >
-              Reset Filters
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* Results Count */}
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Showing {filteredOrders.length} of {mockOrders.length} orders
-      </Typography>
-
-      {/* Data Table */}
-      <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
+      <Box sx={{ height: 600, width: '100%', mt: 3 }}>
         <DataTable
-          columns={columns}
-          rows={filteredOrders}
+          rows={orders}
+          columns={ordersColumns}
           onRowClick={handleRowClick}
-          pageSize={10}
-          height={600}
+          noRowsMessage="No orders found."
         />
-      </Paper>
+      </Box>
+
+      <OrderDetailDialog
+        orderId={selectedOrderId}
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+      />
     </Box>
   );
 }

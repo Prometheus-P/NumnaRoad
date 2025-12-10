@@ -129,6 +129,8 @@ Based on plan.md project structure:
 - [x] T041 [US2] Update n8n workflow for multi-provider failover in automation/n8n-workflows/order-processing.json
 - [x] T042 [US2] Implement all-providers-failed handling (order status = failed) in n8n workflow
 - [x] T043 [US2] Add admin alert on complete failure in automation/n8n-workflows/order-processing.json
+- [x] T043a [US2] Implement getSimInstructions for Airalo in services/esim-providers/airalo.ts
+- [x] T043b [US2] Unit test for getSimInstructions in tests/unit/airalo-provider.test.ts
 - [x] T062 [US2] Implement circuit breaker state tracking in services/esim-providers/provider-factory.ts
 - [x] T063 [US2] Unit test for circuit breaker state transitions (closed→open→half-open→closed) in tests/unit/provider-factory.test.ts
 

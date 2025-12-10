@@ -22,6 +22,30 @@ describe('OrderCard Component', () => {
     qrCodeUrl: 'https://example.com/qr/test123.png',
     iccid: '8901234567890123456',
     activationCode: 'LPA:1$abc.com$XXXXX',
+    installationInstructions: 'Some instructions to follow for installation.', // Added installation instructions
+  };
+
+  const processingOrder = {
+    ...mockOrder,
+    id: 'test-order-processing',
+    status: 'processing' as const,
+    completedAt: undefined,
+    qrCodeUrl: undefined,
+    iccid: undefined,
+    activationCode: undefined,
+    installationInstructions: undefined,
+  };
+
+  const failedOrder = {
+    ...mockOrder,
+    id: 'test-order-failed',
+    status: 'failed' as const,
+    completedAt: undefined,
+    qrCodeUrl: undefined,
+    iccid: undefined,
+    activationCode: undefined,
+    installationInstructions: undefined,
+    errorMessage: 'Order failed due to provider issue. Please contact support.',
   };
 
   it('should render order ID', () => {
@@ -57,7 +81,7 @@ describe('OrderCard Component', () => {
         <OrderCard order={mockOrder} />
       </TestWrapper>
     );
-    expect(screen.getByText(/7/)).toBeInTheDocument();
+    expect(screen.getByText('7 days')).toBeInTheDocument();
   });
 
   it('should render status chip', () => {
@@ -79,6 +103,15 @@ describe('OrderCard Component', () => {
     expect(screen.getByRole('img', { name: /qr code/i })).toBeInTheDocument();
   });
 
+  it('should display installation instructions when available', () => {
+    render(
+      <TestWrapper>
+        <OrderCard order={mockOrder} />
+      </TestWrapper>
+    );
+    expect(screen.getByText(/Some instructions to follow for installation./)).toBeInTheDocument();
+  });
+
   it('should not show QR code when order is pending', () => {
     const pendingOrder = { ...mockOrder, status: 'pending' as const, qrCodeUrl: undefined };
     render(
@@ -96,6 +129,24 @@ describe('OrderCard Component', () => {
       </TestWrapper>
     );
     expect(screen.getByText(/LPA:1/)).toBeInTheDocument();
+  });
+
+  it('should display a progress indicator when order is processing', () => {
+    render(
+      <TestWrapper>
+        <OrderCard order={processingOrder} />
+      </TestWrapper>
+    );
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('should display an error message and support contact for failed orders', () => {
+    render(
+      <TestWrapper>
+        <OrderCard order={failedOrder} />
+      </TestWrapper>
+    );
+    expect(screen.getByText(/Order failed due to provider issue. Please contact support./)).toBeInTheDocument();
   });
 
   it('should have proper M3 Card styling', () => {

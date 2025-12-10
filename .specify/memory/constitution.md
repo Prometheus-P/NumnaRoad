@@ -1,26 +1,29 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 0.0.0 → 1.0.0 (MAJOR - initial constitution ratification)
+Version change: 1.0.0 → 1.1.0 (MINOR - frontend stack update)
 
-Modified principles: N/A (initial version)
+Modified principles: N/A
 
-Added sections:
-- Core Principles (5): Automation-First, TDD Mandatory, Reliability & Failover, Simplicity & YAGNI, Observability
-- Technology Standards
-- Security Requirements
-- Development Workflow
-- Performance Standards
-- Governance
+Modified sections:
+- Technology Standards: Updated Frontend stack from "TailwindCSS, shadcn/ui" to "MUI v6+ (Material Design 3 theme)"
 
-Removed sections: N/A (initial version)
+Rationale for change:
+- Feature specification (001-order-processing/spec.md) explicitly requires Material Design 3 components
+- M3-specific components (Navigation Rail, Data Tables, Chips, Dialog) are native to MUI, not shadcn/ui
+- MUI v6+ provides official M3 theme support out of the box
+- Aligns constitution with actual implementation requirements
+
+Migration impact:
+- Existing code already uses MUI v6+ per spec requirements
+- No breaking changes to existing features
+- plan.md should be updated to reflect MUI v6+ instead of shadcn/ui
 
 Templates requiring updates:
-- .specify/templates/plan-template.md: ✅ Already aligned (Constitution Check section exists)
-- .specify/templates/spec-template.md: ✅ Already aligned (user scenarios, requirements structure)
-- .specify/templates/tasks-template.md: ✅ Already aligned (TDD flow, phase structure)
+- .specify/templates/plan-template.md: May need to reference MUI v6+ for M3 projects
 
-Follow-up TODOs: None
+Follow-up TODOs:
+- Update plan.md frontend stack reference
 ==================
 -->
 
@@ -96,7 +99,7 @@ All system behavior MUST be traceable and debuggable without accessing productio
 
 **Stack Requirements:**
 - **Language**: TypeScript 5.3+ (strict mode enabled, `any` usage prohibited)
-- **Frontend**: Next.js 14 (App Router), TailwindCSS, shadcn/ui
+- **Frontend**: Next.js 14 (App Router), MUI v6+ (Material Design 3 theme)
 - **Backend**: PocketBase 0.22+ (Go-based, single binary deployment)
 - **Database**: SQLite (embedded with PocketBase)
 - **Automation**: n8n (self-hosted) for workflow orchestration
@@ -190,4 +193,4 @@ All system behavior MUST be traceable and debuggable without accessing productio
 - MINOR: New principle/section additions or material expansions
 - PATCH: Clarifications, wording improvements, typo fixes
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-02 | **Last Amended**: 2025-12-02
+**Version**: 1.1.0 | **Ratified**: 2025-12-02 | **Last Amended**: 2025-12-10

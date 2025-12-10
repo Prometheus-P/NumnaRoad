@@ -6,6 +6,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import StatusChip, { OrderStatus } from './StatusChip';
+import QRCodeDisplay from './QRCodeDisplay';
+import OrderProgress from './OrderProgress'; // Import the new OrderProgress component
 
 export interface Order {
   id: string;
@@ -20,6 +22,7 @@ export interface Order {
   iccid?: string;
   activationCode?: string;
   errorMessage?: string;
+  installationInstructions?: string;
 }
 
 interface OrderCardProps {
@@ -32,6 +35,9 @@ interface OrderCardProps {
     validity?: string;
     days?: string;
     activationCode?: string;
+    installationInstructionsTitle?: string;
+    supportContact?: string;
+    processingMessage?: string; // Add new label for OrderProgress
   };
 }
 
@@ -49,6 +55,9 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
     validity = 'Validity',
     days = 'days',
     activationCode = 'Activation Code',
+    installationInstructionsTitle = 'Installation Instructions',
+    supportContact = 'Please contact support for assistance.',
+    processingMessage = 'Order is being processed...', // Default label for OrderProgress
   } = labels;
 
   const formatDate = (date: Date): string => {
@@ -61,7 +70,9 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
     }).format(date);
   };
 
-  const showQrCode = order.status === 'completed' && order.qrCodeUrl;
+  const showQrCodeSection = order.status === 'completed' && order.qrCodeUrl;
+  const showProcessingSection = order.status === 'processing';
+  const showFailedSection = order.status === 'failed' && order.errorMessage;
 
   return (
     <Card
@@ -130,57 +141,23 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
           {orderDate}: {formatDate(order.createdAt)}
         </Typography>
 
+        {/* Processing Indicator (only for processing orders) */}
+        {showProcessingSection && (
+          <OrderProgress status={order.status} labels={{ processingMessage }} />
+        )}
+
         {/* QR Code Section (only for completed orders) */}
-        {showQrCode && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                py: 2,
-              }}
-            >
-              <Box
-                component="img"
-                src={order.qrCodeUrl}
-                alt="QR Code for eSIM installation"
-                role="img"
-                sx={{
-                  width: 200,
-                  height: 200,
-                  borderRadius: 2,
-                  mb: 2,
-                }}
-              />
-              {order.activationCode && (
-                <Box sx={{ textAlign: 'center', width: '100%' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {activationCode}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontFamily: 'monospace',
-                      fontSize: '0.75rem',
-                      wordBreak: 'break-all',
-                      bgcolor: 'action.hover',
-                      p: 1,
-                      borderRadius: 1,
-                      mt: 0.5,
-                    }}
-                  >
-                    {order.activationCode}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </>
+        {showQrCodeSection && (
+          <QRCodeDisplay
+            qrCodeUrl={order.qrCodeUrl as string}
+            activationCode={order.activationCode}
+            installationInstructions={order.installationInstructions}
+            labels={{ activationCode: activationCode, installationInstructionsTitle: installationInstructionsTitle }}
+          />
         )}
 
         {/* Error Message (only for failed orders) */}
-        {order.status === 'failed' && order.errorMessage && (
+        {showFailedSection && (
           <>
             <Divider sx={{ my: 2 }} />
             <Box
@@ -191,7 +168,7 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
                 borderRadius: 2,
               }}
             >
-              <Typography variant="body2">{order.errorMessage}</Typography>
+              <Typography variant="body2">{order.errorMessage} {supportContact}</Typography>
             </Box>
           </>
         )}

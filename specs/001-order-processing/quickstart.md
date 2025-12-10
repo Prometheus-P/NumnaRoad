@@ -154,7 +154,7 @@ In PocketBase Admin UI (`http://127.0.0.1:8090/_/`):
 ### 3.2 Seed Provider Data
 
 ```bash
-npm run seed:providers
+npm run seed
 # Or manually add via PocketBase Admin UI
 ```
 
@@ -358,36 +358,24 @@ After local validation:
 Create `apps/web/components/ui/theme/m3-theme.ts`:
 
 ```typescript
-import { createTheme } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { PaletteMode } from '@mui/material';
 
-// Brand primary color: Indigo #6366F1
-export const theme = createTheme({
-  cssVariables: true,
-  colorSchemes: {
-    light: {
-      palette: {
-        primary: { main: '#6366F1' },
-        secondary: { main: '#EC4899' },
-        error: { main: '#EF4444' },
-        warning: { main: '#F59E0B' },
-        success: { main: '#10B981' },
-      },
-    },
-    dark: {
-      palette: {
-        primary: { main: '#818CF8' },
-        secondary: { main: '#F472B6' },
-        error: { main: '#F87171' },
-        warning: { main: '#FBBF24' },
-        success: { main: '#34D399' },
-      },
-    },
+export const getM3Theme = (mode: PaletteMode): ThemeOptions => ({
+  palette: {
+    mode,
+    // ... light and dark palette definitions ...
+    // (Full palette details are in the file)
   },
   typography: {
     fontFamily: '"Pretendard", "Roboto", "Helvetica", "Arial", sans-serif',
+    // ... M3 Typography Scale definitions ...
   },
   shape: {
     borderRadius: 12,
+  },
+  components: {
+    // ... Component style overrides ...
   },
 });
 ```
@@ -399,16 +387,36 @@ Create `apps/web/components/providers/ThemeProvider.tsx`:
 ```typescript
 'use client';
 
-import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from '../ui/theme/m3-theme';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { createContext, useMemo, useState } from 'react';
+import { getM3Theme } from '../ui/theme/m3-theme';
+
+export const ColorModeContext = createContext({ toggleColorMode: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const [mode, setMode] = useState<'light' | 'dark'>(prefersDarkMode ? 'dark' : 'light');
+
+  const colorMode = useMemo(
+    () => ({
+      toggleColorMode: () => {
+        setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+      },
+    }),
+    [],
+  );
+
+  const theme = useMemo(() => createTheme(getM3Theme(mode)), [mode]);
+
   return (
-    <MuiThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </MuiThemeProvider>
+    <ColorModeContext.Provider value={colorMode}>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline enableColorScheme />
+        {children}
+      </MuiThemeProvider>
+    </ColorModeContext.Provider>
   );
 }
 ```
