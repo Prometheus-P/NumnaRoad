@@ -1,6 +1,6 @@
 import { AiraloProvider } from '../../services/esim-providers/airalo';
 import { EsimProvider, EsimPurchaseRequest, AiraloPackageResponse, EsimProduct } from '../../services/esim-providers/types';
-import { vi, expect, test, describe, beforeEach } from 'vitest';
+import { vi, expect, test, describe, beforeEach, afterEach } from 'vitest';
 
 describe('AiraloProvider', () => {
     const config: EsimProvider = {
@@ -16,6 +16,23 @@ describe('AiraloProvider', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
+
+    // Set up environment variables for testing
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+        // Set up mock environment variables before each test
+        process.env = {
+            ...originalEnv,
+            AIRALO_API_KEY: 'test-api-key',
+            AIRALO_API_SECRET_KEY: 'test-api-secret',
+        };
+    });
+
+    afterEach(() => {
+        // Restore original environment after each test
+        process.env = originalEnv;
+    });
 
     const mockAccessTokenResponse = {
         access_token: 'test-token',
@@ -199,6 +216,12 @@ describe('AiraloProvider', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
+        // Ensure environment is reset for each test
+        process.env = {
+            ...originalEnv,
+            AIRALO_API_KEY: 'test-api-key',
+            AIRALO_API_SECRET_KEY: 'test-api-secret',
+        };
     });
 
     test('healthCheck should return true when API is healthy', async () => {
