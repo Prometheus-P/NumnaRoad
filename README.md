@@ -17,7 +17,7 @@
 |------|------|
 | **문서 유형** | Quick Start Guide |
 | **대상 독자** | 개발자, 기여자, 신규 팀원 |
-| **최종 수정** | 2024-12-01 |
+| **최종 수정** | 2024-12-22 |
 | **연관 문서** | [CONTEXT.md](./CONTEXT.md), [ENVIRONMENT.md](./ENVIRONMENT.md), [plan.md](./plan.md) |
 | **우선순위** | ⭐⭐⭐ (Core) |
 
@@ -212,7 +212,10 @@ numnaroad/
 │   │   │   └── orders/        # 주문 내역
 │   │   └── lib/
 │   │       ├── pocketbase.ts  # PocketBase 클라이언트
-│   │       └── stripe.ts      # Stripe 연동
+│   │       ├── stripe.ts      # Stripe 결제 처리
+│   │       ├── resend.ts      # Resend 이메일 전송
+│   │       ├── config.ts      # 환경 설정
+│   │       └── crypto.ts      # 암호화 유틸리티
 │   │
 │   └── admin/                  # 관리자 대시보드
 │       ├── app/
@@ -237,15 +240,14 @@ numnaroad/
 │
 ├── services/                   # 외부 서비스 연동
 │   ├── esim-providers/        # eSIM 공급사 API
+│   │   ├── types.ts           # 공통 타입 정의
 │   │   ├── provider-factory.ts  # 공급사 추상화 + Failover
 │   │   ├── esimcard.ts
 │   │   ├── mobimatter.ts
-│   │   └── airalo.ts
-│   ├── payment/               # 결제 처리
-│   │   ├── stripe.ts
-│   │   └── toss.ts
-│   └── email/                 # 이메일 전송
-│       └── resend.ts
+│   │   ├── airalo.ts
+│   │   └── index.ts
+│   └── logging/               # 로깅 서비스
+│       └── automation-logger.ts
 │
 ├── docs/                       # 프로젝트 문서
 │   ├── API_DOCS.md            # API 문서
@@ -260,6 +262,12 @@ numnaroad/
 ├── ENVIRONMENT.md              # ⭐ 완전한 환경 설정 가이드
 ├── plan.md                     # ⭐ TDD 개발 태스크 리스트
 ├── README.md                   # ⭐ 빠른 시작 가이드 (현재 문서)
+│
+├── .github/                    # GitHub 설정
+│   ├── ISSUE_TEMPLATE/        # 이슈 템플릿
+│   ├── pull_request_template.md
+│   ├── CODEOWNERS
+│   └── SECURITY.md
 │
 ├── .env.example               # 환경변수 예시
 ├── .gitignore
@@ -444,12 +452,14 @@ ROI: 초기 투자 5,000,000원 → 1개월 만에 회수
 
 ### 협업 준비
 
-- [x] LICENSE 파일 존재 (MIT)
+- [x] LICENSE 파일 존재 (Proprietary)
 - [x] CODE_OF_CONDUCT.md 존재
 - [x] CONTRIBUTING.md 링크 제공
 - [x] CHANGELOG.md 존재
-- [x] Issue 템플릿 (선택적)
-- [x] PR 템플릿 (선택적)
+- [x] Issue 템플릿 (.github/ISSUE_TEMPLATE/)
+- [x] PR 템플릿 (.github/pull_request_template.md)
+- [x] CODEOWNERS 설정
+- [x] SECURITY.md 보안 정책
 
 ---
 

@@ -22,6 +22,8 @@ docs/
 │   └── plan.md           # 구현 계획
 ├── development/           # 개발 가이드
 │   ├── CODE_REVIEW_GUIDE.md    # 코드 리뷰 가이드
+│   ├── CODING_STYLE.md         # 코딩 스타일 가이드
+│   ├── TESTING_GUIDE.md        # 테스트 가이드
 │   └── VERSIONING_GUIDE.md     # 버전 관리 가이드
 ├── deployment/            # 배포 관련
 │   └── DEPLOYMENT.md     # 배포 가이드
