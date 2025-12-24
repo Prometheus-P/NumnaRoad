@@ -43,6 +43,19 @@ export interface CircuitBreakerNotification {
   timestamp: string;
 }
 
+export interface ManualFulfillmentNotification {
+  orderId: string;
+  correlationId: string;
+  customerEmail: string;
+  productId: string;
+  productName?: string;
+  country?: string;
+  dataAmount?: string;
+  attemptedProviders: string[];
+  reason: string;
+  timestamp: string;
+}
+
 export interface DiscordEmbed {
   title: string;
   description?: string;
@@ -378,4 +391,100 @@ export async function testWebhookConnection(): Promise<boolean> {
     console.error('Discord webhook test failed:', error);
     return false;
   }
+}
+
+/**
+ * Send notification requesting manual fulfillment
+ *
+ * @param notification - Manual fulfillment request details
+ */
+export async function notifyManualFulfillmentRequired(
+  notification: ManualFulfillmentNotification
+): Promise<void> {
+  const embed: DiscordEmbed = {
+    title: '🔧 Manual Fulfillment Required',
+    description: `Order **${notification.orderId}** requires manual processing. All automated providers have been exhausted.`,
+    color: DISCORD_COLORS.warning,
+    fields: [
+      {
+        name: 'Order ID',
+        value: `\`${notification.orderId}\``,
+        inline: true,
+      },
+      {
+        name: 'Correlation ID',
+        value: `\`${notification.correlationId}\``,
+        inline: true,
+      },
+      {
+        name: 'Customer',
+        value: maskEmail(notification.customerEmail),
+        inline: true,
+      },
+      {
+        name: 'Product ID',
+        value: `\`${notification.productId}\``,
+        inline: true,
+      },
+    ],
+    timestamp: notification.timestamp,
+    footer: {
+      text: 'Please fulfill this order manually via provider dashboard',
+    },
+  };
+
+  // Add product details if available
+  if (notification.productName) {
+    embed.fields.push({
+      name: 'Product',
+      value: notification.productName,
+      inline: true,
+    });
+  }
+
+  if (notification.country) {
+    embed.fields.push({
+      name: 'Country',
+      value: notification.country,
+      inline: true,
+    });
+  }
+
+  if (notification.dataAmount) {
+    embed.fields.push({
+      name: 'Data',
+      value: notification.dataAmount,
+      inline: true,
+    });
+  }
+
+  // Add attempted providers
+  embed.fields.push({
+    name: 'Attempted Providers',
+    value: notification.attemptedProviders.length > 0
+      ? notification.attemptedProviders.map(p => `• ${p} (failed)`).join('\n')
+      : 'None (direct manual)',
+    inline: false,
+  });
+
+  // Add reason
+  embed.fields.push({
+    name: 'Reason',
+    value: notification.reason,
+    inline: false,
+  });
+
+  // Add action items
+  embed.fields.push({
+    name: '📋 Action Required',
+    value: [
+      '1. Log into provider dashboard',
+      '2. Purchase eSIM manually',
+      '3. Update order with QR code/ICCID',
+      '4. Mark order as completed',
+    ].join('\n'),
+    inline: false,
+  });
+
+  await sendWebhook({ embeds: [embed] });
 }

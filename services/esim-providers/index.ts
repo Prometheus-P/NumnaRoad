@@ -29,3 +29,7 @@ export {
 import './esimcard';
 import './mobimatter';
 import './airalo';
+import './manual';
+
+// Export manual provider helper
+export { isManualFulfillmentPending } from './manual';
