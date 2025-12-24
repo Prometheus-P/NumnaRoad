@@ -1,16 +1,18 @@
-
 'use client';
 
-import * as React from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { createContext, useMemo, useState } from 'react';
-
-import { getMuiTheme } from '../ui/theme/m3-theme'; // Import the getMuiTheme function
+import { getMuiTheme } from '../ui/theme/m3-theme';
 
 export const ColorModeContext = createContext({ toggleColorMode: () => {} });
 
+/**
+ * Material Design 3 Theme Provider
+ * Wraps the application with MUI theme and CSS baseline reset
+ * Supports light/dark mode based on system preference and user toggle
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const [mode, setMode] = useState<'light' | 'dark'>(prefersDarkMode ? 'dark' : 'light');
@@ -29,7 +31,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <ColorModeContext.Provider value={colorMode}>
       <MuiThemeProvider theme={theme}>
-        <CssBaseline enableColorScheme /> {/* enableColorScheme is useful for CssVarsProvider, but we are using createTheme here */}
+        <CssBaseline enableColorScheme />
         {children}
       </MuiThemeProvider>
     </ColorModeContext.Provider>

@@ -33,6 +33,26 @@ function cleanupIpStore() {
   }
 }
 
+// In-memory store for rate limiting (per IP)
+const ipStore = new Map<
+  string,
+  { count: number; firstRequestTime: number }
+>();
+const RATE_LIMIT_INTERVAL_MS = 60 * 1000; // 60 seconds
+const MAX_REQUESTS_PER_INTERVAL = 10; // Max 10 requests per IP per interval
+
+/**
+ * Cleanup function for ipStore - run periodically or on request to clear old entries
+ */
+function cleanupIpStore() {
+  const now = Date.now();
+  for (const [ip, data] of ipStore.entries()) {
+    if (now - data.firstRequestTime > RATE_LIMIT_INTERVAL_MS) {
+      ipStore.delete(ip);
+    }
+  }
+}
+
 /**
  * Extract payment intent ID from session (handles both string and expanded object)
  */
