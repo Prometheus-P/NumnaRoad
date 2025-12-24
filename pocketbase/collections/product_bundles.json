@@ -1,6 +1,6 @@
 {
-  "id": "esim_products",
-  "name": "esim_products",
+  "id": "product_bundles",
+  "name": "product_bundles",
   "type": "base",
   "system": false,
   "schema": [
@@ -28,32 +28,34 @@
       }
     },
     {
-      "id": "product_type",
-      "name": "product_type",
+      "id": "description",
+      "name": "description",
+      "type": "editor",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "products",
+      "name": "products",
+      "type": "relation",
+      "required": true,
+      "options": {
+        "collectionId": "esim_products",
+        "cascadeDelete": false,
+        "minSelect": 2,
+        "maxSelect": 10,
+        "displayFields": ["name", "country"]
+      }
+    },
+    {
+      "id": "bundle_type",
+      "name": "bundle_type",
       "type": "select",
       "required": true,
       "options": {
         "maxSelect": 1,
-        "values": ["esim", "ticket", "bundle"]
+        "values": ["multi_country", "data_package", "travel_kit", "custom"]
       }
-    },
-    {
-      "id": "country",
-      "name": "country",
-      "type": "text",
-      "required": true,
-      "options": {
-        "min": 2,
-        "max": 2,
-        "pattern": ""
-      }
-    },
-    {
-      "id": "country_name",
-      "name": "country_name",
-      "type": "text",
-      "required": true,
-      "options": {}
     },
     {
       "id": "region",
@@ -63,8 +65,22 @@
       "options": {}
     },
     {
-      "id": "duration",
-      "name": "duration",
+      "id": "countries",
+      "name": "countries",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "total_data",
+      "name": "total_data",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "total_duration_days",
+      "name": "total_duration_days",
       "type": "number",
       "required": true,
       "options": {
@@ -73,39 +89,8 @@
       }
     },
     {
-      "id": "data_limit",
-      "name": "data_limit",
-      "type": "text",
-      "required": true,
-      "options": {}
-    },
-    {
-      "id": "speed",
-      "name": "speed",
-      "type": "text",
-      "required": true,
-      "options": {}
-    },
-    {
-      "id": "provider",
-      "name": "provider",
-      "type": "select",
-      "required": true,
-      "options": {
-        "maxSelect": 1,
-        "values": ["eSIM Card", "MobiMatter", "Airalo"]
-      }
-    },
-    {
-      "id": "provider_product_id",
-      "name": "provider_product_id",
-      "type": "text",
-      "required": true,
-      "options": {}
-    },
-    {
-      "id": "wholesale_price",
-      "name": "wholesale_price",
+      "id": "individual_price_sum",
+      "name": "individual_price_sum",
       "type": "number",
       "required": true,
       "options": {
@@ -114,8 +99,8 @@
       }
     },
     {
-      "id": "retail_price",
-      "name": "retail_price",
+      "id": "bundle_price",
+      "name": "bundle_price",
       "type": "number",
       "required": true,
       "options": {
@@ -124,8 +109,8 @@
       }
     },
     {
-      "id": "margin_percent",
-      "name": "margin_percent",
+      "id": "discount_percent",
+      "name": "discount_percent",
       "type": "number",
       "required": true,
       "options": {
@@ -134,13 +119,23 @@
       }
     },
     {
-      "id": "stock",
-      "name": "stock",
+      "id": "savings_amount",
+      "name": "savings_amount",
       "type": "number",
       "required": true,
       "options": {
         "min": 0,
         "max": null
+      }
+    },
+    {
+      "id": "currency",
+      "name": "currency",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["USD", "KRW", "EUR", "JPY"]
       }
     },
     {
@@ -158,6 +153,40 @@
       "options": {}
     },
     {
+      "id": "valid_from",
+      "name": "valid_from",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "valid_until",
+      "name": "valid_until",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "max_purchases",
+      "name": "max_purchases",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "current_purchases",
+      "name": "current_purchases",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
       "id": "image",
       "name": "image",
       "type": "file",
@@ -167,13 +196,6 @@
         "maxSize": 5242880,
         "mimeTypes": ["image/jpeg", "image/png", "image/webp"]
       }
-    },
-    {
-      "id": "description",
-      "name": "description",
-      "type": "editor",
-      "required": true,
-      "options": {}
     },
     {
       "id": "features",
@@ -194,11 +216,10 @@
     }
   ],
   "indexes": [
-    "CREATE INDEX idx_country ON esim_products (country)",
-    "CREATE INDEX idx_is_active ON esim_products (is_active)",
-    "CREATE INDEX idx_slug ON esim_products (slug)",
-    "CREATE INDEX idx_product_type ON esim_products (product_type)",
-    "CREATE UNIQUE INDEX idx_slug_unique ON esim_products (slug)"
+    "CREATE INDEX idx_bundle_type ON product_bundles (bundle_type)",
+    "CREATE INDEX idx_is_active ON product_bundles (is_active)",
+    "CREATE INDEX idx_slug ON product_bundles (slug)",
+    "CREATE UNIQUE INDEX idx_slug_unique ON product_bundles (slug)"
   ],
   "listRule": "",
   "viewRule": "",

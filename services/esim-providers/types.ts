@@ -152,7 +152,7 @@ export interface AiraloPackageResponse {
 /**
  * Provider slugs matching the database
  */
-export type ProviderSlug = 'esimcard' | 'mobimatter' | 'airalo';
+export type ProviderSlug = 'esimcard' | 'mobimatter' | 'airalo' | 'manual';
 
 /**
  * Provider configuration from database
@@ -350,7 +350,17 @@ export interface EsimPurchaseError {
   providerOrderId?: string;
 }
 
-export type EsimPurchaseResult = EsimPurchaseResponse | EsimPurchaseError;
+/**
+ * Response indicating manual fulfillment is required
+ */
+export interface EsimManualFulfillmentPending {
+  success: 'pending_manual';
+  orderId: string;
+  notificationSent: boolean;
+  message: string;
+}
+
+export type EsimPurchaseResult = EsimPurchaseResponse | EsimPurchaseError | EsimManualFulfillmentPending;
 
 /**
  * Response for fetching eSIM installation instructions from Airalo
