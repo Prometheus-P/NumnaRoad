@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Toolbar, AppBar, IconButton, Typography, useMediaQuery } from '@mui/material';
+import { Box, Toolbar, AppBar, IconButton, Typography, useMediaQuery, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import NavigationRail from '../../../components/ui/NavigationRail';
