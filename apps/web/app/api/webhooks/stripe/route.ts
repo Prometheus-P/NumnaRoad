@@ -4,6 +4,14 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, WebhookEvents } from '@/lib/stripe';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { getConfig } from '@/lib/config';
+import {
+  createFulfillmentService,
+  fulfillWithTimeout,
+  isTimeoutResult,
+  type FulfillmentOrder,
+} from '../../../../../services/order-fulfillment';
+import { createAutomationLogger } from '../../../../../services/logging';
+import type { EsimProvider } from '../../../../../services/esim-providers/types';
 
 // In-memory store for rate limiting (per IP)
 const ipStore = new Map<
@@ -47,6 +55,8 @@ function validateCheckoutSession(session: Stripe.Checkout.Session): {
     customerEmail: string;
     productId: string;
     sessionId: string;
+    amount: number;
+    currency: string;
   };
 } {
   const paymentIntentId = getPaymentIntentId(session.payment_intent);
@@ -75,6 +85,8 @@ function validateCheckoutSession(session: Stripe.Checkout.Session): {
       customerEmail: session.customer_email,
       productId,
       sessionId: session.id,
+      amount: session.amount_total ?? 0,
+      currency: session.currency ?? 'usd',
     },
   };
 }
@@ -98,7 +110,7 @@ async function findExistingOrder(
 }
 
 /**
- * Create new order in pending state
+ * Create new order with payment_received status (for inline fulfillment)
  */
 async function createOrder(
   pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
@@ -108,23 +120,39 @@ async function createOrder(
     productId: string;
     sessionId: string;
     correlationId: string;
-  }
+    amount: number;
+    currency: string;
+  },
+  useInlineFulfillment: boolean
 ) {
+  const orderId = `NR-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
   return pb.collection(Collections.ORDERS).create({
+    order_id: orderId,
     customer_email: data.customerEmail,
-    product_id: data.productId,
+    product: data.productId,
     stripe_payment_intent: data.paymentIntentId,
     stripe_session_id: data.sessionId,
-    status: 'pending',
     correlation_id: data.correlationId,
+    amount: data.amount / 100, // Convert from cents
+    currency: data.currency.toUpperCase(),
+    status: useInlineFulfillment ? 'payment_received' : 'pending',
+    payment_status: 'paid',
+    payment_method: 'card',
+    dispatch_method: 'provider_api',
+    retry_count: 0,
   });
 }
 
 /**
- * Trigger n8n workflow for order processing
+ * Trigger n8n workflow for order processing (legacy flow)
  */
 async function triggerOrderProcessing(orderId: string, correlationId: string) {
   const config = getConfig();
+
+  if (!config.n8n.webhookUrl) {
+    throw new Error('n8n webhook URL not configured');
+  }
 
   const response = await fetch(
     `${config.n8n.webhookUrl}/webhook/order-processing`,
@@ -150,25 +178,208 @@ async function triggerOrderProcessing(orderId: string, correlationId: string) {
 }
 
 /**
+ * Get active providers from database
+ */
+async function getActiveProviders(
+  pb: Awaited<ReturnType<typeof getAdminPocketBase>>
+): Promise<EsimProvider[]> {
+  try {
+    const providers = await pb.collection('esim_providers').getFullList({
+      filter: 'is_active=true',
+      sort: 'priority',
+    });
+
+    return providers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      priority: p.priority,
+      apiEndpoint: p.api_endpoint,
+      apiKeyEnvVar: p.api_key_env_var,
+      timeoutMs: p.timeout_ms || 10000,
+      maxRetries: p.max_retries || 3,
+      isActive: p.is_active,
+      createdAt: p.created,
+      updatedAt: p.updated,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch providers:', error);
+    return [];
+  }
+}
+
+/**
+ * Get product details including provider SKU
+ */
+async function getProductDetails(
+  pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
+  productId: string
+): Promise<{ providerSku: string } | null> {
+  try {
+    const product = await pb.collection('esim_products').getOne(productId);
+    return {
+      providerSku: product.provider_sku || product.id,
+    };
+  } catch (error) {
+    console.error('Failed to fetch product:', error);
+    return null;
+  }
+}
+
+/**
+ * Update order with fulfillment result
+ */
+async function updateOrderWithResult(
+  pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
+  orderId: string,
+  result: {
+    success: boolean;
+    providerUsed?: string;
+    esimData?: {
+      qrCodeUrl: string;
+      iccid: string;
+      activationCode?: string;
+      providerOrderId: string;
+    };
+    error?: { message: string };
+    finalState: string;
+  }
+) {
+  const updateData: Record<string, unknown> = {
+    status: result.finalState,
+  };
+
+  if (result.success && result.esimData) {
+    updateData.provider_used = result.providerUsed;
+    updateData.esim_qr_code_url = result.esimData.qrCodeUrl;
+    updateData.esim_iccid = result.esimData.iccid;
+    updateData.esim_activation_code = result.esimData.activationCode;
+    updateData.provider_order_id = result.esimData.providerOrderId;
+    updateData.completed_at = new Date().toISOString();
+  } else if (!result.success && result.error) {
+    updateData.error_message = result.error.message;
+  }
+
+  await pb.collection(Collections.ORDERS).update(orderId, updateData);
+}
+
+/**
+ * Process order with inline fulfillment
+ */
+async function processOrderInline(
+  pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
+  order: Record<string, unknown>,
+  correlationId: string,
+  config: ReturnType<typeof getConfig>
+) {
+  const logger = createAutomationLogger({
+    orderId: order.id as string,
+    correlationId,
+  });
+
+  // Get providers
+  const providers = await getActiveProviders(pb);
+  if (providers.length === 0) {
+    console.error('No active providers available');
+    await updateOrderWithResult(pb, order.id as string, {
+      success: false,
+      error: { message: 'No active providers available' },
+      finalState: 'provider_failed',
+    });
+    return { success: false, error: 'No providers' };
+  }
+
+  // Get product details
+  const product = await getProductDetails(pb, order.product as string);
+  if (!product) {
+    console.error('Product not found');
+    await updateOrderWithResult(pb, order.id as string, {
+      success: false,
+      error: { message: 'Product not found' },
+      finalState: 'failed',
+    });
+    return { success: false, error: 'Product not found' };
+  }
+
+  // Create fulfillment order object
+  const fulfillmentOrder: FulfillmentOrder = {
+    id: order.id as string,
+    orderId: order.order_id as string,
+    customerEmail: order.customer_email as string,
+    productId: order.product as string,
+    providerSku: product.providerSku,
+    amount: order.amount as number,
+    currency: order.currency as string,
+    status: 'payment_received',
+    correlationId,
+    stripePaymentIntent: order.stripe_payment_intent as string,
+  };
+
+  // Create fulfillment service
+  const fulfillmentService = createFulfillmentService({
+    persistFn: async (orderId, state, metadata) => {
+      await pb.collection(Collections.ORDERS).update(orderId, {
+        status: state,
+        ...(metadata?.providerName && { provider_used: metadata.providerName }),
+        ...(metadata?.errorMessage && { error_message: metadata.errorMessage }),
+        ...(state === 'fulfillment_started' && {
+          fulfillment_started_at: new Date().toISOString(),
+        }),
+      });
+    },
+    loadFn: async (orderId) => {
+      const o = await pb.collection(Collections.ORDERS).getOne(orderId);
+      return o.status;
+    },
+    config: {
+      webhookTimeoutMs: config.fulfillment.webhookTimeoutMs,
+      providerTimeoutMs: 10000,
+      maxRetries: 3,
+      enableEmailNotification: config.fulfillment.enableEmailNotification,
+      enableDiscordAlerts: config.fulfillment.enableDiscordAlerts,
+    },
+  });
+
+  // Execute fulfillment with timeout
+  const result = await fulfillWithTimeout(
+    fulfillmentService,
+    fulfillmentOrder,
+    providers,
+    config.fulfillment.webhookTimeoutMs
+  );
+
+  if (isTimeoutResult(result)) {
+    // Timeout - order stays in fulfillment_started, will be picked up by cron
+    console.log(`Order ${order.id} fulfillment timed out, will retry via cron`);
+    return { success: true, timedOut: true };
+  }
+
+  // Update order with final result
+  await updateOrderWithResult(pb, order.id as string, result);
+
+  return result;
+}
+
+/**
  * POST /api/webhooks/stripe
  *
  * Stripe webhook endpoint for payment events.
- * Signature verified, idempotent, triggers async order processing.
+ * Signature verified, idempotent.
+ * Supports both n8n (legacy) and inline fulfillment based on feature flag.
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
   let ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-  if (Array.isArray(ip)) ip = ip[0]; // If x-forwarded-for has multiple, take the first
+  if (Array.isArray(ip)) ip = ip[0];
 
-  // Cleanup old entries (can be optimized to run less frequently)
+  // Cleanup old entries
   cleanupIpStore();
 
   // Rate limiting check
   const ipData = ipStore.get(ip) || { count: 0, firstRequestTime: Date.now() };
 
   if (Date.now() - ipData.firstRequestTime > RATE_LIMIT_INTERVAL_MS) {
-    // Reset if interval passed
     ipData.count = 1;
     ipData.firstRequestTime = Date.now();
   } else {
@@ -186,6 +397,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const config = getConfig();
+    const useInlineFulfillment = config.featureFlags.useInlineFulfillment;
+
     // Get raw body for signature verification
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
@@ -197,7 +411,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // T021: Verify webhook signature
+    // Verify webhook signature
     let event: Stripe.Event;
     try {
       event = verifyWebhookSignature(Buffer.from(body), signature);
@@ -226,12 +440,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { paymentIntentId, customerEmail, productId, sessionId } =
+    const { paymentIntentId, customerEmail, productId, sessionId, amount, currency } =
       validation.data;
 
     const pb = await getAdminPocketBase();
 
-    // T022: Idempotency check
+    // Idempotency check
     const existingOrder = await findExistingOrder(pb, paymentIntentId);
     if (existingOrder) {
       console.log(
@@ -247,34 +461,61 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // T023 & T031: Create order with correlation_id
-    const order = await createOrder(pb, {
-      paymentIntentId,
-      customerEmail,
-      productId,
-      sessionId,
-      correlationId,
-    });
+    // Create order
+    const order = await createOrder(
+      pb,
+      {
+        paymentIntentId,
+        customerEmail,
+        productId,
+        sessionId,
+        correlationId,
+        amount,
+        currency,
+      },
+      useInlineFulfillment
+    );
 
-    console.log(`Created order ${order.id} with correlation_id ${correlationId}`);
+    console.log(
+      `Created order ${order.id} with correlation_id ${correlationId}`,
+      `[mode: ${useInlineFulfillment ? 'inline' : 'n8n'}]`
+    );
 
-    // Trigger async order processing via n8n
-    try {
-      await triggerOrderProcessing(order.id, correlationId);
-    } catch (err) {
-      // Log but don't fail - the order is created, processing can be retried
-      console.error('Failed to trigger order processing:', err);
+    // Process order based on feature flag
+    if (useInlineFulfillment) {
+      // New inline fulfillment flow
+      const result = await processOrderInline(pb, order, correlationId, config);
+
+      const durationMs = Date.now() - startTime;
+
+      return NextResponse.json({
+        received: true,
+        handled: true,
+        orderId: order.id,
+        correlationId,
+        mode: 'inline',
+        success: result.success,
+        durationMs,
+      });
+    } else {
+      // Legacy n8n flow
+      try {
+        await triggerOrderProcessing(order.id, correlationId);
+      } catch (err) {
+        console.error('Failed to trigger order processing:', err);
+      }
+
+      const durationMs = Date.now() - startTime;
+
+      return NextResponse.json({
+        received: true,
+        handled: true,
+        orderId: order.id,
+        correlationId,
+        mode: 'n8n',
+        durationMs,
+      });
     }
-
-    const durationMs = Date.now() - startTime;
-
-    return NextResponse.json({
-      received: true,
-      handled: true,
-      orderId: order.id,
-      correlationId,
-      durationMs,
-    });
   } catch (error) {
     console.error('Webhook processing error:', error);
 
