@@ -1,6 +1,7 @@
 'use client';
 
-import { createTheme } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { PaletteMode } from '@mui/material';
 
 /**
  * Material Design 3 Theme Configuration
@@ -77,79 +78,76 @@ export const themeColors = {
 };
 
 /**
- * M3 Theme with CSS Variables for light/dark mode support
+ * Function to generate the M3 Theme for a given mode (light or dark)
  */
-export const theme = createTheme({
-  cssVariables: {
-    colorSchemeSelector: 'class',
-  },
-  colorSchemes: {
-    light: {
-      palette: {
-        primary: {
-          main: indigo.light,
-          contrastText: '#FFFFFF',
-        },
-        secondary: {
-          main: secondary.light,
-          contrastText: '#FFFFFF',
-        },
-        error: {
-          main: error.light,
-          contrastText: '#FFFFFF',
-        },
-        warning: {
-          main: warning.light,
-          contrastText: '#000000',
-        },
-        success: {
-          main: success.light,
-          contrastText: '#FFFFFF',
-        },
-        background: {
-          default: surface.light.default,
-          paper: surface.light.container,
-        },
-        text: {
-          primary: 'rgba(0, 0, 0, 0.87)',
-          secondary: 'rgba(0, 0, 0, 0.6)',
-          disabled: 'rgba(0, 0, 0, 0.38)',
-        },
-      },
-    },
-    dark: {
-      palette: {
-        primary: {
-          main: indigo.dark,
-          contrastText: '#000000',
-        },
-        secondary: {
-          main: secondary.dark,
-          contrastText: '#000000',
-        },
-        error: {
-          main: error.dark,
-          contrastText: '#000000',
-        },
-        warning: {
-          main: warning.dark,
-          contrastText: '#000000',
-        },
-        success: {
-          main: success.dark,
-          contrastText: '#000000',
-        },
-        background: {
-          default: surface.dark.default,
-          paper: surface.dark.container,
-        },
-        text: {
-          primary: 'rgba(255, 255, 255, 0.87)',
-          secondary: 'rgba(255, 255, 255, 0.6)',
-          disabled: 'rgba(255, 255, 255, 0.38)',
-        },
-      },
-    },
+export const getM3Theme = (mode: PaletteMode): ThemeOptions => ({
+  palette: {
+    mode,
+    ...(mode === 'light'
+      ? {
+          // Palette for light mode
+          primary: {
+            main: indigo.light,
+            contrastText: '#FFFFFF',
+          },
+          secondary: {
+            main: secondary.light,
+            contrastText: '#FFFFFF',
+          },
+          error: {
+            main: error.light,
+            contrastText: '#FFFFFF',
+          },
+          warning: {
+            main: warning.light,
+            contrastText: '#000000',
+          },
+          success: {
+            main: success.light,
+            contrastText: '#FFFFFF',
+          },
+          background: {
+            default: surface.light.default,
+            paper: surface.light.container,
+          },
+          text: {
+            primary: 'rgba(0, 0, 0, 0.87)',
+            secondary: 'rgba(0, 0, 0, 0.6)',
+            disabled: 'rgba(0, 0, 0, 0.38)',
+          },
+        }
+      : {
+          // Palette for dark mode
+          primary: {
+            main: indigo.dark,
+            contrastText: '#000000',
+          },
+          secondary: {
+            main: secondary.dark,
+            contrastText: '#000000',
+          },
+          error: {
+            main: error.dark,
+            contrastText: '#000000',
+          },
+          warning: {
+            main: warning.dark,
+            contrastText: '#000000',
+          },
+          success: {
+            main: success.dark,
+            contrastText: '#000000',
+          },
+          background: {
+            default: surface.dark.default,
+            paper: surface.dark.container,
+          },
+          text: {
+            primary: 'rgba(255, 255, 255, 0.87)',
+            secondary: 'rgba(255, 255, 255, 0.6)',
+            disabled: 'rgba(255, 255, 255, 0.38)',
+          },
+        }),
   },
   typography: {
     fontFamily: '"Pretendard", "Roboto", "Helvetica", "Arial", sans-serif',
@@ -294,5 +292,3 @@ export const theme = createTheme({
     },
   },
 });
-
-export default theme;

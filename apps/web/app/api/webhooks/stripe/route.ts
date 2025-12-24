@@ -1,17 +1,29 @@
-/**
- * Stripe Webhook Handler
- *
- * Handles checkout.session.completed events to initiate eSIM order processing.
- *
- * Tasks: T021, T022, T023, T031
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import Stripe from 'stripe';
 import { verifyWebhookSignature, WebhookEvents } from '@/lib/stripe';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { getConfig } from '@/lib/config';
+
+// In-memory store for rate limiting (per IP)
+const ipStore = new Map<
+  string,
+  { count: number; firstRequestTime: number }
+>();
+const RATE_LIMIT_INTERVAL_MS = 60 * 1000; // 60 seconds
+const MAX_REQUESTS_PER_INTERVAL = 10; // Max 10 requests per IP per interval
+
+/**
+ * Cleanup function for ipStore - run periodically or on request to clear old entries
+ */
+function cleanupIpStore() {
+  const now = Date.now();
+  for (const [ip, data] of ipStore.entries()) {
+    if (now - data.firstRequestTime > RATE_LIMIT_INTERVAL_MS) {
+      ipStore.delete(ip);
+    }
+  }
+}
 
 /**
  * Extract payment intent ID from session (handles both string and expanded object)
@@ -146,6 +158,32 @@ async function triggerOrderProcessing(orderId: string, correlationId: string) {
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
+  let ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  if (Array.isArray(ip)) ip = ip[0]; // If x-forwarded-for has multiple, take the first
+
+  // Cleanup old entries (can be optimized to run less frequently)
+  cleanupIpStore();
+
+  // Rate limiting check
+  const ipData = ipStore.get(ip) || { count: 0, firstRequestTime: Date.now() };
+
+  if (Date.now() - ipData.firstRequestTime > RATE_LIMIT_INTERVAL_MS) {
+    // Reset if interval passed
+    ipData.count = 1;
+    ipData.firstRequestTime = Date.now();
+  } else {
+    ipData.count++;
+  }
+
+  ipStore.set(ip, ipData);
+
+  if (ipData.count > MAX_REQUESTS_PER_INTERVAL) {
+    console.warn(`Rate limit exceeded for IP: ${ip}`);
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429, headers: { 'Retry-After': (RATE_LIMIT_INTERVAL_MS / 1000).toString() } }
+    );
+  }
 
   try {
     // Get raw body for signature verification
