@@ -1,0 +1,931 @@
+openapi: 3.0.3
+info:
+  title: Airalo Partner API
+  version: 2.0.0
+  description: |
+    Airalo eSIM Partner API specification based on official documentation.
+
+    ## Authentication
+    OAuth 2.0 Client Credentials flow. Obtain access token via /token endpoint.
+
+    ## Rate Limits
+    - GET /packages: 40 requests per minute
+    - GET /sims/{iccid}/usage: 96 requests per day (once per 15 minutes per SIM)
+
+    ## Error Handling
+    - 429: Rate limit exceeded (check Retry-After header)
+    - 422: Validation error (check response body for field errors)
+    - 503/504: Timeout errors (retry with reduced quantity)
+
+  contact:
+    name: Airalo Partners
+    url: https://developers.partners.airalo.com
+  license:
+    name: Proprietary
+    url: https://partners.airalo.com/terms
+
+servers:
+  - url: https://api.airalo.com/v2
+    description: Production & Sandbox (mode determined by credentials)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: OAuth 2.0 token management
+  - name: Packages
+    description: eSIM package catalog
+  - name: Orders
+    description: Order management
+  - name: SIMs
+    description: SIM card management
+
+paths:
+  /token:
+    post:
+      operationId: getAccessToken
+      summary: Get OAuth 2.0 access token
+      description: |
+        Authenticate using client credentials to obtain an access token.
+        Token expires based on `expires_in` value (typically 1 hour).
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - client_id
+                - client_secret
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials]
+                  description: OAuth 2.0 grant type
+                  example: client_credentials
+                client_id:
+                  type: string
+                  description: Partner API client ID
+                  example: your_client_id
+                client_secret:
+                  type: string
+                  description: Partner API client secret
+                  format: password
+                  example: your_client_secret
+      responses:
+        '200':
+          description: Token issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
+                token_type: Bearer
+                expires_in: 3600
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /packages:
+    get:
+      operationId: getPackages
+      summary: Get eSIM packages
+      description: |
+        Retrieve available eSIM packages. Supports filtering by country and type.
+
+        **Rate Limit**: 40 requests per minute
+
+        **Best Practice**: Sync hourly to keep catalog updated while avoiding rate limits.
+      tags:
+        - Packages
+      parameters:
+        - name: filter[type]
+          in: query
+          description: Filter by package type
+          schema:
+            type: string
+            enum: [local, global]
+        - name: filter[country]
+          in: query
+          description: Filter by country code (ISO 3166-1 alpha-2)
+          schema:
+            type: string
+            example: JP
+        - name: limit
+          in: query
+          description: Number of results per page (use 1000 for full catalog sync)
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: include
+          in: query
+          description: Include additional data
+          schema:
+            type: string
+            enum: [topup]
+      responses:
+        '200':
+          description: Packages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagesResponse'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              description: Seconds until rate limit resets
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders:
+    post:
+      operationId: submitOrder
+      summary: Submit eSIM order
+      description: |
+        Create an eSIM order. Returns eSIM details including QR code and ICCID.
+
+        **Quantity Limit**: Maximum 50 eSIMs per order
+
+        **Timeout**: Orders with 30+ eSIMs may take 4-5 seconds
+
+        **Email Sharing**: If `to_email` is provided, eSIM is shared asynchronously
+        via white-label email template.
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '200':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '503':
+          description: Timeout - order not processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders-async:
+    post:
+      operationId: submitOrderAsync
+      summary: Submit eSIM order asynchronously
+      description: |
+        Create an eSIM order asynchronously with webhook callback.
+        Useful for large orders or when immediate response is not required.
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/OrderRequest'
+                - type: object
+                  properties:
+                    webhook_url:
+                      type: string
+                      format: uri
+                      description: URL to receive order completion callback
+                      example: https://api.yoursite.com/webhooks/airalo
+      responses:
+        '202':
+          description: Order accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                    description: Request ID for tracking
+                  accepted_at:
+                    type: string
+                    format: date-time
+                    description: Timestamp when order was accepted
+
+  /sims/{simId}/instructions:
+    get:
+      operationId: getSimInstructions
+      summary: Get SIM installation instructions
+      description: |
+        Retrieve installation instructions for a specific SIM.
+        Instructions are available in multiple languages.
+      tags:
+        - SIMs
+      parameters:
+        - name: simId
+          in: path
+          required: true
+          description: SIM ID from order response
+          schema:
+            type: integer
+            example: 123456
+      responses:
+        '200':
+          description: Instructions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimInstructionsResponse'
+        '404':
+          description: SIM not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sims/{iccid}/usage:
+    get:
+      operationId: getSimUsage
+      summary: Get SIM data usage
+      description: |
+        Retrieve data usage for a specific SIM.
+
+        **Rate Limit**: Can be called once every 15 minutes per SIM
+        (maximum 96 requests per day per SIM)
+      tags:
+        - SIMs
+      parameters:
+        - name: iccid
+          in: path
+          required: true
+          description: SIM ICCID
+          schema:
+            type: string
+            example: '8901234567890123456'
+      responses:
+        '200':
+          description: Usage data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimUsageResponse'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              description: Seconds until rate limit resets
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth 2.0 access token from /token endpoint
+
+  schemas:
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type (always Bearer)
+        expires_in:
+          type: integer
+          description: Token validity in seconds
+          example: 3600
+
+    OrderRequest:
+      type: object
+      required:
+        - quantity
+        - package_id
+        - type
+        - description
+      properties:
+        quantity:
+          type: string
+          description: Number of eSIMs (1-50)
+          example: '1'
+        package_id:
+          type: string
+          description: Package ID from packages endpoint
+          example: kallur-digital-7days-1gb
+        type:
+          type: string
+          enum: [sim]
+          description: Order type (always 'sim')
+          example: sim
+        description:
+          type: string
+          description: Order description for tracking (include customer ID, order ID)
+          example: 'Order #12345 for customer@example.com'
+        brand_settings_name:
+          type: string
+          nullable: true
+          description: Brand settings name for white-labeling (null for default)
+        to_email:
+          type: string
+          format: email
+          description: Email address for eSIM delivery
+          example: customer@example.com
+        sharing_option[]:
+          type: array
+          items:
+            type: string
+            enum: [link, pdf]
+          description: Sharing methods (required when to_email is set)
+
+    OrderResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/OrderData'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    OrderData:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Airalo order ID
+          example: 123456
+        code:
+          type: string
+          description: Order code
+          example: ORD-ABCDEF
+        currency:
+          type: string
+          example: USD
+        package_id:
+          type: string
+          example: kallur-digital-7days-1gb
+        quantity:
+          type: string
+          example: '1'
+        type:
+          type: string
+          example: sim
+        description:
+          type: string
+        esim_type:
+          type: string
+          description: Type of eSIM (data, voice_data)
+          example: data
+        validity:
+          type: integer
+          description: Validity in days
+          example: 7
+        package:
+          type: string
+          description: Package name
+          example: 1 GB - 7 Days
+        data:
+          type: string
+          description: Data allowance
+          example: 1 GB
+        price:
+          type: number
+          format: float
+          example: 4.50
+        pricing_model:
+          type: string
+          example: wholesale
+        created_at:
+          type: string
+          format: date-time
+        manual_installation:
+          type: string
+          description: Manual installation instructions URL
+        qrcode_installation:
+          type: string
+          description: QR code installation instructions URL
+        installation_guides:
+          type: object
+          additionalProperties:
+            type: string
+          description: Installation guides by language
+          example:
+            en: 'https://guides.airalo.com/en/install'
+            ja: 'https://guides.airalo.com/ja/install'
+        brand_settings_name:
+          type: string
+          nullable: true
+        sims:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sim'
+        discount_percentage:
+          type: number
+          description: Applied discount percentage
+        discount_amount:
+          type: number
+          description: Total discount amount
+        unit_paid_price:
+          type: number
+          description: Price paid per unit after discount
+        total_amount_paid:
+          type: number
+          description: Total amount paid
+
+    Sim:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: SIM ID (use for instructions endpoint)
+          example: 789012
+        created_at:
+          type: string
+          format: date-time
+        iccid:
+          type: string
+          description: Integrated Circuit Card Identifier
+          example: '8901234567890123456'
+        lpa:
+          type: string
+          description: LPA string for manual installation
+          example: 'LPA:1$smdp.example.com$ABC123'
+        imsis:
+          type: string
+          nullable: true
+          description: IMSI numbers
+        matching_id:
+          type: string
+          description: Matching ID for carrier
+        qrcode:
+          type: string
+          description: QR code data string
+        qrcode_url:
+          type: string
+          format: uri
+          description: URL to QR code image
+          example: 'https://cdn.airalo.com/qr/abc123.png'
+        direct_apple_installation_url:
+          type: string
+          format: uri
+          description: iOS 17.4+ direct installation URL
+          example: 'https://esim.apple.com/esim/activate?...'
+        airalo_code:
+          type: string
+          nullable: true
+          description: Airalo-specific code
+        apn_type:
+          type: string
+          description: APN type
+          example: general
+        apn_value:
+          type: string
+          nullable: true
+          description: APN value to configure
+        is_roaming:
+          type: boolean
+          description: Whether roaming is enabled
+          example: false
+        confirmation_code:
+          type: string
+          nullable: true
+          description: Confirmation code for activation
+        msisdn:
+          type: string
+          nullable: true
+          description: Phone number (Voice & Data plans only)
+
+    PackagesResponse:
+      type: object
+      properties:
+        pricing:
+          type: object
+          properties:
+            model:
+              type: string
+              example: wholesale
+            discount_percentage:
+              type: number
+              example: 10
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    Package:
+      type: object
+      properties:
+        slug:
+          type: string
+          example: japan
+        country_code:
+          type: string
+          description: ISO 3166-1 alpha-2 (empty for global packages)
+          example: JP
+        title:
+          type: string
+          example: Japan
+        image:
+          $ref: '#/components/schemas/Image'
+        operators:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operator'
+
+    Operator:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 456
+        style:
+          type: string
+        gradient_start:
+          type: string
+        gradient_end:
+          type: string
+        type:
+          type: string
+          enum: [local, global]
+        is_prepaid:
+          type: boolean
+        title:
+          type: string
+          example: Moshi Moshi
+        esim_type:
+          type: string
+          enum: [data, voice_data]
+        warning:
+          type: string
+          nullable: true
+        apn_type:
+          type: string
+        apn_value:
+          type: string
+          nullable: true
+        is_roaming:
+          type: boolean
+        info:
+          type: array
+          items:
+            type: string
+        image:
+          $ref: '#/components/schemas/Image'
+        plan_type:
+          type: string
+        activation_policy:
+          type: string
+          description: When eSIM activates (first_use, purchase)
+        is_kyc_verify:
+          type: boolean
+        rechargeability:
+          type: boolean
+          description: Whether top-up is available
+        other_info:
+          type: string
+          nullable: true
+        coverages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coverage'
+        install_window_days:
+          type: integer
+          nullable: true
+          description: Days to install after purchase
+        topup_grace_window_days:
+          type: integer
+          nullable: true
+          description: Days to top-up after expiry
+        apn:
+          $ref: '#/components/schemas/ApnConfig'
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageDetails'
+        countries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Country'
+
+    PackageDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Package ID (use for orders)
+          example: moshimoshi-7days-1gb
+        type:
+          type: string
+          enum: [data, voice_data]
+        price:
+          type: number
+          description: Retail price
+        amount:
+          type: integer
+          description: Data amount in MB
+        day:
+          type: integer
+          description: Validity in days
+        is_unlimited:
+          type: boolean
+        title:
+          type: string
+          example: 1 GB - 7 Days
+        short_info:
+          type: string
+          nullable: true
+        qr_installation:
+          type: string
+        manual_installation:
+          type: string
+        is_fair_usage_policy:
+          type: boolean
+        fair_usage_policy:
+          type: string
+          nullable: true
+        data:
+          type: string
+          example: '1 GB'
+        voice:
+          type: integer
+          nullable: true
+          description: Voice minutes (Voice & Data plans)
+        text:
+          type: integer
+          nullable: true
+          description: SMS count (Voice & Data plans)
+        net_price:
+          type: number
+          description: Wholesale price
+        prices:
+          $ref: '#/components/schemas/Prices'
+
+    Prices:
+      type: object
+      properties:
+        net_price:
+          $ref: '#/components/schemas/CurrencyPrices'
+        recommended_retail_price:
+          $ref: '#/components/schemas/CurrencyPrices'
+
+    CurrencyPrices:
+      type: object
+      description: Prices in multiple currencies
+      properties:
+        USD:
+          type: number
+        EUR:
+          type: number
+        GBP:
+          type: number
+        JPY:
+          type: number
+        KRW:
+          type: number
+        AUD:
+          type: number
+        CAD:
+          type: number
+        SGD:
+          type: number
+        AED:
+          type: number
+        BRL:
+          type: number
+        MXN:
+          type: number
+        INR:
+          type: number
+        IDR:
+          type: number
+        MYR:
+          type: number
+        ILS:
+          type: number
+        VND:
+          type: number
+
+    Coverage:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Japan
+        code:
+          type: string
+          example: JP
+        networks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Network'
+
+    Network:
+      type: object
+      properties:
+        name:
+          type: string
+          example: NTT Docomo
+        types:
+          type: array
+          items:
+            type: string
+            enum: [4G, 5G, LTE]
+
+    ApnConfig:
+      type: object
+      properties:
+        ios:
+          $ref: '#/components/schemas/ApnDetail'
+        android:
+          $ref: '#/components/schemas/ApnDetail'
+
+    ApnDetail:
+      type: object
+      properties:
+        apn_type:
+          type: string
+        apn_value:
+          type: string
+          nullable: true
+
+    Country:
+      type: object
+      properties:
+        country_code:
+          type: string
+          example: JP
+        title:
+          type: string
+          example: Japan
+        image:
+          $ref: '#/components/schemas/Image'
+
+    Image:
+      type: object
+      properties:
+        width:
+          type: integer
+        height:
+          type: integer
+        url:
+          type: string
+          format: uri
+
+    SimInstructionsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            instructions:
+              type: object
+              additionalProperties:
+                type: string
+              description: Instructions by language code
+              example:
+                en: 'Step 1: Enable eSIM. Step 2: Scan QR code...'
+                ja: 'ステップ1: eSIMを有効にする...'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    SimUsageResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            iccid:
+              type: string
+            total:
+              type: number
+              description: Total data in MB
+            remaining:
+              type: number
+              description: Remaining data in MB
+            used:
+              type: number
+              description: Used data in MB
+            status:
+              type: string
+              enum: [active, expired, not_activated]
+            expired_at:
+              type: string
+              format: date-time
+              nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          type: string
+        last:
+          type: string
+        prev:
+          type: string
+          nullable: true
+        next:
+          type: string
+          nullable: true
+
+    PaginationMeta:
+      type: object
+      properties:
+        message:
+          type: string
+        current_page:
+          type: integer
+        from:
+          type: integer
+        last_page:
+          type: integer
+        path:
+          type: string
+        per_page:
+          type: string
+        to:
+          type: integer
+        total:
+          type: integer
+
+    Meta:
+      type: object
+      properties:
+        message:
+          type: string
+          example: success
+
+    ErrorResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          nullable: true
+        meta:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Unauthenticated.
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Field-level errors
+          example:
+            package_id:
+              - The selected package_id is invalid.
+        meta:
+          type: object
+          properties:
+            message:
+              type: string
+              example: The given data was invalid.

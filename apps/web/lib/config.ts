@@ -38,6 +38,9 @@ interface Config {
     webhookUrl: string;
     apiKey: string;
   };
+  notifications: {
+    discordWebhookUrl: string;
+  };
   sentry: {
     dsn: string;
   };
@@ -46,6 +49,14 @@ interface Config {
     url: string;
     isProduction: boolean;
     isDevelopment: boolean;
+  };
+  featureFlags: {
+    useInlineFulfillment: boolean;
+  };
+  fulfillment: {
+    webhookTimeoutMs: number;
+    enableEmailNotification: boolean;
+    enableDiscordAlerts: boolean;
   };
 }
 
@@ -80,6 +91,9 @@ export function getConfig(): Config {
 
   const nodeEnv = optionalEnv('NODE_ENV', 'development');
 
+  // Check if inline fulfillment is enabled
+  const useInlineFulfillment = optionalEnv('FEATURE_INLINE_FULFILLMENT', 'false') === 'true';
+
   configInstance = {
     pocketbase: {
       url: requireEnv('POCKETBASE_URL'),
@@ -110,8 +124,12 @@ export function getConfig(): Config {
       fromEmail: requireEnv('RESEND_FROM_EMAIL'),
     },
     n8n: {
-      webhookUrl: requireEnv('N8N_WEBHOOK_URL'),
-      apiKey: requireEnv('N8N_API_KEY'),
+      // n8n is optional when inline fulfillment is enabled
+      webhookUrl: useInlineFulfillment ? optionalEnv('N8N_WEBHOOK_URL', '') : requireEnv('N8N_WEBHOOK_URL'),
+      apiKey: useInlineFulfillment ? optionalEnv('N8N_API_KEY', '') : requireEnv('N8N_API_KEY'),
+    },
+    notifications: {
+      discordWebhookUrl: optionalEnv('DISCORD_WEBHOOK_URL', ''),
     },
     sentry: {
       dsn: optionalEnv('SENTRY_DSN', ''),
@@ -121,6 +139,14 @@ export function getConfig(): Config {
       url: optionalEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000'),
       isProduction: nodeEnv === 'production',
       isDevelopment: nodeEnv === 'development',
+    },
+    featureFlags: {
+      useInlineFulfillment,
+    },
+    fulfillment: {
+      webhookTimeoutMs: parseInt(optionalEnv('FULFILLMENT_TIMEOUT_MS', '25000'), 10),
+      enableEmailNotification: optionalEnv('FULFILLMENT_EMAIL_ENABLED', 'true') === 'true',
+      enableDiscordAlerts: optionalEnv('FULFILLMENT_DISCORD_ALERTS', 'true') === 'true',
     },
   };
 

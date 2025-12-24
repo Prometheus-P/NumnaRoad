@@ -1,17 +1,4 @@
 {
-  "common": {
-    "appName": "NumnaRoad",
-    "loading": "로딩 중...",
-    "error": "오류가 발생했습니다",
-    "retry": "다시 시도",
-    "cancel": "취소",
-    "confirm": "확인",
-    "save": "저장",
-    "close": "닫기",
-    "search": "검색",
-    "filter": "필터",
-    "noResults": "결과가 없습니다"
-  },
   "order": {
     "status": {
       "pending": "처리 대기중",
@@ -21,153 +8,13 @@
     },
     "tracking": {
       "title": "주문 조회",
-      "subtitle": "주문 상태를 확인하세요",
-      "orderId": "주문 번호",
-      "orderDate": "주문 일시",
-      "productName": "상품명",
-      "country": "국가",
-      "dataLimit": "데이터",
-      "duration": "유효기간",
       "qrCode": "eSIM QR 코드",
-      "activationCode": "활성화 코드",
-      "notFound": "주문을 찾을 수 없습니다",
-      "checkOrderId": "주문 번호를 다시 확인해주세요"
-    },
-    "installation": {
-      "title": "설치 안내",
-      "iosTab": "iPhone / iPad",
-      "androidTab": "Android",
-      "beforeYouStart": "시작하기 전에",
-      "beforeYouStartText": "안정적인 Wi-Fi 연결이 필요합니다. 기기가 eSIM을 지원하는지 확인하세요.",
-      "iosSteps": [
-        "iPhone의 설정을 엽니다",
-        "'셀룰러' 또는 '모바일 데이터'를 탭합니다",
-        "'eSIM 추가' 또는 '셀룰러 요금제 추가'를 탭합니다",
-        "'QR 코드 사용'을 선택합니다",
-        "위의 QR 코드를 스캔합니다",
-        "eSIM 다운로드 및 활성화를 기다립니다",
-        "요금제에 이름을 지정합니다 (예: '여행 데이터')",
-        "여행 중 이 요금제를 데이터용으로 선택합니다"
-      ],
-      "androidSteps": [
-        "Android 기기의 설정을 엽니다",
-        "'네트워크 및 인터넷' 또는 '연결'을 탭합니다",
-        "'SIM' 또는 '모바일 네트워크'를 탭합니다",
-        "새 SIM을 추가하려면 '추가' 또는 '+'를 탭합니다",
-        "'대신 SIM 다운로드'를 선택합니다",
-        "위의 QR 코드를 스캔합니다",
-        "eSIM 활성화를 기다립니다",
-        "모바일 데이터용으로 eSIM을 활성화합니다"
-      ],
-      "importantNotes": "중요 안내",
-      "notes": [
-        "설치 후 eSIM을 삭제하지 마세요 - 다시 다운로드할 수 없습니다",
-        "eSIM은 목적지 국가의 네트워크에 연결되면 활성화됩니다",
-        "전화와 문자를 위해 기본 SIM을 활성 상태로 유지하세요",
-        "데이터 사용량은 해외에서 첫 연결부터 계산됩니다"
-      ],
-      "troubleshooting": "문제 해결",
-      "troubleshootingSteps": [
-        "eSIM이 나타나지 않으면 기기를 다시 시작하세요",
-        "최신 OS 버전인지 확인하세요",
-        "기기가 eSIM을 지원하는지 확인하세요",
-        "문제가 지속되면 고객센터에 문의하세요"
-      ],
-      "step1": "설정 > 셀룰러 > eSIM 추가로 이동하세요",
-      "step2": "QR 코드를 스캔하거나 수동으로 입력하세요",
-      "step3": "화면의 안내에 따라 설정을 완료하세요",
-      "step4": "목적지에 도착 후 eSIM을 활성화하세요",
-      "note": "QR 코드는 한 번만 사용할 수 있습니다",
-      "scanQr": "QR 코드 스캔",
-      "manualEntry": "수동 입력",
-      "copyCode": "코드 복사",
-      "copied": "복사되었습니다"
-    },
-    "error": {
-      "title": "문제가 발생했습니다",
-      "description": "주문 처리 중 오류가 발생했습니다. 고객센터로 문의해주세요.",
-      "supportEmail": "support@numnaroad.com",
-      "supportHours": "평일 09:00 - 18:00 (KST)"
-    },
-    "progress": {
-      "paymentReceived": "결제 완료",
-      "processing": "eSIM 발급 중",
-      "emailSent": "이메일 발송 완료",
-      "ready": "사용 준비 완료"
+      "installGuide": "설치 안내"
     }
   },
   "admin": {
     "dashboard": "대시보드",
     "orders": "주문 관리",
-    "providers": "공급자 상태",
-    "stats": {
-      "total": "전체 주문",
-      "pending": "대기중",
-      "processing": "처리중",
-      "completed": "완료",
-      "failed": "실패",
-      "today": "오늘",
-      "thisWeek": "이번 주",
-      "thisMonth": "이번 달"
-    },
-    "orderList": {
-      "title": "주문 목록",
-      "id": "주문 ID",
-      "customer": "고객",
-      "product": "상품",
-      "status": "상태",
-      "provider": "공급자",
-      "createdAt": "주문일시",
-      "completedAt": "완료일시",
-      "actions": "작업",
-      "viewDetails": "상세보기"
-    },
-    "orderDetail": {
-      "title": "주문 상세",
-      "customerEmail": "고객 이메일",
-      "correlationId": "추적 ID",
-      "paymentIntent": "결제 ID",
-      "qrCode": "QR 코드",
-      "iccid": "ICCID",
-      "activationCode": "활성화 코드",
-      "errorMessage": "오류 메시지",
-      "processingLogs": "처리 로그"
-    },
-    "providerHealth": {
-      "title": "공급자 상태",
-      "name": "이름",
-      "priority": "우선순위",
-      "status": "상태",
-      "successRate": "성공률",
-      "lastSuccess": "마지막 성공",
-      "lastFailure": "마지막 실패",
-      "circuitBreaker": "서킷 브레이커",
-      "open": "열림",
-      "closed": "닫힘",
-      "halfOpen": "반열림",
-      "active": "활성",
-      "inactive": "비활성"
-    },
-    "filter": {
-      "status": "상태별",
-      "dateRange": "기간별",
-      "provider": "공급자별",
-      "all": "전체",
-      "startDate": "시작일",
-      "endDate": "종료일",
-      "apply": "적용",
-      "reset": "초기화"
-    },
-    "nav": {
-      "dashboard": "대시보드",
-      "orders": "주문",
-      "providers": "공급자",
-      "settings": "설정"
-    }
-  },
-  "validation": {
-    "required": "필수 항목입니다",
-    "invalidEmail": "올바른 이메일 주소를 입력하세요",
-    "invalidDate": "올바른 날짜를 입력하세요"
+    "providers": "공급자 상태"
   }
 }
