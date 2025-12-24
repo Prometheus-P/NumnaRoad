@@ -1,6 +1,6 @@
 import { AiraloProvider } from '../../services/esim-providers/airalo';
 import { EsimProvider, EsimPurchaseRequest, AiraloPackageResponse, EsimProduct } from '../../services/esim-providers/types';
-import { vi, expect, test, describe, beforeEach } from 'vitest';
+import { vi, expect, test, describe, beforeEach, afterEach } from 'vitest';
 
 describe('AiraloProvider', () => {
     const config: EsimProvider = {
@@ -16,6 +16,23 @@ describe('AiraloProvider', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
+
+    // Set up environment variables for testing
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+        // Set up mock environment variables before each test
+        process.env = {
+            ...originalEnv,
+            AIRALO_API_KEY: 'test-api-key',
+            AIRALO_API_SECRET_KEY: 'test-api-secret',
+        };
+    });
+
+    afterEach(() => {
+        // Restore original environment after each test
+        process.env = originalEnv;
+    });
 
     const mockAccessTokenResponse = {
         access_token: 'test-token',
@@ -199,6 +216,12 @@ describe('AiraloProvider', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
+        // Ensure environment is reset for each test
+        process.env = {
+            ...originalEnv,
+            AIRALO_API_KEY: 'test-api-key',
+            AIRALO_API_SECRET_KEY: 'test-api-secret',
+        };
     });
 
     test('healthCheck should return true when API is healthy', async () => {
@@ -494,6 +517,346 @@ describe('AiraloProvider', () => {
                 'Failed to fetch Airalo SIM instructions: HTTP 404 - SIM not found'
             );
             expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    // =========================================================================
+    // TDD Error Handling Tests (Part 3 - Task T.1)
+    // =========================================================================
+
+    describe('Error Handling', () => {
+        const request: EsimPurchaseRequest = {
+            providerSku: 'test-sku',
+            customerEmail: 'test@example.com',
+            correlationId: 'test-correlation-id',
+            quantity: 1,
+        };
+
+        describe('Authentication Errors', () => {
+            test('purchase should handle 401 authentication error', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 401,
+                        json: () => Promise.resolve({ error: { message: 'Invalid or expired token' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('authentication');
+                    expect(result.isRetryable).toBe(false);
+                }
+            });
+
+            test('purchase should handle 403 forbidden error', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 403,
+                        json: () => Promise.resolve({ error: { message: 'Access denied' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('authentication');
+                    expect(result.isRetryable).toBe(false);
+                }
+            });
+        });
+
+        describe('Rate Limit Errors', () => {
+            test('purchase should handle 429 rate limit error as retryable', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 429,
+                        json: () => Promise.resolve({ error: { message: 'Too many requests' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('rate_limit');
+                    expect(result.isRetryable).toBe(true);
+                }
+            });
+        });
+
+        describe('Server Errors', () => {
+            test('purchase should handle 500 server error as retryable', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 500,
+                        json: () => Promise.resolve({ error: { message: 'Internal server error' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('provider_error');
+                    expect(result.isRetryable).toBe(true);
+                }
+            });
+
+            test('purchase should handle 503 service unavailable as retryable', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 503,
+                        json: () => Promise.resolve({ error: { message: 'Service unavailable' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('provider_error');
+                    expect(result.isRetryable).toBe(true);
+                }
+            });
+        });
+
+        describe('Validation Errors', () => {
+            test('purchase should handle 400 bad request as non-retryable', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 400,
+                        json: () => Promise.resolve({ error: { message: 'Invalid package_id' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('validation');
+                    expect(result.isRetryable).toBe(false);
+                }
+            });
+
+            test('purchase should handle 422 validation error as non-retryable', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 422,
+                        json: () => Promise.resolve({ error: { message: 'Unprocessable entity' } }),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('validation');
+                    expect(result.isRetryable).toBe(false);
+                }
+            });
+        });
+
+        describe('Network Errors', () => {
+            test('purchase should handle network timeout', async () => {
+                const provider = new AiraloProvider(config);
+
+                const abortError = new Error('The operation was aborted');
+                abortError.name = 'AbortError';
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockRejectedValueOnce(abortError);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('timeout');
+                    expect(result.isRetryable).toBe(true);
+                }
+            });
+
+            test('purchase should handle fetch network error', async () => {
+                const provider = new AiraloProvider(config);
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockRejectedValueOnce(new Error('fetch failed: network error'));
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('network_error');
+                    expect(result.isRetryable).toBe(true);
+                }
+            });
+        });
+
+        describe('Empty Response Handling', () => {
+            test('purchase should handle empty sims array', async () => {
+                const provider = new AiraloProvider(config);
+
+                const emptySimsResponse = {
+                    data: {
+                        id: 12345,
+                        sims: [], // Empty array
+                    },
+                    meta: { message: 'Order created but no SIMs available' },
+                };
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(emptySimsResponse),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('provider_error');
+                    // Error message comes from meta.message or default
+                    expect(result.errorMessage).toBeTruthy();
+                    expect(result.isRetryable).toBe(false);
+                }
+            });
+
+            test('purchase should handle missing data field', async () => {
+                const provider = new AiraloProvider(config);
+
+                const missingDataResponse = {
+                    meta: { message: 'Error' },
+                };
+
+                global.fetch = vi.fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(mockAccessTokenResponse),
+                    } as Response)
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: () => Promise.resolve(missingDataResponse),
+                    } as Response);
+
+                const result = await provider.purchase(request);
+
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(result.errorType).toBe('provider_error');
+                }
+            });
+        });
+    });
+
+    describe('Token Management', () => {
+        test('should cache access token until expiry', async () => {
+            const provider = new AiraloProvider(config);
+
+            global.fetch = vi.fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockAccessTokenResponse),
+                } as Response)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockAiraloPackageResponse),
+                } as Response)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockAiraloPackageResponse),
+                } as Response);
+
+            // First call - should request token
+            await provider.getPackages();
+            // Second call - should reuse cached token
+            await provider.getPackages();
+
+            // Token endpoint should only be called once
+            const tokenCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+                (call) => call[0].includes('/token')
+            );
+            expect(tokenCalls.length).toBe(1);
+        });
+
+        test('should handle token refresh failure gracefully', async () => {
+            const provider = new AiraloProvider(config);
+
+            global.fetch = vi.fn()
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 401,
+                    json: () => Promise.resolve({ error: { message: 'Invalid credentials' } }),
+                } as Response);
+
+            await expect(provider.healthCheck()).resolves.toBe(false);
+        });
+
+        test('getAccessToken should throw error when token response missing access_token', async () => {
+            const provider = new AiraloProvider(config);
+
+            global.fetch = vi.fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve({ expires_in: 3600 }), // Missing access_token
+                } as Response);
+
+            await expect(provider.healthCheck()).resolves.toBe(false);
         });
     });
 });

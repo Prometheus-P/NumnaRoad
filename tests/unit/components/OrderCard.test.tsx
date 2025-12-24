@@ -1,12 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { ThemeProvider } from '@mui/material/styles';
-import { theme } from '../../../apps/web/components/ui/theme/m3-theme';
+/**
+ * @vitest-environment jsdom
+ */
+import React from 'react';
+import { describe, it, expect, afterEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+import { render, screen, within, cleanup } from '@testing-library/react';
+import { ThemeProvider } from '../../../apps/web/components/providers/ThemeProvider'; // Corrected import
 import OrderCard from '../../../apps/web/components/ui/OrderCard';
 
-// Test wrapper with theme
+// Clean up after each test
+afterEach(() => {
+  cleanup();
+});
+
+// Test wrapper with custom ThemeProvider
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <ThemeProvider theme={theme}>{children}</ThemeProvider>
+  <ThemeProvider>{children}</ThemeProvider>
 );
 
 describe('OrderCard Component', () => {
@@ -166,6 +175,10 @@ describe('OrderCard Component', () => {
       </TestWrapper>
     );
     // Check for article role (semantic for card content)
-    expect(screen.getByRole('article')).toBeInTheDocument();
+    const articles = screen.getAllByRole('article');
+    expect(articles.length).toBeGreaterThan(0);
+    // Check for proper aria-labelledby on the order card
+    const orderCard = articles.find(article => article.getAttribute('aria-labelledby')?.includes('order-test-order-123'));
+    expect(orderCard).toBeInTheDocument();
   });
 });

@@ -4,13 +4,8 @@ import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/st
 import CssBaseline from '@mui/material/CssBaseline';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { createContext, useMemo, useState } from 'react';
-import { getM3Theme } from '../ui/theme/m3-theme'; // Assuming m3-theme exports a function to get themes
+import { getMuiTheme } from '../ui/theme/m3-theme';
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
-
-// Create a context for the color mode
 export const ColorModeContext = createContext({ toggleColorMode: () => {} });
 
 /**
@@ -18,7 +13,7 @@ export const ColorModeContext = createContext({ toggleColorMode: () => {} });
  * Wraps the application with MUI theme and CSS baseline reset
  * Supports light/dark mode based on system preference and user toggle
  */
-export function ThemeProvider({ children }: ThemeProviderProps) {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const [mode, setMode] = useState<'light' | 'dark'>(prefersDarkMode ? 'dark' : 'light');
 
@@ -31,16 +26,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     [],
   );
 
-  const theme = useMemo(() => createTheme(getM3Theme(mode)), [mode]);
+  const theme = useMemo(() => createTheme(getMuiTheme(mode)), [mode]);
 
   return (
     <ColorModeContext.Provider value={colorMode}>
       <MuiThemeProvider theme={theme}>
-        <CssBaseline enableColorScheme /> {/* enableColorScheme enables system preference detection */}
+        <CssBaseline enableColorScheme />
         {children}
       </MuiThemeProvider>
     </ColorModeContext.Provider>
   );
 }
-
-export default ThemeProvider;
