@@ -1,243 +1,153 @@
-/**
- * NavigationRail Component
- *
- * M3-styled navigation rail for admin dashboard.
- * Desktop-optimized with collapse/expand functionality.
- *
- * Task: T101
- */
-
 'use client';
 
 import React from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
+import { useMediaQuery } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import SettingsIcon from '@mui/icons-material/Settings';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { useTheme, alpha } from '@mui/material/styles';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-/**
- * Navigation item definition
- */
-export interface NavItem {
+// Types for NavigationRail component
+interface NavItem {
   id: string;
   label: string;
-  icon: React.ReactNode;
+  iconName: string; // Used to map to MUI Icons
   href: string;
 }
 
-/**
- * Component props
- */
-export interface NavigationRailProps {
+interface NavigationRailProps {
+  items: NavItem[];
+  // activeItemId is now derived from href/pathname
+  onItemClick?: (item: NavItem) => void;
   collapsed?: boolean;
   onCollapseToggle?: () => void;
+  labels?: {
+    collapseNav?: string;
+    expandNav?: string;
+  };
 }
 
-/**
- * Default navigation items
- */
-const defaultNavItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, href: '/admin' },
-  { id: 'orders', label: 'Orders', icon: <ShoppingCartIcon />, href: '/admin/orders' },
-  { id: 'providers', label: 'Providers', icon: <CloudQueueIcon />, href: '/admin/providers' },
-  { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/admin/settings' },
-];
+// Map icon names to actual MUI icons
+const IconMap: Record<string, React.ElementType> = {
+  Dashboard: DashboardIcon,
+  ShoppingCart: ShoppingCartIcon,
+  CloudQueue: CloudQueueIcon,
+  Settings: SettingsIcon,
+  // Add other icons as needed
+};
 
 /**
- * Navigation rail widths
- */
-const EXPANDED_WIDTH = 240;
-const COLLAPSED_WIDTH = 72;
-
-/**
- * NavigationRail Component
+ * M3 Navigation Rail Component
+ * Displays navigation items for the admin dashboard.
+ * Supports collapsed/expanded states and highlights the active item.
  */
 export function NavigationRail({
+  items,
+  onItemClick,
   collapsed = false,
   onCollapseToggle,
+  labels = {},
 }: NavigationRailProps) {
   const theme = useTheme();
   const pathname = usePathname();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Example: collapse on small screens
 
-  const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+  const {
+    collapseNav = 'Collapse navigation',
+    expandNav = 'Expand navigation',
+  } = labels;
 
-  /**
-   * Check if nav item is active
-   */
-  const isActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === '/admin';
-    }
-    return pathname.startsWith(href);
+  // Render icon based on iconName
+  const renderIcon = (iconName: string) => {
+    const IconComponent = IconMap[iconName];
+    return IconComponent ? <IconComponent /> : <DashboardIcon />; // Default icon
   };
 
   return (
     <Box
-      component="nav"
-      role="navigation"
-      aria-label="Admin navigation"
-      data-testid="navigation-rail"
       sx={{
-        width,
-        minWidth: width,
+        width: collapsed ? theme.spacing(9) : theme.spacing(28), // Adjust width based on collapsed state
         height: '100vh',
-        position: 'fixed',
-        left: 0,
-        top: 0,
         bgcolor: 'background.paper',
-        borderRight: 1,
-        borderColor: 'divider',
+        borderRight: `1px solid ${theme.palette.divider}`,
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
+        pt: 2,
+        pb: 2,
         transition: theme.transitions.create('width', {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.enteringScreen,
         }),
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        [theme.breakpoints.down('sm')]: {
+          width: collapsed ? 0 : '100vw', // Hide completely on mobile if collapsed
+          position: 'fixed',
+          zIndex: theme.zIndex.drawer + 1,
+        },
       }}
+      role="navigation"
+      aria-label="Admin navigation"
     >
-      {/* Logo / Brand */}
-      <Box
-        sx={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          px: collapsed ? 1.5 : 2,
-          justifyContent: collapsed ? 'center' : 'flex-start',
-        }}
-      >
-        {!collapsed && (
-          <Typography
-            variant="h6"
-            component="span"
-            sx={{
-              fontWeight: 700,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            NumnaRoad
-          </Typography>
-        )}
-        {collapsed && (
-          <Typography
-            variant="h6"
-            component="span"
-            sx={{
-              fontWeight: 700,
-              color: 'primary.main',
-            }}
-          >
-            NR
-          </Typography>
-        )}
-      </Box>
+      {/* Toggle button */}
+      {onCollapseToggle && (
+        <IconButton
+          onClick={onCollapseToggle}
+          aria-label={collapsed ? expandNav : collapseNav}
+          sx={{ mb: 2 }}
+        >
+          {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+        </IconButton>
+      )}
 
-      <Divider />
-
-      {/* Navigation Items */}
-      <List sx={{ flex: 1, py: 1 }}>
-        {defaultNavItems.map((item) => {
-          const active = isActive(item.href);
-
-          const button = (
+      <List component="nav" sx={{ width: '100%', px: 1 }}>
+        {items.map((item) => {
+          const isActive = pathname === item.href;
+          return (
             <ListItemButton
+              key={item.id}
               component={Link}
               href={item.href}
-              aria-current={active ? 'page' : undefined}
-              data-testid={`nav-item-${item.id}`}
+              selected={isActive}
+              onClick={() => onItemClick && onItemClick(item)}
+              aria-current={isActive ? 'page' : undefined}
               sx={{
-                minHeight: 48,
-                px: 2,
-                mx: 1,
                 borderRadius: 2,
+                mb: 1,
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                bgcolor: active
-                  ? alpha(theme.palette.primary.main, 0.12)
-                  : 'transparent',
+                '&.Mui-selected': {
+                  bgcolor: theme.palette.action.selected,
+                  color: theme.palette.primary.main,
+                  '& .MuiListItemIcon-root': {
+                    color: theme.palette.primary.main,
+                  },
+                },
                 '&:hover': {
-                  bgcolor: active
-                    ? alpha(theme.palette.primary.main, 0.16)
-                    : alpha(theme.palette.primary.main, 0.04),
+                  bgcolor: theme.palette.action.hover,
                 },
               }}
             >
-              <ListItemIcon
-                sx={{
-                  minWidth: collapsed ? 0 : 40,
-                  color: active ? 'primary.main' : 'text.secondary',
-                  justifyContent: 'center',
-                }}
-              >
-                {item.icon}
+              <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 3, justifyContent: 'center' }}>
+                {renderIcon(item.iconName)}
               </ListItemIcon>
-              {!collapsed && (
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontWeight: active ? 600 : 400,
-                    color: active ? 'primary.main' : 'text.primary',
-                  }}
-                />
-              )}
+              {!collapsed && <ListItemText primary={item.label} sx={{ my: 0 }} />}
             </ListItemButton>
-          );
-
-          return (
-            <ListItem key={item.id} disablePadding>
-              {collapsed ? (
-                <Tooltip title={item.label} placement="right" arrow>
-                  {button}
-                </Tooltip>
-              ) : (
-                button
-              )}
-            </ListItem>
           );
         })}
       </List>
-
-      <Divider />
-
-      {/* Collapse Toggle */}
-      {onCollapseToggle && (
-        <Box sx={{ p: 1, display: 'flex', justifyContent: 'center' }}>
-          <Tooltip
-            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-            placement="right"
-          >
-            <IconButton
-              onClick={onCollapseToggle}
-              aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-              data-testid={collapsed ? 'expand-button' : 'collapse-button'}
-              sx={{
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                },
-              }}
-            >
-              {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
     </Box>
   );
 }
