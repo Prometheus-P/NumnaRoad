@@ -417,6 +417,7 @@ export type StepName =
   | 'provider_call_success'
   | 'provider_call_failed'
   | 'failover_triggered'
+  | 'manual_fulfillment_attempt'
   | 'email_sent'
   | 'email_failed'
   | 'order_completed'

@@ -28,6 +28,7 @@ export type OrderState =
   | 'email_sent'         // Confirmation email sent
   | 'delivered'          // Final success state
   | 'provider_failed'    // All providers failed
+  | 'pending_manual_fulfillment' // Awaiting manual fulfillment by staff
   | 'refund_needed'      // Marked for refund
   | 'completed'          // Legacy success state
   | 'failed'             // Legacy failure state
@@ -40,11 +41,12 @@ export const STATE_TRANSITIONS: Record<OrderState, OrderState[]> = {
   pending: ['payment_received', 'processing', 'failed'],
   processing: ['fulfillment_started', 'completed', 'failed'],
   payment_received: ['fulfillment_started', 'failed'],
-  fulfillment_started: ['provider_confirmed', 'provider_failed'],
+  fulfillment_started: ['provider_confirmed', 'provider_failed', 'pending_manual_fulfillment'],
   provider_confirmed: ['email_sent', 'delivered'],
   email_sent: ['delivered'],
   delivered: [], // Terminal state
-  provider_failed: ['refund_needed', 'fulfillment_started'], // Can retry or refund
+  provider_failed: ['refund_needed', 'fulfillment_started', 'pending_manual_fulfillment'], // Can retry, refund, or manual
+  pending_manual_fulfillment: ['provider_confirmed', 'refund_needed'], // Staff completes or refunds
   refund_needed: ['refunded'],
   completed: [], // Terminal legacy state
   failed: ['refund_needed', 'fulfillment_started'], // Can retry or refund
@@ -59,7 +61,7 @@ export const TERMINAL_STATES: OrderState[] = ['delivered', 'completed', 'refunde
 /**
  * States that require manual intervention
  */
-export const ALERT_STATES: OrderState[] = ['provider_failed', 'refund_needed', 'failed'];
+export const ALERT_STATES: OrderState[] = ['provider_failed', 'pending_manual_fulfillment', 'refund_needed', 'failed'];
 
 // =============================================================================
 // State Transition Types
@@ -159,6 +161,10 @@ export interface FulfillmentResult {
     message: string;
     type: ErrorType;
   };
+  /** True if order is pending manual fulfillment by staff */
+  pendingManualFulfillment?: boolean;
+  /** Discord notification sent for manual fulfillment */
+  manualFulfillmentNotificationSent?: boolean;
   totalDurationMs: number;
 }
 

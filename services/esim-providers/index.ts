@@ -31,5 +31,9 @@ import './mobimatter';
 import './airalo';
 import './manual';
 
-// Export manual provider helper
-export { isManualFulfillmentPending } from './manual';
+// Export manual provider and helpers
+export {
+  ManualProvider,
+  isManualFulfillmentPending,
+  type ManualPurchaseRequest,
+} from './manual';
