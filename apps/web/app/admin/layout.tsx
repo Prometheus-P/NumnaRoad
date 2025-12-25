@@ -20,6 +20,7 @@ interface NavItem {
 const adminNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', iconName: 'Dashboard', href: '/admin' },
   { id: 'orders', label: 'Orders', iconName: 'ShoppingCart', href: '/admin/orders' },
+  { id: 'bundles', label: 'Bundles', iconName: 'Inventory', href: '/admin/bundles' },
   { id: 'providers', label: 'Providers', iconName: 'CloudQueue', href: '/admin/providers' },
   { id: 'settings', label: 'Settings', iconName: 'Settings', href: '/admin/settings' },
 ];

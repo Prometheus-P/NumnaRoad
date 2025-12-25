@@ -63,3 +63,38 @@ export interface PaginatedResponse<T> extends APIResponse<T[]> {
     totalPages: number;
   };
 }
+
+export type BundleType = 'multi_country' | 'data_package' | 'travel_kit' | 'custom';
+
+export interface Bundle {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  bundle_type: BundleType;
+  region?: string;
+  countries?: string[];
+  total_data?: string;
+  total_duration_days: number;
+  individual_price_sum: number;
+  bundle_price: number;
+  discount_percent: number;
+  savings_amount: number;
+  currency: string;
+  is_active: boolean;
+  is_featured: boolean;
+  valid_from?: string;
+  valid_until?: string;
+  max_purchases?: number;
+  current_purchases: number;
+  image?: string;
+  features?: string[];
+  sort_order: number;
+  created: string;
+  updated: string;
+  // Calculated fields from API
+  savingsPercent: number;
+  isAvailable: boolean;
+  // Expanded products
+  products: Product[];
+}

@@ -11,6 +11,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      // Playwright E2E tests should be run separately with `npx playwright test`
+      'tests/e2e/customer-order-tracking.test.ts',
+    ],
     environmentMatchGlobs: [
       // Use node for non-component tests
       ['tests/unit/*.test.ts', 'node'],

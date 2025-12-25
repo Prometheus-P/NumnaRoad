@@ -29,6 +29,7 @@ export {
 import './esimcard';
 import './mobimatter';
 import './airalo';
+import './redteago';
 import './manual';
 
 // Export manual provider and helpers
@@ -37,3 +38,6 @@ export {
   isManualFulfillmentPending,
   type ManualPurchaseRequest,
 } from './manual';
+
+// Export RedteaGO provider
+export { RedteaGOProvider } from './redteago';

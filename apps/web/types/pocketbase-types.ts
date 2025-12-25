@@ -8,6 +8,7 @@ export type Collections = {
 	esim_products: EsimProductsRecord;
 	orders: OrdersRecord;
 	automation_logs: AutomationLogsRecord;
+	product_bundles: ProductBundlesRecord;
 };
 
 // =============================================================
@@ -56,6 +57,36 @@ export type AutomationLogsRecord = {
 	retryCount?: number;
 };
 
+export type BundleType = 'multi_country' | 'data_package' | 'travel_kit' | 'custom';
+
+export type BundleCurrency = 'USD' | 'KRW' | 'EUR' | 'JPY';
+
+export type ProductBundlesRecord = {
+	name: string;
+	slug: string;
+	description: string;
+	products: string[]; // Relation to esim_products (multi-select)
+	bundle_type: BundleType;
+	region?: string;
+	countries?: string[];
+	total_data?: string;
+	total_duration_days: number;
+	individual_price_sum: number;
+	bundle_price: number;
+	discount_percent: number;
+	savings_amount: number;
+	currency: BundleCurrency;
+	is_active: boolean;
+	is_featured: boolean;
+	valid_from?: string;
+	valid_until?: string;
+	max_purchases?: number;
+	current_purchases: number;
+	image?: string;
+	features?: string[];
+	sort_order: number;
+};
+
 // =============================================================
 // PocketBase collections expand relations
 // =============================================================
@@ -68,6 +99,10 @@ export type AutomationLogsExpand = {
 	orderId: OrdersRecord;
 };
 
+export type ProductBundlesExpand = {
+	products: EsimProductsRecord[];
+};
+
 // =============================================================
 // Custom types
 // =============================================================
@@ -77,3 +112,17 @@ export type Order = OrdersRecord & {
 };
 
 export type EsimProduct = EsimProductsRecord; // Alias for clarity
+
+export type ProductBundle = ProductBundlesRecord & {
+	id: string;
+	created: string;
+	updated: string;
+	expand?: ProductBundlesExpand;
+};
+
+// API response type with calculated fields
+export type ProductBundleWithCalculations = ProductBundle & {
+	savingsPercent: number;
+	isAvailable: boolean;
+	products: EsimProductsRecord[]; // Expanded products
+};

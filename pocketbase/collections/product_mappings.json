@@ -1,0 +1,67 @@
+{
+  "id": "product_mappings",
+  "name": "product_mappings",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "internal_product",
+      "name": "internal_product",
+      "type": "relation",
+      "required": true,
+      "options": {
+        "collectionId": "esim_products",
+        "cascadeDelete": false,
+        "minSelect": null,
+        "maxSelect": 1,
+        "displayFields": []
+      }
+    },
+    {
+      "id": "sales_channel",
+      "name": "sales_channel",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["smartstore", "tosspay", "other"]
+      }
+    },
+    {
+      "id": "external_product_id",
+      "name": "external_product_id",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "external_product_name",
+      "name": "external_product_name",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "provider_sku",
+      "name": "provider_sku",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_channel_product ON product_mappings (sales_channel, external_product_id)"
+  ],
+  "listRule": "",
+  "viewRule": "",
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}
