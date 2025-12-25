@@ -17,6 +17,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import SettingsIcon from '@mui/icons-material/Settings';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -46,7 +47,7 @@ const IconMap: Record<string, React.ElementType> = {
   ShoppingCart: ShoppingCartIcon,
   CloudQueue: CloudQueueIcon,
   Settings: SettingsIcon,
-  // Add other icons as needed
+  Inventory: InventoryIcon,
 };
 
 /**

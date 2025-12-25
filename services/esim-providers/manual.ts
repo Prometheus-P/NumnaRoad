@@ -20,7 +20,7 @@ import type {
 import {
   notifyManualFulfillmentRequired,
   isDiscordConfigured,
-} from '../notifications/discord-notifier';
+} from '../notifications';
 
 /**
  * Extended purchase request with additional context for manual fulfillment
