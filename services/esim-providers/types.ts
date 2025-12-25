@@ -152,7 +152,7 @@ export interface AiraloPackageResponse {
 /**
  * Provider slugs matching the database
  */
-export type ProviderSlug = 'esimcard' | 'mobimatter' | 'airalo' | 'manual';
+export type ProviderSlug = 'esimcard' | 'mobimatter' | 'airalo' | 'redteago' | 'manual';
 
 /**
  * Provider configuration from database
@@ -417,6 +417,7 @@ export type StepName =
   | 'provider_call_success'
   | 'provider_call_failed'
   | 'failover_triggered'
+  | 'manual_fulfillment_attempt'
   | 'email_sent'
   | 'email_failed'
   | 'order_completed'

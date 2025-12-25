@@ -58,6 +58,14 @@ interface Config {
     enableEmailNotification: boolean;
     enableDiscordAlerts: boolean;
   };
+  smartStore: {
+    enabled: boolean;
+    appId: string;
+    appSecret: string;
+    sellerId: string;
+    webhookSecret: string;
+    apiUrl: string;
+  };
 }
 
 let configInstance: Config | null = null;
@@ -147,6 +155,14 @@ export function getConfig(): Config {
       webhookTimeoutMs: parseInt(optionalEnv('FULFILLMENT_TIMEOUT_MS', '25000'), 10),
       enableEmailNotification: optionalEnv('FULFILLMENT_EMAIL_ENABLED', 'true') === 'true',
       enableDiscordAlerts: optionalEnv('FULFILLMENT_DISCORD_ALERTS', 'true') === 'true',
+    },
+    smartStore: {
+      enabled: optionalEnv('SMARTSTORE_ENABLED', 'false') === 'true',
+      appId: optionalEnv('NAVER_COMMERCE_APP_ID', ''),
+      appSecret: optionalEnv('NAVER_COMMERCE_APP_SECRET', ''),
+      sellerId: optionalEnv('SMARTSTORE_SELLER_ID', ''),
+      webhookSecret: optionalEnv('NAVER_COMMERCE_WEBHOOK_SECRET', ''),
+      apiUrl: optionalEnv('NAVER_COMMERCE_API_URL', 'https://api.commerce.naver.com/external/v1'),
     },
   };
 

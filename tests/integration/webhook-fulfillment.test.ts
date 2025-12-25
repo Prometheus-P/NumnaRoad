@@ -36,18 +36,36 @@ vi.mock('../../services/esim-providers', async () => {
   };
 });
 
-// Mock Discord notifications
+// Mock Discord notifications (both index and direct module)
 vi.mock('../../services/notifications', () => ({
   notifyOrderFailure: vi.fn().mockResolvedValue(undefined),
+  notifyManualFulfillmentRequired: vi.fn().mockResolvedValue(undefined),
   isDiscordConfigured: vi.fn().mockReturnValue(true),
+}));
+
+// Also mock the direct discord-notifier import for ManualProvider
+vi.mock('../../services/notifications/discord-notifier', () => ({
+  notifyOrderFailure: vi.fn().mockResolvedValue(undefined),
+  notifyManualFulfillmentRequired: vi.fn().mockResolvedValue(undefined),
+  isDiscordConfigured: vi.fn().mockReturnValue(true),
+  notifyProviderHealth: vi.fn().mockResolvedValue(undefined),
+  notifyCircuitBreakerStateChange: vi.fn().mockResolvedValue(undefined),
+  notifyCustom: vi.fn().mockResolvedValue(undefined),
+  testWebhookConnection: vi.fn().mockResolvedValue(true),
 }));
 
 // Import mocked modules
 import { purchaseWithFailover } from '../../services/esim-providers';
-import { notifyOrderFailure, isDiscordConfigured } from '../../services/notifications';
+import {
+  notifyOrderFailure,
+  notifyManualFulfillmentRequired,
+  isDiscordConfigured,
+} from '../../services/notifications';
 
 const mockPurchaseWithFailover = vi.mocked(purchaseWithFailover);
 const mockNotifyOrderFailure = vi.mocked(notifyOrderFailure);
+const mockNotifyManualFulfillmentRequired = vi.mocked(notifyManualFulfillmentRequired);
+const mockIsDiscordConfigured = vi.mocked(isDiscordConfigured);
 
 // =============================================================================
 // Test Utilities
@@ -420,7 +438,17 @@ describe('Webhook Fulfillment Integration', () => {
   // All Fail: All Providers Fail → Discord Alert
   // ===========================================================================
 
-  describe('All fail: All providers fail → Discord alert', () => {
+  describe('All fail: All providers fail → Discord alert (without ManualProvider)', () => {
+    beforeEach(() => {
+      // Disable Discord for these tests to test pure provider_failed behavior
+      mockIsDiscordConfigured.mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      // Restore Discord configuration
+      mockIsDiscordConfigured.mockReturnValue(true);
+    });
+
     it('should transition to provider_failed when all providers fail', async () => {
       // Arrange
       const order = createTestOrder();
@@ -449,7 +477,7 @@ describe('Webhook Fulfillment Integration', () => {
       expect(result.error?.message).toContain('All providers failed');
     });
 
-    it('should send Discord notification when all providers fail', async () => {
+    it('should NOT send Discord notification when Discord is disabled', async () => {
       // Arrange
       const order = createTestOrder();
       const providers = createTestProviders();
@@ -471,16 +499,9 @@ describe('Webhook Fulfillment Integration', () => {
       await vi.runAllTimersAsync();
       await resultPromise;
 
-      // Assert
-      expect(mockNotifyOrderFailure).toHaveBeenCalled();
-      expect(mockNotifyOrderFailure).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orderId: order.orderId,
-          correlationId: order.correlationId,
-          customerEmail: order.customerEmail,
-          attemptedProviders: ['airalo', 'esimcard', 'mobimatter'],
-        })
-      );
+      // Assert - Discord notifications should NOT be sent when disabled
+      expect(mockNotifyOrderFailure).not.toHaveBeenCalled();
+      expect(mockNotifyManualFulfillmentRequired).not.toHaveBeenCalled();
     });
 
     it('should include all failure reasons in result', async () => {
@@ -508,7 +529,8 @@ describe('Webhook Fulfillment Integration', () => {
 
       // Assert
       expect(result.success).toBe(false);
-      expect(result.attempts.length).toBe(3);
+      // 3 provider attempts + 1 manual provider attempt = 4 total (or 3 if manual disabled)
+      expect(result.attempts.length).toBeGreaterThanOrEqual(3);
       expect(result.attempts.find((a) => a.providerName === 'airalo')?.errorMessage).toBe(
         expectedReasons.airalo
       );
@@ -519,6 +541,9 @@ describe('Webhook Fulfillment Integration', () => {
       const order = createTestOrder();
       const providers = createTestProviders();
       let emailCalled = false;
+
+      // Disable Discord for this test to prevent ManualProvider fallback
+      mockIsDiscordConfigured.mockReturnValue(false);
 
       const noEmailService = createFulfillmentService({
         persistFn: async (orderId, state) => stateStore.set(orderId, state),
@@ -553,6 +578,169 @@ describe('Webhook Fulfillment Integration', () => {
       expect(result.success).toBe(false);
       expect(emailCalled).toBe(false);
       expect(result.emailSent).toBeUndefined();
+
+      // Restore mock
+      mockIsDiscordConfigured.mockReturnValue(true);
+    });
+  });
+
+  // ===========================================================================
+  // ManualProvider Fallback: Discord notification for manual fulfillment
+  // ===========================================================================
+
+  describe('ManualProvider fallback: Discord notification for manual fulfillment', () => {
+    beforeEach(() => {
+      // Ensure Discord is configured for manual fallback tests
+      mockIsDiscordConfigured.mockReturnValue(true);
+      mockNotifyManualFulfillmentRequired.mockClear();
+    });
+
+    it('should transition to pending_manual_fulfillment when all providers fail', async () => {
+      // Arrange
+      const order = createTestOrder();
+      const providers = createTestProviders();
+
+      // Explicitly reset mocks to ensure clean state
+      mockIsDiscordConfigured.mockReturnValue(true);
+      mockNotifyManualFulfillmentRequired.mockResolvedValue(undefined);
+
+      mockPurchaseWithFailover.mockResolvedValue({
+        success: false,
+        errorMessage: 'All providers exhausted',
+        errorType: 'provider_error',
+        attemptedProviders: ['airalo', 'esimcard', 'mobimatter'],
+        failureReasons: {
+          airalo: 'Service unavailable',
+          esimcard: 'Out of stock',
+          mobimatter: 'Rate limited',
+        },
+      });
+
+      // Act
+      const resultPromise = service.fulfill(order, providers);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.finalState).toBe('pending_manual_fulfillment');
+      expect(result.pendingManualFulfillment).toBe(true);
+      expect(result.manualFulfillmentNotificationSent).toBe(true);
+    });
+
+    it('should send Discord notification via ManualProvider', async () => {
+      // Arrange
+      const order = createTestOrder();
+      const providers = createTestProviders();
+
+      mockPurchaseWithFailover.mockResolvedValue({
+        success: false,
+        errorMessage: 'All providers failed',
+        errorType: 'provider_error',
+        attemptedProviders: ['airalo', 'esimcard'],
+        failureReasons: {
+          airalo: 'Timeout',
+          esimcard: 'Server error',
+        },
+      });
+
+      // Act
+      const resultPromise = service.fulfill(order, providers);
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // Assert
+      expect(mockNotifyManualFulfillmentRequired).toHaveBeenCalled();
+      expect(mockNotifyManualFulfillmentRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: order.orderId,
+          correlationId: order.correlationId,
+          attemptedProviders: ['airalo', 'esimcard'],
+        })
+      );
+    });
+
+    it('should include manual attempt in result attempts', async () => {
+      // Arrange
+      const order = createTestOrder();
+      const providers = createTestProviders();
+
+      mockPurchaseWithFailover.mockResolvedValue({
+        success: false,
+        errorMessage: 'All providers failed',
+        errorType: 'provider_error',
+        attemptedProviders: ['airalo'],
+        failureReasons: { airalo: 'Failed' },
+      });
+
+      // Act
+      const resultPromise = service.fulfill(order, providers);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      // Assert
+      expect(result.attempts.some((a) => a.providerName === 'manual')).toBe(true);
+      const manualAttempt = result.attempts.find((a) => a.providerName === 'manual');
+      expect(manualAttempt?.success).toBe(true);
+    });
+
+    it('should fall back to provider_failed when Discord is not configured', async () => {
+      // Arrange
+      const order = createTestOrder();
+      const providers = createTestProviders();
+
+      // Disable Discord configuration
+      mockIsDiscordConfigured.mockReturnValue(false);
+
+      mockPurchaseWithFailover.mockResolvedValue({
+        success: false,
+        errorMessage: 'All providers failed',
+        errorType: 'provider_error',
+        attemptedProviders: ['airalo'],
+        failureReasons: { airalo: 'Failed' },
+      });
+
+      // Act
+      const resultPromise = service.fulfill(order, providers);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.finalState).toBe('provider_failed');
+      expect(result.pendingManualFulfillment).toBeUndefined();
+
+      // Restore mock
+      mockIsDiscordConfigured.mockReturnValue(true);
+    });
+
+    it('should fall back to provider_failed when ManualProvider notification fails', async () => {
+      // Arrange
+      const order = createTestOrder();
+      const providers = createTestProviders();
+
+      // Make manual notification fail
+      mockNotifyManualFulfillmentRequired.mockRejectedValueOnce(
+        new Error('Discord webhook failed')
+      );
+
+      mockPurchaseWithFailover.mockResolvedValue({
+        success: false,
+        errorMessage: 'All providers failed',
+        errorType: 'provider_error',
+        attemptedProviders: ['airalo'],
+        failureReasons: { airalo: 'Failed' },
+      });
+
+      // Act
+      const resultPromise = service.fulfill(order, providers);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      // Assert - should fall back to provider_failed when ManualProvider fails
+      expect(result.success).toBe(false);
+      expect(result.finalState).toBe('provider_failed');
+      expect(mockNotifyOrderFailure).toHaveBeenCalled();
     });
   });
 

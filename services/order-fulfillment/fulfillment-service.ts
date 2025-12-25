@@ -26,6 +26,10 @@ import {
   type EsimProvider,
   type EsimPurchaseRequest,
   type ErrorType,
+  isManualFulfillmentPending,
+  createProvider,
+  ManualProvider,
+  type ManualPurchaseRequest,
 } from '../esim-providers';
 import {
   notifyOrderFailure,
@@ -305,6 +309,9 @@ export class FulfillmentService {
 
   /**
    * Handle failed eSIM purchase
+   *
+   * When all automated providers fail, attempts ManualProvider as final fallback
+   * to notify staff for manual fulfillment.
    */
   private async handlePurchaseFailure(
     order: FulfillmentOrder,
@@ -328,7 +335,22 @@ export class FulfillmentService {
       }
     }
 
-    // Transition to provider_failed
+    // Try ManualProvider as final fallback if Discord is configured
+    if (this.config.enableDiscordAlerts && isDiscordConfigured()) {
+      const manualFulfillmentResult = await this.attemptManualFulfillment(
+        order,
+        result,
+        attempts,
+        logger,
+        startTime
+      );
+
+      if (manualFulfillmentResult) {
+        return manualFulfillmentResult;
+      }
+    }
+
+    // ManualProvider not available or failed - transition to provider_failed
     await this.stateMachine.transition(
       order.id,
       order.correlationId,
@@ -341,7 +363,7 @@ export class FulfillmentService {
       }
     );
 
-    // Send Discord notification
+    // Send Discord failure notification (different from manual fulfillment)
     if (this.config.enableDiscordAlerts && isDiscordConfigured()) {
       try {
         await notifyOrderFailure({
@@ -367,6 +389,111 @@ export class FulfillmentService {
       result.errorMessage ?? 'All providers failed',
       startTime
     );
+  }
+
+  /**
+   * Attempt manual fulfillment via Discord notification
+   *
+   * @returns FulfillmentResult if manual fulfillment was queued, null otherwise
+   */
+  private async attemptManualFulfillment(
+    order: FulfillmentOrder,
+    failoverResult: FailoverResult,
+    attempts: ProviderAttempt[],
+    logger: AutomationLogger,
+    startTime: number
+  ): Promise<FulfillmentResult | null> {
+    const manualStep = logger.step('manual_fulfillment_attempt');
+    manualStep.start({ order_id: order.orderId });
+
+    try {
+      // Create ManualProvider instance
+      const manualProviderConfig: EsimProvider = {
+        id: 'manual-fallback',
+        name: 'Manual Provider',
+        slug: 'manual',
+        priority: 999,
+        apiEndpoint: '',
+        apiKeyEnvVar: '',
+        timeoutMs: 10000,
+        maxRetries: 1,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const manualProvider = new ManualProvider(manualProviderConfig);
+
+      // Prepare manual purchase request with context
+      const manualRequest: ManualPurchaseRequest = {
+        providerSku: order.providerSku,
+        quantity: 1,
+        customerEmail: order.customerEmail,
+        correlationId: order.correlationId,
+        orderId: order.orderId,
+        productName: order.productId, // Could be enhanced with actual product name
+        attemptedProviders: failoverResult.attemptedProviders,
+        failureReason: failoverResult.errorMessage ?? 'All automated providers failed',
+      };
+
+      // Attempt manual fulfillment notification
+      const manualResult = await manualProvider.purchase(manualRequest);
+
+      if (isManualFulfillmentPending(manualResult)) {
+        // Add manual attempt to log
+        attempts.push({
+          providerName: 'manual',
+          timestamp: new Date().toISOString(),
+          success: true,
+          durationMs: Date.now() - startTime,
+        });
+
+        // Transition to pending_manual_fulfillment state
+        await this.stateMachine.transition(
+          order.id,
+          order.correlationId,
+          'pending_manual_fulfillment',
+          {
+            errorMessage: failoverResult.errorMessage,
+            attemptedProviders: failoverResult.attemptedProviders,
+            totalRetries: attempts.length,
+            reason: 'All automated providers failed, queued for manual fulfillment',
+          }
+        );
+
+        manualStep.success({
+          notification_sent: true,
+          orderId: order.orderId,
+          attemptedProviders: failoverResult.attemptedProviders,
+        });
+
+        return {
+          success: false, // Not a successful automated fulfillment
+          orderId: order.orderId,
+          finalState: 'pending_manual_fulfillment',
+          attempts,
+          pendingManualFulfillment: true,
+          manualFulfillmentNotificationSent: true,
+          error: {
+            message: 'Order queued for manual fulfillment',
+            type: 'provider_error',
+          },
+          totalDurationMs: Date.now() - startTime,
+        };
+      }
+
+      // Manual fulfillment failed (Discord notification failed)
+      manualStep.fail({
+        message: 'Manual fulfillment notification failed',
+        type: 'provider_error',
+      });
+      return null;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      manualStep.fail({ message: errorMessage, type: 'unknown' });
+      console.error('Failed to attempt manual fulfillment:', error);
+      return null;
+    }
   }
 
   /**

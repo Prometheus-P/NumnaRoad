@@ -1,52 +1,75 @@
+# NumnaRoad Docker Compose
+# Oracle Cloud Free Tier (ARM64) deployment
+
 version: '3.8'
 
 services:
-  # n8n Automation Platform
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: numnaroad-n8n
+  # PocketBase - Database + Admin UI
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: numnaroad-pocketbase
     restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-password}
-      - N8N_HOST=${N8N_HOST:-localhost}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
-      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678}
-      - GENERIC_TIMEZONE=${TZ:-Asia/Seoul}
-      # PocketBase 연동
-      - POCKETBASE_URL=${POCKETBASE_URL:-http://host.docker.internal:8090}
-      # Email 서비스
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      # Provider APIs
-      - ESIM_CARD_API_KEY=${ESIM_CARD_API_KEY}
-      - MOBIMATTER_API_KEY=${MOBIMATTER_API_KEY}
-      - AIRALO_API_KEY=${AIRALO_API_KEY}
     volumes:
-      - n8n_data:/home/node/.n8n
-      - ./automation/n8n-workflows:/backup
+      - ./pb_data:/pb_data
+      - ./pocketbase/pb_migrations:/pb_migrations
+      - ./pocketbase/pb_hooks:/pb_hooks
+    ports:
+      - "8090:8090"
+    command: serve --http=0.0.0.0:8090
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - numnaroad
 
-  # PocketBase (Optional - 로컬에서 실행 가능)
-  # pocketbase:
-  #   image: ghcr.io/muchobien/pocketbase:latest
-  #   container_name: numnaroad-pocketbase
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8090:8090"
-  #   volumes:
-  #     - ./pocketbase/pb_data:/pb/pb_data
-  #     - ./pocketbase/pb_hooks:/pb/pb_hooks
-  #   networks:
-  #     - numnaroad
+  # Next.js Web Application
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: numnaroad-web
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - POCKETBASE_URL=http://pocketbase:8090
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - numnaroad
+
+  # Caddy - Reverse Proxy with Auto SSL
+  caddy:
+    image: caddy:alpine
+    container_name: numnaroad-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - pocketbase
+    networks:
+      - numnaroad
 
 volumes:
-  n8n_data:
-    driver: local
+  caddy_data:
+  caddy_config:
 
 networks:
   numnaroad:

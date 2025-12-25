@@ -13,6 +13,17 @@
       "options": {}
     },
     {
+      "id": "slug",
+      "name": "slug",
+      "type": "select",
+      "required": true,
+      "unique": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["esimcard", "mobimatter", "airalo", "redteago", "manual"]
+      }
+    },
+    {
       "id": "priority",
       "name": "priority",
       "type": "number",

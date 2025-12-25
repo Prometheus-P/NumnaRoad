@@ -1,0 +1,44 @@
+# NumnaRoad Caddyfile
+# Auto SSL with Let's Encrypt
+
+# Main domain - Next.js application
+{$DOMAIN:numnaroad.com} {
+    # Handle all API routes
+    handle /api/* {
+        reverse_proxy web:3000
+    }
+
+    # Handle static files and pages
+    handle {
+        reverse_proxy web:3000
+    }
+
+    # Enable compression
+    encode gzip
+
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Admin subdomain - PocketBase Admin UI
+admin.{$DOMAIN:numnaroad.com} {
+    # Proxy to PocketBase
+    reverse_proxy pocketbase:8090
+
+    # Enable compression
+    encode gzip
+
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Health check endpoint for load balancers
+:8080 {
+    respond /health 200
+}
