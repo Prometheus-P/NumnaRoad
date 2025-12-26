@@ -3,8 +3,7 @@
 # Deploys PocketBase with persistent volume for SQLite data.
 
 [build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+builder = "DOCKERFILE"
 
 [deploy]
 numReplicas = 1
