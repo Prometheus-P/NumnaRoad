@@ -23,10 +23,12 @@ RUN unzip /tmp/pb.zip -d /pb/ && \
 # Create data directory
 RUN mkdir -p /pb/pb_data
 
-# Copy migrations and hooks
-COPY ./pb_migrations_temp /pb/pb_migrations
+# Copy hooks and collections schema
 COPY ./pb_hooks /pb/pb_hooks
 COPY ./collections /pb/collections
+
+# Create empty migrations directory (collections are imported via JSON)
+RUN mkdir -p /pb/pb_migrations
 
 # Set working directory
 WORKDIR /pb
