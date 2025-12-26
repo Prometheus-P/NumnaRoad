@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
         Today&apos;s Overview
       </Typography>
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="total"
             value={mockStats.today.total}
@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
             period="today"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="pending"
             value={mockStats.today.pending}
@@ -109,7 +109,7 @@ export default function AdminDashboardPage() {
             period="today"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="processing"
             value={mockStats.today.processing}
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
             period="today"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="completed"
             value={mockStats.today.completed}
@@ -125,7 +125,7 @@ export default function AdminDashboardPage() {
             period="today"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="failed"
             value={mockStats.today.failed}
@@ -133,7 +133,7 @@ export default function AdminDashboardPage() {
             period="today"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
           <OrderStatsCard
             type="revenue"
             value={mockStats.today.revenue}
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
       </Typography>
       <Grid container spacing={3} data-testid="provider-health-summary">
         {mockProviders.map((provider) => (
-          <Grid item xs={12} md={6} lg={4} key={provider.slug}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={provider.slug}>
             <ProviderHealthCard provider={provider} />
           </Grid>
         ))}
