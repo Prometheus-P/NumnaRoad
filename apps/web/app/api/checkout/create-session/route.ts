@@ -23,12 +23,13 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validation.error.errors,
+          details: validation.error.issues,
         },
         { status: 400 }
       );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { orderId, successUrl, cancelUrl } = validation.data;
 
     // Stripe SDK는 실제 환경에서 설정 필요
