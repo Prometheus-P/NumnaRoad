@@ -19,12 +19,16 @@ export function isValidLocale(locale: string): locale is Locale {
  * Loads messages for the requested locale
  */
 export default getRequestConfig(async ({ locale }) => {
+  // Use default locale if not provided
+  const resolvedLocale = locale ?? defaultLocale;
+
   // Validate that the incoming locale is supported
-  if (!isValidLocale(locale as string)) {
+  if (!isValidLocale(resolvedLocale)) {
     notFound();
   }
 
   return {
-    messages: (await import(`./locales/${locale}.json`)).default,
+    locale: resolvedLocale,
+    messages: (await import(`./locales/${resolvedLocale}.json`)).default,
   };
 });

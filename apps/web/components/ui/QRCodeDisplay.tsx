@@ -10,13 +10,15 @@ import Snackbar from '@mui/material/Snackbar';
 import Skeleton from '@mui/material/Skeleton';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
-interface QRCodeDisplayProps {
+export interface QRCodeDisplayProps {
   qrCodeUrl: string;
   activationCode?: string;
+  iccid?: string;
   size?: number;
   labels?: {
     qrCode?: string;
     activationCode?: string;
+    iccid?: string;
     copyCode?: string;
     copied?: string;
     scanInstructions?: string;

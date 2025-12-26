@@ -102,8 +102,9 @@ async function getOrderData(orderId: string): Promise<OrderData | null> {
 
 /**
  * Loading skeleton for order page
+ * Kept for potential use with React Suspense
  */
-function OrderPageSkeleton() {
+export function OrderPageSkeleton() {
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Skeleton variant="text" width="60%" height={40} sx={{ mb: 2 }} />
@@ -271,7 +272,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
               Your eSIM QR Code
             </Typography>
             <QRCodeDisplay
-              qrCodeUrl={order.qrCodeUrl}
+              qrCodeUrl={order.qrCodeUrl!}
               activationCode={order.activationCode}
               iccid={order.iccid}
             />
