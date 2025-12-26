@@ -147,16 +147,16 @@ export class RedteaGOProvider extends BaseProvider {
       const activationCode = esim.activationCode ||
         `LPA:1$${esim.smdpAddress}$${esim.activationCode || ''}`;
 
+      // Generate QR code URL if only data is provided
+      const qrCodeUrl = esim.qrcodeUrl ||
+        (esim.qrcodeData ? this.generateQrCodeUrl(esim.qrcodeData) : '');
+
       return {
         success: true,
-        qrCodeUrl: esim.qrcodeUrl || undefined,
+        qrCodeUrl,
         iccid: esim.iccid,
         activationCode: activationCode,
         providerOrderId: data.data.orderNo,
-        // Generate QR code URL if only data is provided
-        ...(esim.qrcodeData && !esim.qrcodeUrl && {
-          qrCodeUrl: this.generateQrCodeUrl(esim.qrcodeData),
-        }),
       };
     } catch (error) {
       return this.handleException(error);

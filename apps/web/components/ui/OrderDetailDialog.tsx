@@ -27,21 +27,21 @@ interface OrderDetailDialogProps {
 
 // Transform PocketBase record to UI order model (similar to /order/[orderId]/page.tsx)
 function transformPbOrderToUIOrder(pbOrder: PBOrder): UIOrder {
-  const product = pbOrder.expand?.product_id;
+  const product = pbOrder.expand?.productId;
   return {
     id: pbOrder.id,
     status: pbOrder.status as UIOrder['status'],
     productName: product?.name || 'Unknown Product',
     country: product?.country || '',
-    dataLimit: product?.data_limit || '',
-    durationDays: product?.duration_days || 0,
-    qrCodeUrl: pbOrder.esim_qr_code || undefined,
-    iccid: pbOrder.esim_iccid || undefined,
-    activationCode: pbOrder.esim_activation_code || undefined,
-    errorMessage: pbOrder.error_message || undefined,
-    installationInstructions: pbOrder.installation_instructions || undefined,
-    createdAt: new Date(pbOrder.created_at),
-    completedAt: pbOrder.completed_at ? new Date(pbOrder.completed_at) : undefined,
+    dataLimit: product?.dataLimit || '',
+    durationDays: product?.durationDays || 0,
+    qrCodeUrl: pbOrder.esimQrCode || undefined,
+    iccid: pbOrder.esimIccid || undefined,
+    activationCode: pbOrder.esimActivationCode || undefined,
+    errorMessage: pbOrder.errorMessage || undefined,
+    installationInstructions: pbOrder.installationInstructions || undefined,
+    createdAt: new Date(pbOrder.created),
+    completedAt: pbOrder.completedAt ? new Date(pbOrder.completedAt) : undefined,
   };
 }
 
@@ -61,7 +61,7 @@ export function OrderDetailDialog({ orderId, open, onClose }: OrderDetailDialogP
       setLoading(true);
       setError(null);
       try {
-        const pbOrder: PBOrder = await pb.collection('orders').getOne(orderId, { expand: 'product_id' });
+        const pbOrder: PBOrder = await pb.collection('orders').getOne(orderId, { expand: 'productId' });
         setOrder(transformPbOrderToUIOrder(pbOrder));
       } catch (err) {
         console.error('Failed to fetch order details:', err);

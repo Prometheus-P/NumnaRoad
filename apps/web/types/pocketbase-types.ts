@@ -108,6 +108,10 @@ export type ProductBundlesExpand = {
 // =============================================================
 
 export type Order = OrdersRecord & {
+	id: string;
+	created: string;
+	updated: string;
+	completedAt?: string;
 	expand?: OrdersExpand;
 };
 

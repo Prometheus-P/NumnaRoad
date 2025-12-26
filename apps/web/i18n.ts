@@ -7,9 +7,10 @@ export const defaultLocale = 'ko';
 export async function getMessages(locale: string) {
   if (!locales.includes(locale as any)) notFound();
 
-  return (await import(`../locales/${locale}.json`)).default;
+  return (await import(`./locales/${locale}.json`)).default;
 }
 
 export default getRequestConfig(async ({ locale }) => ({
-  messages: await getMessages(locale),
+  locale: locale ?? defaultLocale,
+  messages: await getMessages(locale ?? defaultLocale),
 }));

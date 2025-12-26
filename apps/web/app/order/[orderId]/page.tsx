@@ -1,28 +1,30 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Container, Box, Typography, CircularProgress } from '@mui/material';
+import { Container, Typography, CircularProgress } from '@mui/material';
 import OrderCard from '../../../components/ui/OrderCard';
 import { Order as UIOrder } from '../../../components/ui/OrderCard';
-import { Order, EsimProduct, OrderStatus } from '../../types/pocketbase-types';
-import pb from '../../lib/pocketbase'; // Import the actual PocketBase client
+import { Order } from '@/types/pocketbase-types';
+import pb from '@/lib/pocketbase';
 
 // Transform PocketBase record to UI order model
 function transformOrderForUI(pbOrder: Order): UIOrder {
-  const product = pbOrder.expand?.product_id;
+  const product = pbOrder.expand?.productId;
   return {
     id: pbOrder.id,
     status: pbOrder.status as UIOrder['status'],
     productName: product?.name || 'Unknown Product',
     country: product?.country || '',
-    dataLimit: product?.data_limit || '',
-    durationDays: product?.duration_days || 0,
-    qrCodeUrl: pbOrder.esim_qr_code || undefined,
-    iccid: pbOrder.esim_iccid || undefined,
-    activationCode: pbOrder.esim_activation_code || undefined,
-    errorMessage: pbOrder.error_message || undefined,
-    installationInstructions: pbOrder.installation_instructions || undefined, // assuming this field is now on PB order
-    createdAt: new Date(pbOrder.created_at),
-    completedAt: pbOrder.completed_at ? new Date(pbOrder.completed_at) : undefined,
+    dataLimit: product?.dataLimit || '',
+    durationDays: product?.durationDays || 0,
+    qrCodeUrl: pbOrder.esimQrCode || undefined,
+    iccid: pbOrder.esimIccid || undefined,
+    activationCode: pbOrder.esimActivationCode || undefined,
+    errorMessage: pbOrder.errorMessage || undefined,
+    installationInstructions: pbOrder.installationInstructions || undefined,
+    createdAt: new Date(pbOrder.created),
+    completedAt: pbOrder.completedAt ? new Date(pbOrder.completedAt) : undefined,
   };
 }
 
@@ -44,7 +46,7 @@ export default function OrderTrackingPage() {
       try {
         setLoading(true);
         setError(null);
-        const pbOrder: Order = await pb.collection('orders').getOne(orderId, { expand: 'product_id' });
+        const pbOrder: Order = await pb.collection('orders').getOne(orderId, { expand: 'productId' });
         setOrder(transformOrderForUI(pbOrder));
       } catch (err) {
         console.error('Failed to fetch order:', err);

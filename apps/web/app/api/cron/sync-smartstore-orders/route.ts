@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+
+// Force dynamic rendering - requires runtime env vars
+export const dynamic = 'force-dynamic';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { getConfig } from '@/lib/config';
 import {

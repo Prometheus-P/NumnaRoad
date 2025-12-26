@@ -20,9 +20,9 @@ import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // Types for ProviderHealthCard (from tests/unit/components/ProviderHealthCard.test.tsx)
-type CircuitState = 'closed' | 'open' | 'half-open';
+export type CircuitState = 'closed' | 'open' | 'half-open';
 
-interface ProviderHealth {
+export interface ProviderHealth {
   slug: string;
   name: string;
   priority: number;
@@ -35,7 +35,7 @@ interface ProviderHealth {
   failureCount: number;
 }
 
-interface ProviderHealthCardProps {
+export interface ProviderHealthCardProps {
   provider: ProviderHealth;
   onToggleActive?: (slug: string, isActive: boolean) => void;
   onResetCircuit?: (slug: string) => void;

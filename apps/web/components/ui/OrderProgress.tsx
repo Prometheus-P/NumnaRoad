@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 import Divider from '@mui/material/Divider';
 
-interface OrderProgressProps {
+export interface OrderProgressProps {
   status: 'pending' | 'processing'; // Only for pending or processing orders
   labels?: {
     processingMessage?: string;

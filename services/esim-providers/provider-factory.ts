@@ -15,6 +15,9 @@ import type {
   ProviderSlug,
 } from './types';
 
+// Re-export commonly used types for convenience
+export type { EsimPurchaseRequest, EsimPurchaseResult, EsimProvider, ProviderSlug } from './types';
+
 /**
  * Base class for eSIM provider adapters
  *
@@ -242,14 +245,19 @@ export interface FailoverEvent {
 }
 
 /**
- * Failover result with metadata
+ * Failover metadata added to purchase results
  */
-export interface FailoverResult extends EsimPurchaseResult {
+export interface FailoverMetadata {
   providerUsed?: string;
   attemptedProviders: string[];
   failoverEvents: FailoverEvent[];
   failureReasons: Record<string, string>;
 }
+
+/**
+ * Failover result with metadata
+ */
+export type FailoverResult = EsimPurchaseResult & FailoverMetadata;
 
 /**
  * Failover options
@@ -553,4 +561,46 @@ export async function purchaseWithFailover(
   options?.onAllFailed?.(finalResult);
 
   return finalResult;
+}
+
+// =============================================================================
+// Type Guards and Helper Types
+// =============================================================================
+
+import type { EsimPurchaseResponse, EsimPurchaseError, EsimManualFulfillmentPending } from './types';
+
+/**
+ * Type for successful FailoverResult
+ */
+export type SuccessfulFailoverResult = EsimPurchaseResponse & FailoverMetadata;
+
+/**
+ * Type for failed FailoverResult
+ */
+export type FailedFailoverResult = EsimPurchaseError & FailoverMetadata;
+
+/**
+ * Type for manual fulfillment pending FailoverResult
+ */
+export type ManualPendingFailoverResult = EsimManualFulfillmentPending & FailoverMetadata;
+
+/**
+ * Type guard for successful purchase result
+ */
+export function isSuccessfulResult(result: FailoverResult): result is SuccessfulFailoverResult {
+  return result.success === true;
+}
+
+/**
+ * Type guard for failed purchase result
+ */
+export function isFailedResult(result: FailoverResult): result is FailedFailoverResult {
+  return result.success === false;
+}
+
+/**
+ * Type guard for manual fulfillment pending result
+ */
+export function isManualPendingResult(result: FailoverResult): result is ManualPendingFailoverResult {
+  return result.success === 'pending_manual';
 }
