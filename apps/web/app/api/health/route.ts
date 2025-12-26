@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import pb from '@/lib/pocketbase';
+import { getAdminPocketBase } from '@/lib/pocketbase';
 
 /**
  * Health Check Endpoint
@@ -9,6 +9,9 @@ import pb from '@/lib/pocketbase';
  *
  * GET /api/health
  */
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 interface ServiceStatus {
   status: 'ok' | 'error';
@@ -23,6 +26,7 @@ interface HealthCheckResponse {
   services: {
     pocketbase: ServiceStatus;
     stripe: ServiceStatus;
+    smartstore: ServiceStatus;
   };
   uptime: number;
 }
@@ -35,6 +39,7 @@ const startTime = Date.now();
 async function checkPocketBase(): Promise<ServiceStatus> {
   const start = Date.now();
   try {
+    const pb = await getAdminPocketBase();
     // Try to fetch health info from PocketBase
     await pb.health.check();
     return {
@@ -56,7 +61,6 @@ async function checkPocketBase(): Promise<ServiceStatus> {
 async function checkStripe(): Promise<ServiceStatus> {
   const start = Date.now();
   try {
-    // Check if Stripe key is configured
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
       return {
@@ -66,7 +70,6 @@ async function checkStripe(): Promise<ServiceStatus> {
       };
     }
 
-    // Verify key format (starts with sk_)
     if (!stripeKey.startsWith('sk_')) {
       return {
         status: 'error',
@@ -88,29 +91,73 @@ async function checkStripe(): Promise<ServiceStatus> {
   }
 }
 
+/**
+ * Check SmartStore API health
+ */
+async function checkSmartStore(): Promise<ServiceStatus> {
+  const start = Date.now();
+  try {
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return {
+        status: 'error',
+        latencyMs: Date.now() - start,
+        error: 'SmartStore credentials not configured',
+      };
+    }
+
+    // Dynamically import to avoid build-time issues
+    const { getSmartStoreClient } = await import(
+      '@services/sales-channels/smartstore'
+    );
+    const client = getSmartStoreClient();
+    const isHealthy = await client.healthCheck();
+
+    return {
+      status: isHealthy ? 'ok' : 'error',
+      latencyMs: Date.now() - start,
+      error: isHealthy ? undefined : 'SmartStore API health check failed',
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 export async function GET() {
   const timestamp = new Date().toISOString();
   const uptime = Math.floor((Date.now() - startTime) / 1000);
 
   // Run health checks in parallel
-  const [pocketbaseStatus, stripeStatus] = await Promise.all([
+  const [pocketbaseStatus, stripeStatus, smartstoreStatus] = await Promise.all([
     checkPocketBase(),
     checkStripe(),
+    checkSmartStore(),
   ]);
 
   const services = {
     pocketbase: pocketbaseStatus,
     stripe: stripeStatus,
+    smartstore: smartstoreStatus,
   };
 
   // Determine overall health status
-  const allOk = Object.values(services).every((s) => s.status === 'ok');
-  const anyOk = Object.values(services).some((s) => s.status === 'ok');
+  // PocketBase is critical, others are optional
+  const criticalServices = [services.pocketbase];
+  const optionalServices = [services.stripe, services.smartstore];
+
+  const criticalOk = criticalServices.every((s) => s.status === 'ok');
+  const optionalOk = optionalServices.every((s) => s.status === 'ok');
 
   let status: 'healthy' | 'degraded' | 'unhealthy';
-  if (allOk) {
+  if (criticalOk && optionalOk) {
     status = 'healthy';
-  } else if (anyOk) {
+  } else if (criticalOk) {
     status = 'degraded';
   } else {
     status = 'unhealthy';
@@ -119,7 +166,7 @@ export async function GET() {
   const response: HealthCheckResponse = {
     status,
     timestamp,
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version || '0.1.0',
     services,
     uptime,
   };
