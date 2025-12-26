@@ -11,5 +11,6 @@ export async function getMessages(locale: string) {
 }
 
 export default getRequestConfig(async ({ locale }) => ({
-  messages: await getMessages(locale),
+  locale: locale ?? defaultLocale,
+  messages: await getMessages(locale ?? defaultLocale),
 }));

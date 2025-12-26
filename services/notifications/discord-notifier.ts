@@ -60,7 +60,7 @@ export interface DiscordEmbed {
   title: string;
   description?: string;
   color: number;
-  fields: Array<{
+  fields?: Array<{
     name: string;
     value: string;
     inline?: boolean;
@@ -333,7 +333,7 @@ export async function notifyCircuitBreakerStateChange(
   };
 
   if (notification.lastFailure) {
-    embed.fields.push({
+    embed.fields?.push({
       name: 'Last Failure',
       value: notification.lastFailure,
       inline: false,
@@ -435,7 +435,7 @@ export async function notifyManualFulfillmentRequired(
 
   // Add product details if available
   if (notification.productName) {
-    embed.fields.push({
+    embed.fields?.push({
       name: 'Product',
       value: notification.productName,
       inline: true,
@@ -443,7 +443,7 @@ export async function notifyManualFulfillmentRequired(
   }
 
   if (notification.country) {
-    embed.fields.push({
+    embed.fields?.push({
       name: 'Country',
       value: notification.country,
       inline: true,
@@ -451,7 +451,7 @@ export async function notifyManualFulfillmentRequired(
   }
 
   if (notification.dataAmount) {
-    embed.fields.push({
+    embed.fields?.push({
       name: 'Data',
       value: notification.dataAmount,
       inline: true,
@@ -459,7 +459,7 @@ export async function notifyManualFulfillmentRequired(
   }
 
   // Add attempted providers
-  embed.fields.push({
+  embed.fields?.push({
     name: 'Attempted Providers',
     value: notification.attemptedProviders.length > 0
       ? notification.attemptedProviders.map(p => `• ${p} (failed)`).join('\n')
@@ -468,14 +468,14 @@ export async function notifyManualFulfillmentRequired(
   });
 
   // Add reason
-  embed.fields.push({
+  embed.fields?.push({
     name: 'Reason',
     value: notification.reason,
     inline: false,
   });
 
   // Add action items
-  embed.fields.push({
+  embed.fields?.push({
     name: '📋 Action Required',
     value: [
       '1. Log into provider dashboard',

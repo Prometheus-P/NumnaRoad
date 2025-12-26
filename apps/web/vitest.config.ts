@@ -17,15 +17,8 @@ export default defineConfig({
       // Playwright E2E tests should be run separately with `npx playwright test`
       'tests/e2e/customer-order-tracking.test.ts',
     ],
-    environmentMatchGlobs: [
-      // Use node for non-component tests
-      ['tests/unit/*.test.ts', 'node'],
-      ['tests/contract/**', 'node'],
-      ['tests/integration/**', 'node'],
-      // Use jsdom for component tests
-      ['tests/unit/components/**', 'jsdom'],
-      ['tests/e2e/**', 'jsdom'],
-    ],
+    // Environment options are configured per test file using vitest directives
+    // @vitest-environment jsdom or @vitest-environment node
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
     coverage: {
       provider: 'v8',

@@ -14,10 +14,10 @@ import ErrorIcon from '@mui/icons-material/Error';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 // Types for OrderStatsCard (from tests/unit/components/OrderStatsCard.test.tsx)
-type StatType = 'total' | 'pending' | 'processing' | 'completed' | 'failed' | 'revenue';
-type TimePeriod = 'today' | 'week' | 'month' | 'all';
+export type StatType = 'total' | 'pending' | 'processing' | 'completed' | 'failed' | 'revenue';
+export type TimePeriod = 'today' | 'week' | 'month' | 'all';
 
-interface OrderStatsCardProps {
+export interface OrderStatsCardProps {
   type: StatType;
   value: number;
   previousValue?: number;

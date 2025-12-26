@@ -26,7 +26,7 @@ export interface Order {
   installationInstructions?: string;
 }
 
-interface OrderCardProps {
+export interface OrderCardProps {
   order: Order;
   labels?: {
     orderId?: string;
@@ -144,7 +144,7 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
 
         {/* Processing Indicator (only for processing orders) */}
         {showProcessingSection && (
-          <OrderProgress status={order.status} labels={{ processingMessage }} />
+          <OrderProgress status={order.status as 'pending' | 'processing'} labels={{ processingMessage }} />
         )}
 
         {/* QR Code Section (only for completed orders) */}

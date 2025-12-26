@@ -75,7 +75,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<NaverProductOrder[]>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {
@@ -124,7 +129,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<{ changes: NaverStatusChange[]; hasMore: boolean }>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {
@@ -175,7 +185,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<NaverProductOrder[]>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {
@@ -223,7 +238,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<boolean>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       const successIds = response.data?.data?.successProductOrderIds || [];
@@ -272,7 +292,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<{ success: string[]; failed: string[] }>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {
@@ -307,7 +332,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<NaverDailySettlement>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {
@@ -372,7 +402,12 @@ export class SmartStoreClient {
       );
 
       if (!response.success) {
-        return response as SmartStoreResult<NaverInquiry[]>;
+        return {
+          success: false,
+          errorType: response.errorType,
+          errorMessage: response.errorMessage,
+          isRetryable: response.isRetryable,
+        };
       }
 
       return {

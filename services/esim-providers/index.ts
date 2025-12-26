@@ -22,7 +22,15 @@ export {
   purchaseWithFailover,
   type FailoverEvent,
   type FailoverResult,
+  type FailoverMetadata,
   type FailoverOptions,
+  // Type guards and helper types
+  type SuccessfulFailoverResult,
+  type FailedFailoverResult,
+  type ManualPendingFailoverResult,
+  isSuccessfulResult,
+  isFailedResult,
+  isManualPendingResult,
 } from './provider-factory';
 
 // Import providers to register them

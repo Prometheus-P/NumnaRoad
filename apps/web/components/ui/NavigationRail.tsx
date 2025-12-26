@@ -22,14 +22,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 // Types for NavigationRail component
-interface NavItem {
+export interface NavItem {
   id: string;
   label: string;
   iconName: string; // Used to map to MUI Icons
   href: string;
 }
 
-interface NavigationRailProps {
+export interface NavigationRailProps {
   items: NavItem[];
   // activeItemId is now derived from href/pathname
   onItemClick?: (item: NavItem) => void;

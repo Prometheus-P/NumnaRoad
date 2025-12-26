@@ -5,7 +5,7 @@ import {
   EsimPurchaseResult,
   registerProvider,
 } from './provider-factory';
-import { ProviderSlug, ErrorType, AiraloPackageResponse, EsimProduct, AiraloOrderResponse, AiraloSimInstructionsResponse } from './types';
+import { ProviderSlug, ErrorType, AiraloPackageResponse, AiraloPackageData, AiraloOperator, AiraloPackageDetails, EsimProduct, AiraloOrderResponse, AiraloSimInstructionsResponse } from './types';
 
 const AIRALO_API_URL = 'https://api.airalo.com/v2';
 
@@ -45,7 +45,7 @@ export class AiraloProvider extends BaseProvider {
     this.accessToken = data.access_token;
     this.tokenExpiry = Date.now() + (data.expires_in - 60) * 1000; // 60 seconds buffer
 
-    return this.accessToken;
+    return data.access_token;
   }
 
   async purchase(request: EsimPurchaseRequest): Promise<EsimPurchaseResult> {
@@ -179,8 +179,8 @@ export class AiraloProvider extends BaseProvider {
   ): EsimProduct[] {
     const esimProducts: EsimProduct[] = [];
 
-    airaloPackage.operators.forEach((operator) => {
-      operator.packages.forEach((pkg) => {
+    airaloPackage.operators.forEach((operator: AiraloOperator) => {
+      operator.packages.forEach((pkg: AiraloPackageDetails) => {
         const dataMatch = pkg.data.match(/(\d+)\s*([a-zA-Z]+)/);
         let dataAmount: number = 0;
         let dataUnit: string = 'GB'; // Default to GB

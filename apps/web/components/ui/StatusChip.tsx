@@ -6,7 +6,7 @@ import { useTheme } from '@mui/material/styles';
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
-interface StatusChipProps {
+export interface StatusChipProps {
   status: OrderStatus;
   label?: string;
   size?: 'small' | 'medium';
