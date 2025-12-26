@@ -1,0 +1,109 @@
+{
+  "id": "esim_providers",
+  "name": "esim_providers",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "name",
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {}
+    },
+    {
+      "id": "slug",
+      "name": "slug",
+      "type": "select",
+      "required": true,
+      "unique": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["esimcard", "mobimatter", "airalo", "redteago", "manual"]
+      }
+    },
+    {
+      "id": "priority",
+      "name": "priority",
+      "type": "number",
+      "required": true,
+      "unique": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "api_endpoint",
+      "name": "api_endpoint",
+      "type": "url",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "api_key_env_var",
+      "name": "api_key_env_var",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": false,
+      "options": {
+        "default": true
+      }
+    },
+    {
+      "id": "success_rate",
+      "name": "success_rate",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "circuit_breaker_state",
+      "name": "circuit_breaker_state",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["CLOSED", "OPEN", "HALF_OPEN"],
+        "default": "CLOSED"
+      }
+    },
+    {
+      "id": "consecutive_failures",
+      "name": "consecutive_failures",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null,
+        "default": 0
+      }
+    },
+    {
+      "id": "last_failure_at",
+      "name": "last_failure_at",
+      "type": "date",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_esim_provider_name ON esim_providers (name)",
+    "CREATE UNIQUE INDEX idx_esim_provider_priority ON esim_providers (priority)"
+  ],
+  "listRule": "",
+  "viewRule": "",
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

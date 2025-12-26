@@ -1,32 +1,50 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm ci",
-  "crons": [
-    {
-      "path": "/api/cron/sync-smartstore-orders",
-      "schedule": "*/5 * * * *"
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["icn1"],
+  "functions": {
+    "app/api/**/*": {
+      "maxDuration": 30
     }
-  ],
+  },
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
         {
-          "key": "Cache-Control",
-          "value": "no-store, must-revalidate"
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
         }
       ]
     },
     {
-      "source": "/api/health",
+      "source": "/(.*)",
       "headers": [
         {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
         }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/retry-stuck-orders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-smartstore-orders",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

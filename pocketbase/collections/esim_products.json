@@ -28,6 +28,16 @@
       }
     },
     {
+      "id": "product_type",
+      "name": "product_type",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["esim", "ticket", "bundle"]
+      }
+    },
+    {
       "id": "country",
       "name": "country",
       "type": "text",
@@ -187,6 +197,7 @@
     "CREATE INDEX idx_country ON esim_products (country)",
     "CREATE INDEX idx_is_active ON esim_products (is_active)",
     "CREATE INDEX idx_slug ON esim_products (slug)",
+    "CREATE INDEX idx_product_type ON esim_products (product_type)",
     "CREATE UNIQUE INDEX idx_slug_unique ON esim_products (slug)"
   ],
   "listRule": "",

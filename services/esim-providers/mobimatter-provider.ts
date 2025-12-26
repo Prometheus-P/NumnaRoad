@@ -4,7 +4,30 @@
  * API Documentation: https://api.mobimatter.com/docs
  */
 
-import { ESIMProvider, ESIMResponse, Product } from './provider-factory';
+// Legacy provider interface for MobiMatter
+interface ESIMProvider {
+  readonly name: string;
+  issueESIM(productId: string, email: string): Promise<ESIMResponse>;
+  getInventory(productId: string): Promise<number>;
+  getProducts(): Promise<Product[]>;
+}
+
+interface ESIMResponse {
+  orderId: string;
+  qrCodeUrl: string;
+  activationCode: string;
+  iccid: string;
+  provider: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  country: string;
+  duration: number;
+  dataLimit: string;
+  price: number;
+}
 
 interface MobiMatterAPIResponse {
   status: string;

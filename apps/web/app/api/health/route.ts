@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
-import pb from '@/lib/pocketbase';
+import { getAdminPocketBase } from '@/lib/pocketbase';
+
+/**
+ * Health Check Endpoint
+ *
+ * Checks the health of all critical services.
+ * Returns 200 if all services are healthy, 503 if any service is down.
+ *
+ * GET /api/health
+ */
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 interface ServiceStatus {
   status: 'ok' | 'error';
@@ -7,71 +19,160 @@ interface ServiceStatus {
   error?: string;
 }
 
-interface HealthResponse {
+interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;
+  version: string;
   services: {
     pocketbase: ServiceStatus;
+    stripe: ServiceStatus;
+    smartstore: ServiceStatus;
   };
-  version?: string;
+  uptime: number;
+}
+
+const startTime = Date.now();
+
+/**
+ * Check PocketBase health
+ */
+async function checkPocketBase(): Promise<ServiceStatus> {
+  const start = Date.now();
+  try {
+    const pb = await getAdminPocketBase();
+    // Try to fetch health info from PocketBase
+    await pb.health.check();
+    return {
+      status: 'ok',
+      latencyMs: Date.now() - start,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }
 
 /**
- * GET /api/health
- * Health check endpoint for monitoring and deployment readiness
- *
- * Returns:
- * - 200: All services healthy
- * - 503: One or more services unhealthy
+ * Check Stripe API health
  */
-export async function GET(): Promise<NextResponse<HealthResponse>> {
-  const startTime = Date.now();
-  const services: HealthResponse['services'] = {
-    pocketbase: { status: 'ok' },
-  };
-
-  // Check PocketBase connection
+async function checkStripe(): Promise<ServiceStatus> {
+  const start = Date.now();
   try {
-    const pbStart = Date.now();
-    await pb.health.check();
-    services.pocketbase = {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      return {
+        status: 'error',
+        latencyMs: Date.now() - start,
+        error: 'Stripe API key not configured',
+      };
+    }
+
+    if (!stripeKey.startsWith('sk_')) {
+      return {
+        status: 'error',
+        latencyMs: Date.now() - start,
+        error: 'Invalid Stripe API key format',
+      };
+    }
+
+    return {
       status: 'ok',
-      latencyMs: Date.now() - pbStart,
+      latencyMs: Date.now() - start,
     };
   } catch (error) {
-    services.pocketbase = {
+    return {
       status: 'error',
-      error: error instanceof Error ? error.message : 'Connection failed',
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
 
-  // Determine overall status
-  const allServicesOk = Object.values(services).every((s) => s.status === 'ok');
-  const anyServiceOk = Object.values(services).some((s) => s.status === 'ok');
+/**
+ * Check SmartStore API health
+ */
+async function checkSmartStore(): Promise<ServiceStatus> {
+  const start = Date.now();
+  try {
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
-  let overallStatus: HealthResponse['status'];
-  if (allServicesOk) {
-    overallStatus = 'healthy';
-  } else if (anyServiceOk) {
-    overallStatus = 'degraded';
-  } else {
-    overallStatus = 'unhealthy';
+    if (!clientId || !clientSecret) {
+      return {
+        status: 'error',
+        latencyMs: Date.now() - start,
+        error: 'SmartStore credentials not configured',
+      };
+    }
+
+    // Dynamically import to avoid build-time issues
+    const { getSmartStoreClient } = await import(
+      '@services/sales-channels/smartstore'
+    );
+    const client = getSmartStoreClient();
+    const isHealthy = await client.healthCheck();
+
+    return {
+      status: isHealthy ? 'ok' : 'error',
+      latencyMs: Date.now() - start,
+      error: isHealthy ? undefined : 'SmartStore API health check failed',
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
+}
 
-  const response: HealthResponse = {
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    services,
-    version: process.env.npm_package_version || '1.0.0',
+export async function GET() {
+  const timestamp = new Date().toISOString();
+  const uptime = Math.floor((Date.now() - startTime) / 1000);
+
+  // Run health checks in parallel
+  const [pocketbaseStatus, stripeStatus, smartstoreStatus] = await Promise.all([
+    checkPocketBase(),
+    checkStripe(),
+    checkSmartStore(),
+  ]);
+
+  const services = {
+    pocketbase: pocketbaseStatus,
+    stripe: stripeStatus,
+    smartstore: smartstoreStatus,
   };
 
-  const httpStatus = overallStatus === 'unhealthy' ? 503 : 200;
+  // Determine overall health status
+  // PocketBase is critical, others are optional
+  const criticalServices = [services.pocketbase];
+  const optionalServices = [services.stripe, services.smartstore];
 
-  return NextResponse.json(response, {
-    status: httpStatus,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'X-Response-Time': `${Date.now() - startTime}ms`,
-    },
-  });
+  const criticalOk = criticalServices.every((s) => s.status === 'ok');
+  const optionalOk = optionalServices.every((s) => s.status === 'ok');
+
+  let status: 'healthy' | 'degraded' | 'unhealthy';
+  if (criticalOk && optionalOk) {
+    status = 'healthy';
+  } else if (criticalOk) {
+    status = 'degraded';
+  } else {
+    status = 'unhealthy';
+  }
+
+  const response: HealthCheckResponse = {
+    status,
+    timestamp,
+    version: process.env.npm_package_version || '0.1.0',
+    services,
+    uptime,
+  };
+
+  // Return appropriate HTTP status code
+  const httpStatus = status === 'unhealthy' ? 503 : 200;
+
+  return NextResponse.json(response, { status: httpStatus });
 }

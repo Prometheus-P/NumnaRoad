@@ -13,6 +13,31 @@
       "options": {}
     },
     {
+      "id": "sales_channel",
+      "name": "sales_channel",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["stripe", "smartstore", "tosspay", "direct"]
+      }
+    },
+    {
+      "id": "external_order_id",
+      "name": "external_order_id",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "smartstore_product_order_id",
+      "name": "smartstore_product_order_id",
+      "type": "text",
+      "required": false,
+      "unique": false,
+      "options": {}
+    },
+    {
       "id": "user",
       "name": "user",
       "type": "relation",
@@ -45,7 +70,20 @@
       "required": true,
       "options": {
         "maxSelect": 1,
-        "values": ["pending", "processing", "completed", "failed", "refunded"]
+        "values": [
+          "pending",
+          "processing",
+          "completed",
+          "failed",
+          "refunded",
+          "payment_received",
+          "fulfillment_started",
+          "provider_confirmed",
+          "email_sent",
+          "delivered",
+          "provider_failed",
+          "refund_needed"
+        ]
       }
     },
     {
@@ -65,7 +103,7 @@
       "required": true,
       "options": {
         "maxSelect": 1,
-        "values": ["card", "paypal", "bank_transfer", "kakaopay"]
+        "values": ["card", "paypal", "bank_transfer", "kakaopay", "smartstore", "tosspay"]
       }
     },
     {
@@ -73,6 +111,14 @@
       "name": "payment_id",
       "type": "text",
       "required": false,
+      "options": {}
+    },
+    {
+      "id": "stripe_payment_intent",
+      "name": "stripe_payment_intent",
+      "type": "text",
+      "required": true,
+      "unique": true,
       "options": {}
     },
     {
@@ -95,13 +141,9 @@
     {
       "id": "esim_qr_code",
       "name": "esim_qr_code",
-      "type": "file",
+      "type": "text",
       "required": false,
-      "options": {
-        "maxSelect": 1,
-        "maxSize": 5242880,
-        "mimeTypes": ["image/png", "image/jpeg"]
-      }
+      "options": {}
     },
     {
       "id": "esim_qr_code_url",
@@ -127,7 +169,7 @@
     {
       "id": "customer_email",
       "name": "customer_email",
-      "type": "email",
+      "type": "text",
       "required": true,
       "options": {}
     },
@@ -146,8 +188,8 @@
       "options": {}
     },
     {
-      "id": "delivered_at",
-      "name": "delivered_at",
+      "id": "completed_at",
+      "name": "completed_at",
       "type": "date",
       "required": false,
       "options": {}
@@ -175,6 +217,51 @@
         "min": 0,
         "max": null
       }
+    },
+    {
+      "id": "provider_used",
+      "name": "provider_used",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "dispatch_method",
+      "name": "dispatch_method",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["provider_api", "google_sheets"]
+      }
+    },
+    {
+      "id": "correlation_id",
+      "name": "correlation_id",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "stripe_session_id",
+      "name": "stripe_session_id",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "fulfillment_started_at",
+      "name": "fulfillment_started_at",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "provider_order_id",
+      "name": "provider_order_id",
+      "type": "text",
+      "required": false,
+      "options": {}
     }
   ],
   "indexes": [
@@ -182,7 +269,11 @@
     "CREATE INDEX idx_status ON orders (status)",
     "CREATE INDEX idx_payment_status ON orders (payment_status)",
     "CREATE INDEX idx_customer_email ON orders (customer_email)",
-    "CREATE UNIQUE INDEX idx_order_id_unique ON orders (order_id)"
+    "CREATE INDEX idx_correlation_id ON orders (correlation_id)",
+    "CREATE INDEX idx_sales_channel ON orders (sales_channel)",
+    "CREATE UNIQUE INDEX idx_order_id_unique ON orders (order_id)",
+    "CREATE UNIQUE INDEX idx_stripe_payment_intent ON orders (stripe_payment_intent)",
+    "CREATE UNIQUE INDEX idx_smartstore_order ON orders (smartstore_product_order_id) WHERE smartstore_product_order_id IS NOT NULL"
   ],
   "listRule": "@request.auth.id = user.id",
   "viewRule": "@request.auth.id = user.id",

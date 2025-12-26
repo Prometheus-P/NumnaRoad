@@ -1,0 +1,61 @@
+{
+  "id": "google_sheet_configs",
+  "name": "google_sheet_configs",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "name",
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {}
+    },
+    {
+      "id": "spreadsheet_id",
+      "name": "spreadsheet_id",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "sheet_name",
+      "name": "sheet_name",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "credentials_env_var",
+      "name": "credentials_env_var",
+      "type": "text",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": false,
+      "options": {
+        "default": true
+      }
+    },
+    {
+      "id": "header_mapping",
+      "name": "header_mapping",
+      "type": "json",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_google_sheet_config_name ON google_sheet_configs (name)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

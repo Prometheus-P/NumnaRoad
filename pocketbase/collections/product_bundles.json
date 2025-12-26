@@ -1,0 +1,229 @@
+{
+  "id": "product_bundles",
+  "name": "product_bundles",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "name",
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": null,
+        "max": null,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "slug",
+      "name": "slug",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {
+        "min": null,
+        "max": null,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "description",
+      "name": "description",
+      "type": "editor",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "products",
+      "name": "products",
+      "type": "relation",
+      "required": true,
+      "options": {
+        "collectionId": "esim_products",
+        "cascadeDelete": false,
+        "minSelect": 2,
+        "maxSelect": 10,
+        "displayFields": ["name", "country"]
+      }
+    },
+    {
+      "id": "bundle_type",
+      "name": "bundle_type",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["multi_country", "data_package", "travel_kit", "custom"]
+      }
+    },
+    {
+      "id": "region",
+      "name": "region",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "countries",
+      "name": "countries",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "total_data",
+      "name": "total_data",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "total_duration_days",
+      "name": "total_duration_days",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": null
+      }
+    },
+    {
+      "id": "individual_price_sum",
+      "name": "individual_price_sum",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "bundle_price",
+      "name": "bundle_price",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "discount_percent",
+      "name": "discount_percent",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": 100
+      }
+    },
+    {
+      "id": "savings_amount",
+      "name": "savings_amount",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "currency",
+      "name": "currency",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["USD", "KRW", "EUR", "JPY"]
+      }
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "is_featured",
+      "name": "is_featured",
+      "type": "bool",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "valid_from",
+      "name": "valid_from",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "valid_until",
+      "name": "valid_until",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "max_purchases",
+      "name": "max_purchases",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "current_purchases",
+      "name": "current_purchases",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    },
+    {
+      "id": "image",
+      "name": "image",
+      "type": "file",
+      "required": false,
+      "options": {
+        "maxSelect": 1,
+        "maxSize": 5242880,
+        "mimeTypes": ["image/jpeg", "image/png", "image/webp"]
+      }
+    },
+    {
+      "id": "features",
+      "name": "features",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "sort_order",
+      "name": "sort_order",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_bundle_type ON product_bundles (bundle_type)",
+    "CREATE INDEX idx_is_active ON product_bundles (is_active)",
+    "CREATE INDEX idx_slug ON product_bundles (slug)",
+    "CREATE UNIQUE INDEX idx_slug_unique ON product_bundles (slug)"
+  ],
+  "listRule": "",
+  "viewRule": "",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": "@request.auth.id != ''",
+  "deleteRule": "@request.auth.id != ''"
+}
