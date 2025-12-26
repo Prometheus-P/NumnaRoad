@@ -292,6 +292,7 @@ export function getStateDescription(state: OrderState): string {
     email_sent: 'Confirmation email sent to customer',
     delivered: 'Order successfully delivered',
     provider_failed: 'All provider attempts failed',
+    pending_manual_fulfillment: 'Awaiting manual fulfillment by staff',
     refund_needed: 'Order requires refund',
     completed: 'Order completed successfully',
     failed: 'Order failed',

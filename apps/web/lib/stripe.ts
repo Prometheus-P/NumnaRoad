@@ -16,7 +16,7 @@ export function getStripe(): Stripe {
   if (!stripeInstance) {
     const config = getConfig();
     stripeInstance = new Stripe(config.stripe.secretKey, {
-      apiVersion: '2025-04-30.basil',
+      apiVersion: '2023-10-16',
       typescript: true,
     });
   }

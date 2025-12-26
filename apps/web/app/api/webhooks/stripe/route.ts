@@ -9,9 +9,9 @@ import {
   fulfillWithTimeout,
   isTimeoutResult,
   type FulfillmentOrder,
-} from '../../../../../services/order-fulfillment';
-import { createAutomationLogger } from '../../../../../services/logging';
-import type { EsimProvider } from '../../../../../services/esim-providers/types';
+} from '@services/order-fulfillment';
+import { createAutomationLogger } from '@services/logging';
+import type { EsimProvider } from '@services/esim-providers/types';
 
 // In-memory store for rate limiting (per IP)
 const ipStore = new Map<
@@ -26,11 +26,11 @@ const MAX_REQUESTS_PER_INTERVAL = 10; // Max 10 requests per IP per interval
  */
 function cleanupIpStore() {
   const now = Date.now();
-  for (const [ip, data] of ipStore.entries()) {
+  ipStore.forEach((data, ip) => {
     if (now - data.firstRequestTime > RATE_LIMIT_INTERVAL_MS) {
       ipStore.delete(ip);
     }
-  }
+  });
 }
 
 /**

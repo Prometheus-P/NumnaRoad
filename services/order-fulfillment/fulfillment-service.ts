@@ -23,10 +23,14 @@ import type { StatePersistFn, StateLoadFn } from './state-machine';
 import {
   purchaseWithFailover,
   type FailoverResult,
+  type SuccessfulFailoverResult,
+  type FailedFailoverResult,
   type EsimProvider,
   type EsimPurchaseRequest,
   type ErrorType,
   isManualFulfillmentPending,
+  isSuccessfulResult,
+  isFailedResult,
   createProvider,
   ManualProvider,
   type ManualPurchaseRequest,
@@ -177,9 +181,10 @@ export class FulfillmentService {
           });
         },
         onAllFailed: async (result) => {
-          // Log all failed
+          // Log all failed - result is guaranteed to be failed here
+          const errorMsg = 'errorMessage' in result ? (result.errorMessage as string) : 'All providers failed';
           log.orderFailed(
-            result.errorMessage ?? 'All providers failed',
+            errorMsg,
             result.attemptedProviders
           );
         },
@@ -187,7 +192,7 @@ export class FulfillmentService {
     );
 
     // Handle purchase result
-    if (purchaseResult.success) {
+    if (isSuccessfulResult(purchaseResult)) {
       return this.handlePurchaseSuccess(
         order,
         purchaseResult,
@@ -195,10 +200,30 @@ export class FulfillmentService {
         log,
         startTime
       );
-    } else {
+    } else if (isFailedResult(purchaseResult)) {
       return this.handlePurchaseFailure(
         order,
         purchaseResult,
+        attempts,
+        log,
+        startTime
+      );
+    } else {
+      // Manual fulfillment pending case
+      // Create a synthetic failed result for handling
+      const syntheticFailedResult: FailedFailoverResult = {
+        success: false,
+        errorType: 'provider_error',
+        errorMessage: 'Manual fulfillment pending',
+        isRetryable: false,
+        providerUsed: purchaseResult.providerUsed,
+        attemptedProviders: purchaseResult.attemptedProviders,
+        failoverEvents: purchaseResult.failoverEvents,
+        failureReasons: purchaseResult.failureReasons,
+      };
+      return this.handlePurchaseFailure(
+        order,
+        syntheticFailedResult,
         attempts,
         log,
         startTime
@@ -211,7 +236,7 @@ export class FulfillmentService {
    */
   private async handlePurchaseSuccess(
     order: FulfillmentOrder,
-    result: FailoverResult,
+    result: SuccessfulFailoverResult,
     attempts: ProviderAttempt[],
     logger: AutomationLogger,
     startTime: number
@@ -315,7 +340,7 @@ export class FulfillmentService {
    */
   private async handlePurchaseFailure(
     order: FulfillmentOrder,
-    result: FailoverResult,
+    result: FailedFailoverResult,
     attempts: ProviderAttempt[],
     logger: AutomationLogger,
     startTime: number
@@ -398,7 +423,7 @@ export class FulfillmentService {
    */
   private async attemptManualFulfillment(
     order: FulfillmentOrder,
-    failoverResult: FailoverResult,
+    failoverResult: FailedFailoverResult,
     attempts: ProviderAttempt[],
     logger: AutomationLogger,
     startTime: number

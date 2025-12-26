@@ -8,7 +8,7 @@ import {
   GridSortModel,
   GridEventListener,
 } from '@mui/x-data-grid';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography, LinearProgress } from '@mui/material';
 
 // Types for DataTable component (from tests/unit/components/DataTable.test.tsx)
 export interface Column<T> {
@@ -94,15 +94,15 @@ export function DataTable<T extends { id: string | number }>({
         onRowClick={handleRowClick}
         paginationMode={paginationMode}
         rowCount={rowCount}
-        page={page}
-        onPageChange={onPageChange}
+        paginationModel={page !== undefined ? { page, pageSize: 10 } : undefined}
+        onPaginationModelChange={onPageChange ? (model) => onPageChange(model.page) : undefined}
         pageSizeOptions={[5, 10, 25, 50, 100]}
         disableRowSelectionOnClick
         autoHeight // Adjust height to content, useful with flex
         initialState={initialState}
         localeText={{ noRowsLabel: noRowsMessage, noResultsOverlayLabel: noRowsMessage }}
         slots={{
-          loadingOverlay: LinearProgress,
+          loadingOverlay: () => <LinearProgress />,
           noRowsOverlay: () => (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
               <Typography variant="body2" color="text.secondary">
