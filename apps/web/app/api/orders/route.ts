@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
+import { verifyAuth, unauthorizedResponse } from '@/lib/auth';
 import { z } from 'zod';
 
 /**
@@ -107,33 +108,13 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // TODO: 인증 확인
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Unauthorized',
-        },
-        { status: 401 }
-      );
+    // 인증 확인
+    const authResult = await verifyAuth(request);
+    if (!authResult.success || !authResult.user) {
+      return unauthorizedResponse(authResult.error);
     }
 
-    // PocketBase 인증 토큰 설정
-    pb.authStore.save(authHeader.replace('Bearer ', ''));
-
-    // 현재 사용자 확인
-    if (!pb.authStore.isValid) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid token',
-        },
-        { status: 401 }
-      );
-    }
-
-    const userId = pb.authStore.model?.id;
+    const userId = authResult.user.id;
 
     // 주문 목록 조회
     const orders = await pb.collection('orders').getList(1, 20, {

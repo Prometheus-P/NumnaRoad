@@ -15,7 +15,6 @@ import type {
   LogStatus,
   ErrorType,
   CreateLogInput,
-  AutomationLog,
 } from '../esim-providers/types';
 import { createHash } from 'crypto';
 
@@ -369,7 +368,7 @@ export class AutomationLogger {
   /**
    * Log provider call started
    */
-  providerCallStarted(providerName: string, request?: Record<string, unknown>): StepLogger {
+  providerCallStarted(providerName: string, _request?: Record<string, unknown>): StepLogger {
     return this.step('provider_call_started', providerName);
   }
 
