@@ -6,6 +6,7 @@ const pb = new PocketBase(
 
 /**
  * Get admin PocketBase instance with authentication
+ * PocketBase 0.21+ uses _superusers collection for admin auth
  */
 export async function getAdminPocketBase(): Promise<PocketBase> {
   const adminPb = new PocketBase(
@@ -16,7 +17,8 @@ export async function getAdminPocketBase(): Promise<PocketBase> {
   const password = process.env.POCKETBASE_ADMIN_PASSWORD;
 
   if (email && password) {
-    await adminPb.admins.authWithPassword(email, password);
+    // PocketBase 0.21+ uses _superusers collection instead of admins
+    await adminPb.collection('_superusers').authWithPassword(email, password);
   }
 
   return adminPb;
