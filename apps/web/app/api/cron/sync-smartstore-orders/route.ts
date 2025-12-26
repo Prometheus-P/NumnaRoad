@@ -11,14 +11,14 @@ import {
   normalizeNaverOrder,
   isEligibleForFulfillment,
   type NaverProductOrder,
-} from '../../../../../../services/sales-channels/smartstore';
+} from '@services/sales-channels/smartstore';
 import {
   createFulfillmentService,
   fulfillWithTimeout,
   isTimeoutResult,
   type FulfillmentOrder,
-} from '../../../../../../services/order-fulfillment';
-import type { EsimProvider } from '../../../../../../services/esim-providers/types';
+} from '@services/order-fulfillment';
+import type { EsimProvider } from '@services/esim-providers/types';
 
 /**
  * GET /api/cron/sync-smartstore-orders
