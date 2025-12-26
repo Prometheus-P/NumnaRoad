@@ -11,15 +11,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
-    environmentMatchGlobs: [
-      // Use node for non-component tests
-      ['tests/unit/*.test.ts', 'node'],
-      ['tests/contract/**', 'node'],
-      ['tests/integration/**', 'node'],
-      // Use jsdom for component tests
-      ['tests/unit/components/**', 'jsdom'],
-      ['tests/e2e/**', 'jsdom'],
-    ],
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
     coverage: {
       provider: 'v8',

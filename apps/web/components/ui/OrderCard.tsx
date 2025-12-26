@@ -14,15 +14,15 @@ export interface Order {
   dataLimit: string;
   durationDays: number;
   status: OrderStatus;
-  createdAt: Date;
-  completedAt?: Date;
+  createdAt: Date | string;
+  completedAt?: Date | string;
   qrCodeUrl?: string;
   iccid?: string;
   activationCode?: string;
   errorMessage?: string;
 }
 
-interface OrderCardProps {
+export interface OrderCardProps {
   order: Order;
   labels?: {
     orderId?: string;
@@ -44,21 +44,22 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
   const {
     orderId = 'Order ID',
     orderDate = 'Order Date',
-    product = 'Product',
+    product: _product = 'Product',
     data = 'Data',
     validity = 'Validity',
     days = 'days',
     activationCode = 'Activation Code',
   } = labels;
 
-  const formatDate = (date: Date): string => {
+  const formatDate = (date: Date | string): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
     return new Intl.DateTimeFormat('ko-KR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(date);
+    }).format(dateObj);
   };
 
   const showQrCode = order.status === 'completed' && order.qrCodeUrl;

@@ -82,7 +82,7 @@ export class AiraloProvider implements ESIMProvider {
   /**
    * 재고 조회
    */
-  async getInventory(productId: string): Promise<number> {
+  async getInventory(_productId: string): Promise<number> {
     // Airalo는 항상 재고가 있다고 가정
     // (실제 API에는 재고 조회 엔드포인트가 없을 수 있음)
     return 999;

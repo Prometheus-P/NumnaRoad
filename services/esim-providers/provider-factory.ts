@@ -15,6 +15,43 @@ import type {
   ProviderSlug,
 } from './types';
 
+// =============================================================================
+// Legacy Provider Types (for backward compatibility)
+// =============================================================================
+
+/**
+ * Legacy ESIMResponse type for provider implementations
+ */
+export interface ESIMResponse {
+  orderId: string;
+  qrCodeUrl: string;
+  activationCode?: string;
+  iccid: string;
+  provider: string;
+}
+
+/**
+ * Legacy Product type for provider implementations
+ */
+export interface Product {
+  id: string;
+  name: string;
+  country: string;
+  duration: number;
+  dataLimit: string;
+  price: number;
+}
+
+/**
+ * Legacy ESIMProvider interface for provider implementations
+ */
+export interface ESIMProvider {
+  readonly name: string;
+  issueESIM(productId: string, email: string): Promise<ESIMResponse>;
+  getInventory(productId: string): Promise<number>;
+  getProducts(): Promise<Product[]>;
+}
+
 /**
  * Base class for eSIM provider adapters
  *
@@ -242,14 +279,19 @@ export interface FailoverEvent {
 }
 
 /**
- * Failover result with metadata
+ * Failover result metadata
  */
-export interface FailoverResult extends EsimPurchaseResult {
+export interface FailoverMetadata {
   providerUsed?: string;
   attemptedProviders: string[];
   failoverEvents: FailoverEvent[];
   failureReasons: Record<string, string>;
 }
+
+/**
+ * Failover result with metadata
+ */
+export type FailoverResult = EsimPurchaseResult & FailoverMetadata;
 
 /**
  * Failover options

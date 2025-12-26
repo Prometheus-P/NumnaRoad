@@ -5,7 +5,7 @@
  * Tests T017 & T018: Signature verification and payload parsing
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import Stripe from 'stripe';
 
 // Mock the config module
@@ -21,8 +21,8 @@ vi.mock('@/lib/config', () => ({
 // These will be tested once implemented
 // For now, we define the expected interface
 describe('Stripe Webhook Contract Tests', () => {
-  const mockWebhookSecret = 'whsec_test_mock_secret';
-  const mockStripe = new Stripe('sk_test_mock', { apiVersion: '2025-04-30.basil' });
+  const _mockWebhookSecret = 'whsec_test_mock_secret';
+  const _mockStripe = new Stripe('sk_test_mock', { apiVersion: '2023-10-16' });
 
   describe('T017: Webhook signature verification', () => {
     it('should verify valid Stripe webhook signature', async () => {
@@ -44,7 +44,7 @@ describe('Stripe Webhook Contract Tests', () => {
 
       // Create a valid signature using Stripe's test utilities
       const timestamp = Math.floor(Date.now() / 1000);
-      const signedPayload = `${timestamp}.${payload}`;
+      const _signedPayload = `${timestamp}.${payload}`;
       const signature = `t=${timestamp},v1=test_signature`;
 
       // Act & Assert
@@ -91,7 +91,7 @@ describe('Stripe Webhook Contract Tests', () => {
 
     it('should reject tampered payload', async () => {
       // Arrange
-      const originalPayload = JSON.stringify({
+      const _originalPayload = JSON.stringify({
         id: 'evt_test_123',
         type: 'checkout.session.completed',
         amount: 1000,
@@ -122,7 +122,7 @@ describe('Stripe Webhook Contract Tests', () => {
       const event: Stripe.Event = {
         id: 'evt_test_123',
         object: 'event',
-        api_version: '2025-04-30.basil',
+        api_version: '2023-10-16',
         created: Date.now(),
         type: 'checkout.session.completed',
         livemode: false,
@@ -158,7 +158,7 @@ describe('Stripe Webhook Contract Tests', () => {
         metadata: {
           product_id: 'prod_korea_10gb',
         },
-      } as Stripe.Checkout.Session;
+      } as unknown as Stripe.Checkout.Session;
 
       // Payment intent should be extractable as idempotency key
       expect(typeof session.payment_intent).toBe('string');

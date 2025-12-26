@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { orderId, successUrl, cancelUrl } = validation.data;
+    const { orderId: _orderId, successUrl: _successUrl, cancelUrl: _cancelUrl } = validation.data;
 
     // Stripe SDK는 실제 환경에서 설정 필요
     // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);

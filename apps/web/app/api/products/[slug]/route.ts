@@ -6,7 +6,7 @@ import pb from '@/lib/pocketbase';
  * 상품 상세 조회
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
