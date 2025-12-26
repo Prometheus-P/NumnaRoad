@@ -10,15 +10,15 @@ import {
   createPocketBaseProductMapper,
   type NaverWebhookPayload,
   type NaverProductOrder,
-} from '../../../../../../services/sales-channels/smartstore';
+} from '@services/sales-channels/smartstore';
 import {
   createFulfillmentService,
   fulfillWithTimeout,
   isTimeoutResult,
   type FulfillmentOrder,
-} from '../../../../../../services/order-fulfillment';
-import { createAutomationLogger } from '../../../../../../services/logging';
-import type { EsimProvider } from '../../../../../../services/esim-providers/types';
+} from '@services/order-fulfillment';
+import { createAutomationLogger } from '@services/logging';
+import type { EsimProvider } from '@services/esim-providers/types';
 
 /**
  * POST /api/webhooks/smartstore
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Handle different event types
     switch (payload.type) {
       case 'ORDER_PAYMENT_COMPLETE':
-        return handlePaymentComplete(payload, correlationId, config);
+        return handlePaymentComplete(payload, correlationId, config, startTime);
 
       case 'ORDER_CLAIM_REQUESTED':
         return handleClaimRequest(payload, correlationId);
@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
 async function handlePaymentComplete(
   payload: NaverWebhookPayload,
   correlationId: string,
-  config: ReturnType<typeof getConfig>
+  config: ReturnType<typeof getConfig>,
+  startTime: number
 ): Promise<NextResponse> {
   const { productOrderIds } = payload;
 
@@ -163,7 +164,7 @@ async function handlePaymentComplete(
     handled: true,
     correlationId,
     results,
-    durationMs: Date.now() - Date.now(),
+    durationMs: Date.now() - startTime,
   });
 }
 
