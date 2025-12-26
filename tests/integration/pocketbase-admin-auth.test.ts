@@ -11,10 +11,13 @@ const PB_URL = 'http://127.0.0.1:8090';
 const ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL || 'testadmin@example.com';
 const ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD || 'password12345';
 
+// Skip in CI environment where PocketBase binary is not available
+const isCI = process.env.CI === 'true';
+
 // Custom console to avoid Vitest intercepting all logs
 const customConsole = new Console(process.stdout, process.stderr);
 
-describe('PocketBase Admin Authentication (T205)', () => {
+describe.skipIf(isCI)('PocketBase Admin Authentication (T205)', () => {
   let pb: PocketBase;
   let pbProcess: ChildProcess | null = null; // Use ChildProcess type and allow null
 
