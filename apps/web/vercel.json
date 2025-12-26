@@ -41,6 +41,10 @@
     {
       "path": "/api/cron/retry-stuck-orders",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-smartstore-orders",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
