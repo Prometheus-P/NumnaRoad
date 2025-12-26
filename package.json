@@ -47,7 +47,7 @@
     "react-dom": "^18.3.0",
     "stripe": "^14.0.0",
     "tailwind-merge": "^2.2.0",
-    "zod": "^3.22.0"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@csstools/css-parser-algorithms": "^3.0.5",
