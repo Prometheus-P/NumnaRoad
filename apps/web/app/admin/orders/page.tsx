@@ -253,7 +253,7 @@ export default function AdminOrdersPage() {
       <Paper sx={{ p: 2, mb: 3, borderRadius: 3 }}>
         <Grid container spacing={2} alignItems="center">
           {/* Search */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               size="small"
@@ -273,7 +273,7 @@ export default function AdminOrdersPage() {
           </Grid>
 
           {/* Status Filter */}
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
@@ -292,7 +292,7 @@ export default function AdminOrdersPage() {
           </Grid>
 
           {/* Provider Filter */}
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Provider</InputLabel>
               <Select
@@ -310,7 +310,7 @@ export default function AdminOrdersPage() {
           </Grid>
 
           {/* Reset Button */}
-          <Grid item xs={12} md={2}>
+          <Grid size={{ xs: 12, md: 2 }}>
             <Button
               startIcon={<FilterListIcon />}
               onClick={handleResetFilters}

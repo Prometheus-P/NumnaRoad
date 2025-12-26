@@ -169,7 +169,7 @@ export default function AdminProvidersPage() {
       {/* Provider Cards */}
       <Grid container spacing={3}>
         {providers.map((provider) => (
-          <Grid item xs={12} md={6} lg={4} key={provider.slug}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={provider.slug}>
             <ProviderHealthCard
               provider={provider}
               onToggleActive={handleToggleActive}

@@ -8,7 +8,7 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   interval: number; // Time window in milliseconds
   maxRequests: number; // Max requests per window
 }
@@ -92,7 +92,7 @@ export function checkRateLimit(
 /**
  * Preset rate limit configurations
  */
-export const RateLimitPresets = {
+export const RateLimitPresets: Record<string, RateLimitConfig> = {
   // Webhook endpoints: 100 requests per minute
   webhook: {
     interval: 60 * 1000,
@@ -108,7 +108,7 @@ export const RateLimitPresets = {
     interval: 60 * 1000,
     maxRequests: 10,
   },
-} as const;
+};
 
 /**
  * Get client IP from request headers
