@@ -3,7 +3,8 @@
 # Deploys PocketBase with persistent volume for SQLite data.
 
 [build]
-builder = "DOCKERFILE"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 numReplicas = 1
@@ -11,11 +12,8 @@ healthcheckPath = "/api/health"
 healthcheckTimeout = 10
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+startCommand = "/pb/pocketbase serve --http=0.0.0.0:8080"
 
 [[services]]
 port = 8080
 protocol = "HTTP"
-
-[volumes]
-  [volumes.pb_data]
-    source = "/pb/pb_data"

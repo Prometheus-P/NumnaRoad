@@ -1,0 +1,9 @@
+# Disable Nixpacks - use Dockerfile instead
+[phases.build]
+cmds = []
+
+[phases.install]
+cmds = []
+
+[start]
+cmd = "/pb/pocketbase serve --http=0.0.0.0:8080"
