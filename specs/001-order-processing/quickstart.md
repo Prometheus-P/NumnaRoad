@@ -154,7 +154,7 @@ In PocketBase Admin UI (`http://127.0.0.1:8090/_/`):
 ### 3.2 Seed Provider Data
 
 ```bash
-npm run seed:providers
+npm run seed
 # Or manually add via PocketBase Admin UI
 ```
 
@@ -360,36 +360,182 @@ Create `apps/web/components/ui/theme/m3-theme.ts`:
 ```typescript
 import { createTheme } from '@mui/material/styles';
 
-// Brand primary color: Indigo #6366F1
-export const theme = createTheme({
-  cssVariables: true,
-  colorSchemes: {
-    light: {
-      palette: {
-        primary: { main: '#6366F1' },
-        secondary: { main: '#EC4899' },
-        error: { main: '#EF4444' },
-        warning: { main: '#F59E0B' },
-        success: { main: '#10B981' },
+// Brand primary color from clarifications
+const primaryColor = '#6366F1'; // Indigo
+
+const typographyConfig = {
+  fontFamily: '"Pretendard", "Roboto", sans-serif',
+  h1: { fontSize: '57px', lineHeight: '64px', fontWeight: 400 }, // displayLarge
+  h2: { fontSize: '45px', lineHeight: '52px', fontWeight: 400 }, // displayMedium
+  h3: { fontSize: '36px', lineHeight: '44px', fontWeight: 400 }, // displaySmall
+  h4: { fontSize: '32px', lineHeight: '40px', fontWeight: 400 }, // headlineLarge
+  h5: { fontSize: '28px', lineHeight: '36px', fontWeight: 400 }, // headlineMedium
+  h6: { fontSize: '24px', lineHeight: '32px', fontWeight: 400 }, // headlineSmall
+  titleLarge: { fontSize: '22px', lineHeight: '28px', fontWeight: 500 },
+  titleMedium: { fontSize: '16px', lineHeight: '24px', fontWeight: 500 },
+  titleSmall: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 },
+  bodyLarge: { fontSize: '16px', lineHeight: '24px', fontWeight: 400 },
+  bodyMedium: { fontSize: '14px', lineHeight: '20px', fontWeight: 400 },
+  bodySmall: { fontSize: '12px', lineHeight: '16px', fontWeight: 400 },
+  labelLarge: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 },
+  labelMedium: { fontSize: '12px', lineHeight: '16px', fontWeight: 500 },
+  labelSmall: { fontSize: '11px', lineHeight: '16px', fontWeight: 500 },
+  button: {
+    textTransform: 'none',
+    fontWeight: 500,
+    fontSize: '14px', lineHeight: '20px', // labelLarge
+  },
+  body1: { fontSize: '16px', lineHeight: '24px', fontWeight: 400 }, // bodyLarge
+  body2: { fontSize: '14px', lineHeight: '20px', fontWeight: 400 }, // bodyMedium
+  subtitle1: { fontSize: '16px', lineHeight: '24px', fontWeight: 500 }, // titleMedium
+  subtitle2: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 }, // titleSmall
+  caption: { fontSize: '12px', lineHeight: '16px', fontWeight: 400 }, // bodySmall
+  overline: { fontSize: '11px', lineHeight: '16px', fontWeight: 500 }, // labelSmall
+};
+
+const componentsConfig = {
+  MuiButton: {
+    styleOverrides: {
+      root: {
+        borderRadius: '20px',
       },
     },
-    dark: {
-      palette: {
-        primary: { main: '#818CF8' },
-        secondary: { main: '#F472B6' },
-        error: { main: '#F87171' },
-        warning: { main: '#FBBF24' },
-        success: { main: '#34D399' },
+  },
+  MuiCard: {
+    styleOverrides: {
+      root: {
+        borderRadius: '12px',
       },
     },
   },
-  typography: {
-    fontFamily: '"Pretendard", "Roboto", "Helvetica", "Arial", sans-serif',
+  MuiDialog: {
+    styleOverrides: {
+      paper: {
+        borderRadius: '28px',
+      },
+    },
   },
-  shape: {
-    borderRadius: 12,
+};
+
+const shapeConfig = {
+  borderRadius: 12,
+};
+
+const lightPalette = {
+  primary: {
+    main: primaryColor,
+    light: '#818CF8', // Lighter Indigo
+    dark: '#4F46E5',  // Darker Indigo
   },
-});
+  secondary: {
+    main: '#EC4899', // Pink
+    light: '#F879B9',
+    dark: '#DB2777',
+  },
+  error: {
+    main: '#EF4444', // Red
+    light: '#F87171',
+    dark: '#DC2626',
+  },
+  warning: {
+    main: '#F59E0B', // Amber
+    light: '#FBBF24',
+    dark: '#D97706',
+  },
+  success: {
+    main: '#10B981', // Green
+    light: '#34D399',
+    dark: '#059669',
+  },
+  background: {
+    default: '#F5F7FA', // Light background
+    paper: '#FFFFFF',
+  },
+  text: {
+    primary: '#1F2937', // Dark gray
+    secondary: '#4B5563', // Medium gray
+  },
+};
+
+const darkPalette = {
+  primary: {
+    main: primaryColor,
+    light: '#818CF8', // Lighter Indigo
+    dark: '#4F46E5',  // Darker Indigo
+  },
+  secondary: {
+    main: '#F472B6', // Lighter Pink
+    light: '#F9A8D4',
+    dark: '#C02678',
+  },
+  error: {
+    main: '#F87171', // Lighter Red
+    light: '#FCA5A5',
+    dark: '#B91C1C',
+  },
+  warning: {
+    main: '#FBBF24', // Lighter Amber
+    light: '#FCD34D',
+    dark: '#B45309',
+  },
+  success: {
+    main: '#34D399', // Lighter Green
+    light: '#6EE7B7',
+    dark: '#047857',
+  },
+  background: {
+    default: '#121212', // Dark background
+    paper: '#1E1E1E',
+  },
+  text: {
+    primary: '#F9FAFB', // Light gray
+    secondary: '#E5E7EB', // Lighter gray
+  },
+};
+
+export const theme = {
+  light: createTheme({
+    palette: {
+      mode: 'light',
+      ...lightPalette,
+    },
+    typography: typographyConfig,
+    shape: shapeConfig,
+    components: componentsConfig,
+  }),
+  dark: createTheme({
+    palette: {
+      mode: 'dark',
+      ...darkPalette,
+    },
+    typography: typographyConfig,
+    shape: shapeConfig,
+    components: componentsConfig,
+  }),
+};
+
+export const themeColors = {
+  primary: {
+    light: theme.light.palette.primary.main,
+    dark: theme.dark.palette.primary.main,
+  },
+  secondary: {
+    light: lightPalette.secondary.main,
+    dark: darkPalette.secondary.main,
+  },
+  error: {
+    light: lightPalette.error.main,
+    dark: darkPalette.error.main,
+  },
+  warning: {
+    light: lightPalette.warning.main,
+    dark: darkPalette.warning.main,
+  },
+  success: {
+    light: lightPalette.success.main,
+    dark: darkPalette.success.main,
+  },
+};
 ```
 
 ### 10.2 Theme Provider Setup
@@ -399,16 +545,22 @@ Create `apps/web/components/providers/ThemeProvider.tsx`:
 ```typescript
 'use client';
 
-import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
+import * as React from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from '../ui/theme/m3-theme';
+import { Experimental_CssVarsProvider as CssVarsProvider, useColorScheme } from '@mui/material/styles';
+import { getInitColorSchemeScript } from '@mui/material-next';
+
+import { theme } from '../ui/theme/m3-theme'; // Import the theme object
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // You might need to adjust how the getInitColorSchemeScript is used
+  // based on how @mui/material-next integrates with Experimental_CssVarsProvider
   return (
-    <MuiThemeProvider theme={theme}>
+    <CssVarsProvider theme={theme}>
+      {getInitColorSchemeScript()}
       <CssBaseline />
       {children}
-    </MuiThemeProvider>
+    </CssVarsProvider>
   );
 }
 ```
@@ -419,10 +571,37 @@ Create `apps/web/i18n.ts`:
 
 ```typescript
 import { getRequestConfig } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+
+export const locales = ['en', 'ko'] as const;
+export const defaultLocale = 'ko';
+
+export async function getMessages(locale: string) {
+  if (!locales.includes(locale as any)) notFound();
+
+  return (await import(`../locales/${locale}.json`)).default;
+}
 
 export default getRequestConfig(async ({ locale }) => ({
-  messages: (await import(`./locales/${locale}.json`)).default,
+  messages: await getMessages(locale),
 }));
+```
+
+Create `apps/web/middleware.ts`:
+
+```typescript
+import createMiddleware from 'next-intl/middleware';
+import { locales, defaultLocale } from './i18n';
+
+export default createMiddleware({
+  locales,
+  defaultLocale,
+});
+
+export const config = {
+  // Match only internationalized pathnames
+  matcher: ['/', '/(ko|en)/:path*']
+};
 ```
 
 Create locale files:

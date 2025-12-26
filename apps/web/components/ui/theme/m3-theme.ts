@@ -1,298 +1,178 @@
-'use client';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { PaletteMode } from '@mui/material'; // Import PaletteMode for typing
 
-import { createTheme } from '@mui/material/styles';
+// Brand primary color from clarifications
+const primaryColor = '#6366F1'; // Indigo
 
-/**
- * Material Design 3 Theme Configuration
- * Brand Primary Color: Indigo #6366F1
- * Per spec.md clarifications: Korean primary, English secondary
- */
-
-// M3 Color Tokens
-const indigo = {
-  light: '#6366F1',
-  dark: '#818CF8',
-};
-
-const secondary = {
-  light: '#EC4899',
-  dark: '#F472B6',
-};
-
-const error = {
-  light: '#EF4444',
-  dark: '#F87171',
-};
-
-const warning = {
-  light: '#F59E0B',
-  dark: '#FBBF24',
-};
-
-const success = {
-  light: '#10B981',
-  dark: '#34D399',
-};
-
-// Surface colors for M3
-const surface = {
-  light: {
-    default: '#FFFFFF',
-    variant: '#F5F5F5',
-    container: '#FAFAFA',
-    containerLow: '#F0F0F0',
-    containerHigh: '#EBEBEB',
+const typographyConfig = {
+  fontFamily: '"Pretendard", "Roboto", "sans-serif"', // Simplified font stack
+  h1: { fontSize: '57px', lineHeight: '64px', fontWeight: 400 }, // displayLarge
+  h2: { fontSize: '45px', lineHeight: '52px', fontWeight: 400 }, // displayMedium
+  h3: { fontSize: '36px', lineHeight: '44px', fontWeight: 400 }, // displaySmall
+  h4: { fontSize: '32px', lineHeight: '40px', fontWeight: 400 }, // headlineLarge
+  h5: { fontSize: '28px', lineHeight: '36px', fontWeight: 400 }, // headlineMedium
+  h6: { fontSize: '24px', lineHeight: '32px', fontWeight: 400 }, // headlineSmall
+  subtitle1: { fontSize: '16px', lineHeight: '24px', fontWeight: 500 }, // titleMedium
+  subtitle2: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 }, // titleSmall
+  body1: { fontSize: '16px', lineHeight: '24px', fontWeight: 400 }, // bodyLarge
+  body2: { fontSize: '14px', lineHeight: '20px', fontWeight: 400 }, // bodyMedium
+  button: {
+    textTransform: 'none',
+    fontWeight: 500,
+    fontSize: '14px', lineHeight: '20px', // labelLarge
   },
-  dark: {
-    default: '#121212',
-    variant: '#1E1E1E',
-    container: '#252525',
-    containerLow: '#1A1A1A',
-    containerHigh: '#2D2D2D',
+  caption: { fontSize: '12px', lineHeight: '16px', fontWeight: 400 }, // bodySmall
+  overline: { fontSize: '11px', lineHeight: '16px', fontWeight: 500 }, // labelSmall
+  // Custom M3 typography variants - can be mapped to existing MUI variants or used directly
+  titleLarge: { fontSize: '22px', lineHeight: '28px', fontWeight: 500 },
+  titleMedium: { fontSize: '16px', lineHeight: '24px', fontWeight: 500 },
+  titleSmall: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 },
+  bodyLarge: { fontSize: '16px', lineHeight: '24px', fontWeight: 400 },
+  bodyMedium: { fontSize: '14px', lineHeight: '20px', fontWeight: 400 },
+  bodySmall: { fontSize: '12px', lineHeight: '16px', fontWeight: 400 },
+  labelLarge: { fontSize: '14px', lineHeight: '20px', fontWeight: 500 },
+  labelMedium: { fontSize: '12px', lineHeight: '16px', fontWeight: 500 },
+  labelSmall: { fontSize: '11px', lineHeight: '16px', fontWeight: 500 },
+};
+
+const componentsConfig = {
+  MuiButton: {
+    styleOverrides: {
+      root: {
+        borderRadius: '20px',
+      },
+    },
+  },
+  MuiCard: {
+    styleOverrides: {
+      root: {
+        borderRadius: '12px',
+      },
+    },
+  },
+  MuiDialog: {
+    styleOverrides: {
+      paper: {
+        borderRadius: '28px',
+      },
+    },
   },
 };
 
-// Export color values for testing
-export const themeColors = {
+const shapeConfig = {
+  borderRadius: 12,
+};
+
+const lightPalette = {
   primary: {
-    light: indigo.light,
-    dark: indigo.dark,
+    main: primaryColor,
+    light: '#818CF8', // Lighter Indigo
+    dark: '#4F46E5',  // Darker Indigo
   },
   secondary: {
-    light: secondary.light,
-    dark: secondary.dark,
+    main: '#EC4899', // Pink
+    light: '#F879B9',
+    dark: '#DB2777',
   },
   error: {
-    light: error.light,
-    dark: error.dark,
+    main: '#EF4444', // Red
+    light: '#F87171',
+    dark: '#DC2626',
   },
   warning: {
-    light: warning.light,
-    dark: warning.dark,
+    main: '#F59E0B', // Amber
+    light: '#FBBF24',
+    dark: '#D97706',
   },
   success: {
-    light: success.light,
-    dark: success.dark,
+    main: '#10B981', // Green
+    light: '#34D399',
+    dark: '#059669',
+  },
+  background: {
+    default: '#F5F7FA', // Light background
+    paper: '#FFFFFF',
+  },
+  text: {
+    primary: '#1F2937', // Dark gray
+    secondary: '#4B5563', // Medium gray
   },
 };
 
-/**
- * M3 Theme with CSS Variables for light/dark mode support
- */
-export const theme = createTheme({
-  cssVariables: {
-    colorSchemeSelector: 'class',
+const darkPalette = {
+  primary: {
+    main: primaryColor,
+    light: '#818CF8', // Lighter Indigo
+    dark: '#4F46E5',  // Darker Indigo
   },
-  colorSchemes: {
-    light: {
-      palette: {
-        primary: {
-          main: indigo.light,
-          contrastText: '#FFFFFF',
-        },
-        secondary: {
-          main: secondary.light,
-          contrastText: '#FFFFFF',
-        },
-        error: {
-          main: error.light,
-          contrastText: '#FFFFFF',
-        },
-        warning: {
-          main: warning.light,
-          contrastText: '#000000',
-        },
-        success: {
-          main: success.light,
-          contrastText: '#FFFFFF',
-        },
-        background: {
-          default: surface.light.default,
-          paper: surface.light.container,
-        },
-        text: {
-          primary: 'rgba(0, 0, 0, 0.87)',
-          secondary: 'rgba(0, 0, 0, 0.6)',
-          disabled: 'rgba(0, 0, 0, 0.38)',
-        },
-      },
-    },
-    dark: {
-      palette: {
-        primary: {
-          main: indigo.dark,
-          contrastText: '#000000',
-        },
-        secondary: {
-          main: secondary.dark,
-          contrastText: '#000000',
-        },
-        error: {
-          main: error.dark,
-          contrastText: '#000000',
-        },
-        warning: {
-          main: warning.dark,
-          contrastText: '#000000',
-        },
-        success: {
-          main: success.dark,
-          contrastText: '#000000',
-        },
-        background: {
-          default: surface.dark.default,
-          paper: surface.dark.container,
-        },
-        text: {
-          primary: 'rgba(255, 255, 255, 0.87)',
-          secondary: 'rgba(255, 255, 255, 0.6)',
-          disabled: 'rgba(255, 255, 255, 0.38)',
-        },
-      },
-    },
+  secondary: {
+    main: '#F472B6', // Lighter Pink
+    light: '#F9A8D4',
+    dark: '#C02678',
   },
-  typography: {
-    fontFamily: '"Pretendard", "Roboto", "Helvetica", "Arial", sans-serif',
-    // M3 Typography Scale
-    h1: {
-      fontSize: '57px',
-      lineHeight: '64px',
-      fontWeight: 400,
-      letterSpacing: '-0.25px',
-    },
-    h2: {
-      fontSize: '45px',
-      lineHeight: '52px',
-      fontWeight: 400,
-      letterSpacing: '0px',
-    },
-    h3: {
-      fontSize: '36px',
-      lineHeight: '44px',
-      fontWeight: 400,
-      letterSpacing: '0px',
-    },
-    h4: {
-      fontSize: '32px',
-      lineHeight: '40px',
-      fontWeight: 400,
-      letterSpacing: '0px',
-    },
-    h5: {
-      fontSize: '28px',
-      lineHeight: '36px',
-      fontWeight: 400,
-      letterSpacing: '0px',
-    },
-    h6: {
-      fontSize: '24px',
-      lineHeight: '32px',
-      fontWeight: 400,
-      letterSpacing: '0px',
-    },
-    subtitle1: {
-      fontSize: '22px',
-      lineHeight: '28px',
-      fontWeight: 500,
-      letterSpacing: '0px',
-    },
-    subtitle2: {
-      fontSize: '16px',
-      lineHeight: '24px',
-      fontWeight: 500,
-      letterSpacing: '0.15px',
-    },
-    body1: {
-      fontSize: '16px',
-      lineHeight: '24px',
-      fontWeight: 400,
-      letterSpacing: '0.5px',
-    },
-    body2: {
-      fontSize: '14px',
-      lineHeight: '20px',
-      fontWeight: 400,
-      letterSpacing: '0.25px',
-    },
-    button: {
-      fontSize: '14px',
-      lineHeight: '20px',
-      fontWeight: 500,
-      letterSpacing: '0.1px',
-      textTransform: 'none',
-    },
-    caption: {
-      fontSize: '12px',
-      lineHeight: '16px',
-      fontWeight: 400,
-      letterSpacing: '0.4px',
-    },
-    overline: {
-      fontSize: '11px',
-      lineHeight: '16px',
-      fontWeight: 500,
-      letterSpacing: '0.5px',
-      textTransform: 'uppercase',
-    },
+  error: {
+    main: '#F87171', // Lighter Red
+    light: '#FCA5A5',
+    dark: '#B91C1C',
   },
-  shape: {
-    borderRadius: 12, // M3 default corner radius
+  warning: {
+    main: '#FBBF24', // Lighter Amber
+    light: '#FCD34D',
+    dark: '#B45309',
   },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: '20px', // M3 full pill shape for buttons
-          padding: '10px 24px',
-        },
-        contained: {
-          boxShadow: 'none',
-          '&:hover': {
-            boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)',
-          },
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: '12px',
-          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.12), 0px 1px 2px rgba(0, 0, 0, 0.24)',
-        },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          borderRadius: '8px',
-        },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          borderRadius: '28px', // M3 dialog corner radius
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: '4px',
-          },
-        },
-      },
-    },
-    MuiLinearProgress: {
-      styleOverrides: {
-        root: {
-          borderRadius: '4px',
-          height: '4px',
-        },
-      },
-    },
+  success: {
+    main: '#34D399', // Lighter Green
+    light: '#6EE7B7',
+    dark: '#047857',
   },
-});
+  background: {
+    default: '#121212', // Dark background
+    paper: '#1E1E1E',
+  },
+  text: {
+    primary: '#F9FAFB', // Light gray
+    secondary: '#E5E7EB', // Lighter gray
+  },
+};
 
-export default theme;
+export const getMuiTheme = (mode: PaletteMode): ThemeOptions => {
+  const palette = mode === 'light' ? lightPalette : darkPalette;
+
+  return {
+    palette: {
+      mode,
+      ...palette,
+    },
+    typography: typographyConfig,
+    shape: shapeConfig,
+    components: componentsConfig,
+  };
+};
+
+export const theme = {
+  light: createTheme(getMuiTheme('light')),
+  dark: createTheme(getMuiTheme('dark')),
+};
+
+export const themeColors = {
+  primary: {
+    light: theme.light.palette.primary.main,
+    dark: theme.dark.palette.primary.main,
+  },
+  secondary: {
+    light: lightPalette.secondary.main,
+    dark: darkPalette.secondary.main,
+  },
+  error: {
+    light: lightPalette.error.main,
+    dark: darkPalette.error.main,
+  },
+  warning: {
+    light: lightPalette.warning.main,
+    dark: darkPalette.warning.main,
+  },
+  success: {
+    light: lightPalette.success.main,
+    dark: darkPalette.success.main,
+  },
+};

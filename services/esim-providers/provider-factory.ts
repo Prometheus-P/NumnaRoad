@@ -15,42 +15,8 @@ import type {
   ProviderSlug,
 } from './types';
 
-// =============================================================================
-// Legacy Provider Types (for backward compatibility)
-// =============================================================================
-
-/**
- * Legacy ESIMResponse type for provider implementations
- */
-export interface ESIMResponse {
-  orderId: string;
-  qrCodeUrl: string;
-  activationCode?: string;
-  iccid: string;
-  provider: string;
-}
-
-/**
- * Legacy Product type for provider implementations
- */
-export interface Product {
-  id: string;
-  name: string;
-  country: string;
-  duration: number;
-  dataLimit: string;
-  price: number;
-}
-
-/**
- * Legacy ESIMProvider interface for provider implementations
- */
-export interface ESIMProvider {
-  readonly name: string;
-  issueESIM(productId: string, email: string): Promise<ESIMResponse>;
-  getInventory(productId: string): Promise<number>;
-  getProducts(): Promise<Product[]>;
-}
+// Re-export commonly used types for convenience
+export type { EsimPurchaseRequest, EsimPurchaseResult, EsimProvider, ProviderSlug } from './types';
 
 /**
  * Base class for eSIM provider adapters
@@ -279,7 +245,7 @@ export interface FailoverEvent {
 }
 
 /**
- * Failover result metadata
+ * Failover metadata added to purchase results
  */
 export interface FailoverMetadata {
   providerUsed?: string;
@@ -595,4 +561,46 @@ export async function purchaseWithFailover(
   options?.onAllFailed?.(finalResult);
 
   return finalResult;
+}
+
+// =============================================================================
+// Type Guards and Helper Types
+// =============================================================================
+
+import type { EsimPurchaseResponse, EsimPurchaseError, EsimManualFulfillmentPending } from './types';
+
+/**
+ * Type for successful FailoverResult
+ */
+export type SuccessfulFailoverResult = EsimPurchaseResponse & FailoverMetadata;
+
+/**
+ * Type for failed FailoverResult
+ */
+export type FailedFailoverResult = EsimPurchaseError & FailoverMetadata;
+
+/**
+ * Type for manual fulfillment pending FailoverResult
+ */
+export type ManualPendingFailoverResult = EsimManualFulfillmentPending & FailoverMetadata;
+
+/**
+ * Type guard for successful purchase result
+ */
+export function isSuccessfulResult(result: FailoverResult): result is SuccessfulFailoverResult {
+  return result.success === true;
+}
+
+/**
+ * Type guard for failed purchase result
+ */
+export function isFailedResult(result: FailoverResult): result is FailedFailoverResult {
+  return result.success === false;
+}
+
+/**
+ * Type guard for manual fulfillment pending result
+ */
+export function isManualPendingResult(result: FailoverResult): result is ManualPendingFailoverResult {
+  return result.success === 'pending_manual';
 }

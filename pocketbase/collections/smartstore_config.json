@@ -1,0 +1,49 @@
+{
+  "id": "smartstore_config",
+  "name": "smartstore_config",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "last_sync_at",
+      "name": "last_sync_at",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "webhook_secret",
+      "name": "webhook_secret",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "seller_id",
+      "name": "seller_id",
+      "type": "text",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "notes",
+      "name": "notes",
+      "type": "text",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

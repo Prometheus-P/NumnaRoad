@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Chip from '@mui/material/Chip';
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed';

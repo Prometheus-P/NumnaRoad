@@ -11,6 +11,14 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      // Playwright E2E tests should be run separately with `npx playwright test`
+      'tests/e2e/customer-order-tracking.test.ts',
+    ],
+    // Environment options are configured per test file using vitest directives
+    // @vitest-environment jsdom or @vitest-environment node
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
     coverage: {
       provider: 'v8',

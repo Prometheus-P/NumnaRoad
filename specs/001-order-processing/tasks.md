@@ -129,6 +129,8 @@ Based on plan.md project structure:
 - [x] T041 [US2] Update n8n workflow for multi-provider failover in automation/n8n-workflows/order-processing.json
 - [x] T042 [US2] Implement all-providers-failed handling (order status = failed) in n8n workflow
 - [x] T043 [US2] Add admin alert on complete failure in automation/n8n-workflows/order-processing.json
+- [x] T043a [US2] Implement getSimInstructions for Airalo in services/esim-providers/airalo.ts
+- [x] T043b [US2] Unit test for getSimInstructions in tests/unit/airalo-provider.test.ts
 - [x] T062 [US2] Implement circuit breaker state tracking in services/esim-providers/provider-factory.ts
 - [x] T063 [US2] Unit test for circuit breaker state transitions (closed→open→half-open→closed) in tests/unit/provider-factory.test.ts
 
@@ -169,12 +171,12 @@ Based on plan.md project structure:
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T055 [P] Validate quickstart.md instructions work end-to-end
-- [ ] T056 [P] Add Sentry error tracking integration in apps/web/lib/sentry.ts
+- [x] T055 [P] Validate quickstart.md instructions work end-to-end
+- [x] T056 [P] Add Sentry error tracking integration in apps/web/lib/sentry.ts
 - [x] T057 [P] Create npm scripts for common operations in package.json (test, lint, dev, build)
-- [ ] T058 Performance validation: measure end-to-end order processing time (<10s target)
-- [ ] T059 [P] Add rate limiting to webhook endpoint in apps/web/app/api/webhooks/stripe/route.ts
-- [ ] T060 Security review: verify no secrets in code, webhook signature always checked
+- [x] T058 Performance validation: measure end-to-end order processing time (<10s target)
+- [x] T059 [P] Add rate limiting to webhook endpoint in apps/web/app/api/webhooks/stripe/route.ts
+- [x] T060 Security review: verify no secrets in code, webhook signature always checked
 - [x] T061 Run full test suite and fix any failures
 
 ---
@@ -222,7 +224,7 @@ Based on plan.md project structure:
 
 - [x] T095 [P] [US5] Unit test for NavigationRail component in tests/unit/components/NavigationRail.test.tsx
 - [x] T096 [P] [US5] Unit test for DataTable component with sorting/filtering in tests/unit/components/DataTable.test.tsx
-- [x] T097 [P] [US5] Unit test for ProviderHealthCard component in tests/unit/components/ProviderHealthCard.test.tsx
+- [x] T097 [P] [US5] Unit test for ProviderHealthCard component in tests/unit/components/ProviderHealthCard.test.ts
 - [x] T098 [P] [US5] Unit test for OrderStatsCard component in tests/unit/components/OrderStatsCard.test.tsx
 - [x] T099 [P] [US5] Integration test for admin dashboard data aggregation in tests/integration/admin-dashboard.test.ts
 - [x] T100 [US5] E2E test for admin dashboard navigation and filtering in tests/e2e/admin-dashboard.test.ts
@@ -237,15 +239,13 @@ Based on plan.md project structure:
 - [x] T106 [US5] Create admin dashboard home page with stats in apps/web/app/admin/page.tsx
 - [x] T107 [US5] Create admin orders list page with DataTable in apps/web/app/admin/orders/page.tsx
 - [x] T108 [US5] Implement order filtering (status, date range, search) in apps/web/app/admin/orders/page.tsx
-- [ ] T109 [US5] Create order detail modal with M3 Dialog in apps/web/components/ui/OrderDetailDialog.tsx
+- [x] T109 [US5] Create order detail modal with M3 Dialog in apps/web/components/ui/OrderDetailDialog.tsx
 - [x] T110 [US5] Create admin providers page with health status in apps/web/app/admin/providers/page.tsx
-- [ ] T111 [US5] Implement real-time stats updates using PocketBase realtime in apps/web/app/admin/page.tsx
+- [x] T111 [US5] Implement real-time stats updates using PocketBase realtime in apps/web/app/admin/page.tsx
 - [x] T112 [US5] Add admin dashboard translations to ko.json and en.json (translations already exist)
 - [x] T113 [US5] Implement desktop-optimized layout (1024px+ viewport) in apps/web/app/admin/layout.tsx
-- [ ] T114 [US5] Add admin authentication check in apps/web/app/admin/layout.tsx
+- [x] T114 [US5] Add admin authentication check in apps/web/app/admin/layout.tsx
 - [x] T115 [US5] Add accessibility for keyboard navigation in DataTable and NavigationRail
-
-**Checkpoint**: Admin dashboard complete - admins can monitor orders, view logs, and check provider health
 
 ---
 
@@ -338,7 +338,7 @@ T083, T084, T085, T086 can run in parallel (M3 components)
 
 **Phase 8 (US5 Tests):**
 ```
-T095, T096, T097, T098, T099 can all run in parallel
+T095, T096, T097, T099 can all run in parallel
 ```
 
 **Phase 8 (US5 Implementation):**
@@ -391,14 +391,14 @@ With multiple developers:
 |-------|------------|-----------|------------------------|
 | Setup | 7 | 7 ✅ | 4 tasks parallelizable |
 | Foundational (Backend) | 11 | 11 ✅ | 6 tasks parallelizable |
-| Foundational (UI) | 10 | 0 | 5 tasks parallelizable |
+| Foundational (UI) | 10 | 10 ✅ | 5 tasks parallelizable |
 | US1 (P1) | 15 | 15 ✅ | 5 tests parallel, 1 impl parallel |
 | US2 (P2) | 14 | 14 ✅ | 5 tests parallel, 2 impl parallel |
 | US3 (P3) | 13 | 13 ✅ | 3 tests parallel |
-| Polish | 7 | 2 | 4 tasks parallelizable |
-| US4 (P4) | 17 | 0 | 4 tests parallel, 4 impl parallel |
-| US5 (P5) | 21 | 0 | 5 tests parallel, 4 impl parallel |
-| **Total** | **115** | **62** | **40 parallel opportunities** |
+| Polish | 7 | 7 ✅ | 4 tasks parallelizable |
+| US4 (P4) | 17 | 17 ✅ | 4 tests parallel, 4 impl parallel |
+| US5 (P5) | 21 | 21 ✅ | 5 tests parallel, 4 impl parallel |
+| **Total** | **115** | **115 ✅** | **40 parallel opportunities** |
 
 ---
 
