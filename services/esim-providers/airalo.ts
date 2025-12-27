@@ -16,6 +16,12 @@ export class AiraloProvider extends BaseProvider {
     return this.config.apiEndpoint || process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2';
   }
 
+  private get tokenUrl(): string {
+    // OAuth token endpoint is at root level, not under /v2
+    const baseUrl = this.apiUrl.replace(/\/v2\/?$/, '');
+    return `${baseUrl}/token`;
+  }
+
   private async getAccessToken(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && this.tokenExpiry > Date.now()) {
       return this.accessToken;
@@ -26,7 +32,7 @@ export class AiraloProvider extends BaseProvider {
     formData.append('client_id', this.loadApiKey()); // Assuming loadApiKey returns client_id
     formData.append('client_secret', process.env.AIRALO_API_SECRET_KEY as string);
 
-    const response = await this.fetchWithTimeout(`${this.apiUrl}/token`, {
+    const response = await this.fetchWithTimeout(this.tokenUrl, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
