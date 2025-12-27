@@ -7,12 +7,14 @@ import {
 } from './provider-factory';
 import { ProviderSlug, ErrorType, AiraloPackageResponse, AiraloPackageData, AiraloOperator, AiraloPackageDetails, EsimProduct, AiraloOrderResponse, AiraloSimInstructionsResponse } from './types';
 
-const AIRALO_API_URL = 'https://api.airalo.com/v2';
-
 export class AiraloProvider extends BaseProvider {
   readonly slug: ProviderSlug = 'airalo';
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
+
+  private get apiUrl(): string {
+    return this.config.apiEndpoint || process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2';
+  }
 
   private async getAccessToken(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && this.tokenExpiry > Date.now()) {
@@ -24,7 +26,7 @@ export class AiraloProvider extends BaseProvider {
     formData.append('client_id', this.loadApiKey()); // Assuming loadApiKey returns client_id
     formData.append('client_secret', process.env.AIRALO_API_SECRET_KEY as string);
 
-    const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/token`, {
+    const response = await this.fetchWithTimeout(`${this.apiUrl}/token`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -59,7 +61,7 @@ export class AiraloProvider extends BaseProvider {
       formData.append('description', `Order for ${request.customerEmail}, SKU: ${request.providerSku}`);
       formData.append('brand_settings_name', ''); // Can be null, sending empty string as per example for unbranded
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/orders`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/orders`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -112,7 +114,7 @@ export class AiraloProvider extends BaseProvider {
     try {
       const accessToken = await this.getAccessToken();
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/packages?limit=1000`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/packages?limit=1000`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -153,7 +155,7 @@ export class AiraloProvider extends BaseProvider {
     try {
       const accessToken = await this.getAccessToken();
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/sims/${simId}/instructions`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/sims/${simId}/instructions`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
