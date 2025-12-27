@@ -10,6 +10,7 @@
  */
 
 import type { NaverAccessToken, NaverAuthConfig, SmartStoreResult } from './types';
+import bcrypt from 'bcryptjs';
 
 const NAVER_AUTH_URL = 'https://api.commerce.naver.com/external/v1/oauth2/token';
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000; // Refresh 1 minute before expiry
@@ -82,7 +83,6 @@ export class SmartStoreAuth {
    * Naver uses bcrypt hashing with clientSecret as salt.
    */
   private generateSignature(clientId: string, timestamp: string, clientSecret: string): string {
-    const bcrypt = require('bcryptjs');
     const password = `${clientId}_${timestamp}`;
     const hashed = bcrypt.hashSync(password, clientSecret);
     return Buffer.from(hashed).toString('base64');
