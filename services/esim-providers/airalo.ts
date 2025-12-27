@@ -5,7 +5,24 @@ import {
   EsimPurchaseResult,
   registerProvider,
 } from './provider-factory';
-import { ProviderSlug, ErrorType, AiraloPackageResponse, AiraloPackageData, AiraloOperator, AiraloPackageDetails, EsimProduct, AiraloOrderResponse, AiraloSimInstructionsResponse } from './types';
+import {
+  ProviderSlug,
+  ErrorType,
+  AiraloPackageResponse,
+  AiraloPackageData,
+  AiraloOperator,
+  AiraloPackageDetails,
+  EsimProduct,
+  AiraloOrderResponse,
+  AiraloSimInstructionsResponse,
+  EsimAsyncPurchaseRequest,
+  EsimAsyncPurchaseResult,
+  AiraloAsyncOrderResponse,
+  AiraloUsageResponse,
+  AiraloTopUpRequest,
+  AiraloTopUpResponse,
+  AiraloTopUpPackagesResponse,
+} from './types';
 
 export class AiraloProvider extends BaseProvider {
   readonly slug: ProviderSlug = 'airalo';
@@ -180,6 +197,121 @@ export class AiraloProvider extends BaseProvider {
       console.error('Error fetching Airalo SIM instructions:', error);
       throw error;
     }
+  }
+
+  /**
+   * Purchase eSIM asynchronously with webhook callback
+   * POST /orders-async
+   */
+  async purchaseAsync(request: EsimAsyncPurchaseRequest): Promise<EsimAsyncPurchaseResult> {
+    const accessToken = await this.getAccessToken();
+
+    const formData = new FormData();
+    formData.append('package_id', request.providerSku);
+    formData.append('quantity', request.quantity.toString());
+    formData.append('type', 'sim');
+    formData.append('description', `Async order for ${request.customerEmail}, SKU: ${request.providerSku}`);
+    formData.append('webhook_url', request.webhookUrl);
+
+    const response = await this.fetchWithTimeout(`${this.apiUrl}/orders-async`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(`Failed to create async order: HTTP ${response.status} - ${errorBody.meta?.message || response.statusText}`);
+    }
+
+    const data: AiraloAsyncOrderResponse = await response.json();
+
+    return {
+      success: true,
+      requestId: data.data.request_id,
+      status: 'pending',
+    };
+  }
+
+  /**
+   * Get eSIM usage statistics
+   * GET /sims/{iccid}/usage
+   * Rate limit: 96 requests/day per SIM
+   */
+  async getSimUsage(iccid: string): Promise<AiraloUsageResponse> {
+    const accessToken = await this.getAccessToken();
+
+    const response = await this.fetchWithTimeout(`${this.apiUrl}/sims/${iccid}/usage`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(`Failed to fetch SIM usage: HTTP ${response.status} - ${errorBody.meta?.message || response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get available top-up packages for an existing eSIM
+   * GET /sims/{iccid}/topups
+   */
+  async getTopUpPackages(iccid: string): Promise<AiraloTopUpPackagesResponse> {
+    const accessToken = await this.getAccessToken();
+
+    const response = await this.fetchWithTimeout(`${this.apiUrl}/sims/${iccid}/topups`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(`Failed to fetch top-up packages: HTTP ${response.status} - ${errorBody.meta?.message || response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Top-up an existing eSIM with additional data
+   * POST /orders/topups
+   */
+  async topUp(request: AiraloTopUpRequest): Promise<AiraloTopUpResponse> {
+    const accessToken = await this.getAccessToken();
+
+    const formData = new FormData();
+    formData.append('package_id', request.package_id);
+    formData.append('iccid', request.iccid);
+    if (request.description) {
+      formData.append('description', request.description);
+    }
+
+    const response = await this.fetchWithTimeout(`${this.apiUrl}/orders/topups`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(`Failed to create top-up order: HTTP ${response.status} - ${errorBody.meta?.message || response.statusText}`);
+    }
+
+    return response.json();
   }
 
   private transformAiraloPackageToEsimProducts(

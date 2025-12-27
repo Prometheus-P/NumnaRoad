@@ -126,3 +126,125 @@ export function getClientIP(request: Request): string {
 
   return 'unknown';
 }
+
+// =============================================================================
+// Provider Rate Limit Tracking
+// =============================================================================
+
+/**
+ * Parsed rate limit info from provider response headers
+ */
+export interface ProviderRateLimitInfo {
+  limit: number;
+  remaining: number;
+  resetAt: number; // Unix timestamp in seconds
+  retryAfter?: number; // Seconds until rate limit resets
+}
+
+/**
+ * Parse rate limit headers from Airalo API responses
+ */
+export function parseAiraloRateLimitHeaders(headers: Headers): ProviderRateLimitInfo | null {
+  const limit = headers.get('X-RateLimit-Limit');
+  const remaining = headers.get('X-RateLimit-Remaining');
+  const reset = headers.get('X-RateLimit-Reset');
+  const retryAfter = headers.get('Retry-After');
+
+  if (!limit || !remaining) {
+    return null;
+  }
+
+  return {
+    limit: parseInt(limit, 10),
+    remaining: parseInt(remaining, 10),
+    resetAt: reset ? parseInt(reset, 10) : Math.floor(Date.now() / 1000) + 60,
+    retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+  };
+}
+
+/**
+ * Provider rate limit state tracker
+ */
+interface ProviderRateLimitState {
+  endpoint: string;
+  remaining: number;
+  resetAt: number;
+  lastUpdated: number;
+}
+
+const providerRateLimitStore = new Map<string, ProviderRateLimitState>();
+
+/**
+ * Update rate limit state from API response
+ */
+export function updateProviderRateLimitState(
+  provider: string,
+  endpoint: string,
+  info: ProviderRateLimitInfo
+): void {
+  const key = `${provider}:${endpoint}`;
+  providerRateLimitStore.set(key, {
+    endpoint,
+    remaining: info.remaining,
+    resetAt: info.resetAt,
+    lastUpdated: Date.now(),
+  });
+}
+
+/**
+ * Check if we should delay before making a request
+ * Returns delay in milliseconds, or 0 if no delay needed
+ */
+export function getProviderRateLimitDelay(
+  provider: string,
+  endpoint: string
+): number {
+  const key = `${provider}:${endpoint}`;
+  const state = providerRateLimitStore.get(key);
+
+  if (!state) {
+    return 0;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  // If reset time has passed, no delay needed
+  if (now >= state.resetAt) {
+    return 0;
+  }
+
+  // If we have remaining requests, no delay needed
+  if (state.remaining > 0) {
+    return 0;
+  }
+
+  // Calculate delay until reset
+  const delaySeconds = state.resetAt - now;
+  return delaySeconds * 1000;
+}
+
+/**
+ * Get current rate limit status for monitoring
+ */
+export function getProviderRateLimitStatus(provider: string): ProviderRateLimitState[] {
+  const states: ProviderRateLimitState[] = [];
+
+  providerRateLimitStore.forEach((state, key) => {
+    if (key.startsWith(`${provider}:`)) {
+      states.push(state);
+    }
+  });
+
+  return states;
+}
+
+/**
+ * Airalo-specific rate limits per endpoint (requests per minute)
+ */
+export const AiraloRateLimits: Record<string, number> = {
+  token: 5,       // 5 requests per minute
+  packages: 40,   // 40 requests per minute
+  orders: 40,     // 40 requests per minute
+  sims: 40,       // 40 requests per minute
+  usage: 96,      // 96 requests per day per SIM (special case)
+};
