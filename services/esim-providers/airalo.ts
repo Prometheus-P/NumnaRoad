@@ -40,7 +40,8 @@ export class AiraloProvider extends BaseProvider {
     });
 
     if (!response.ok) {
-        throw new Error('Failed to get access token from Airalo API');
+        const errorBody = await response.text().catch(() => 'Unable to read error body');
+        throw new Error(`Failed to get access token from Airalo API: HTTP ${response.status} - ${errorBody}`);
     }
 
     const data = await response.json();
