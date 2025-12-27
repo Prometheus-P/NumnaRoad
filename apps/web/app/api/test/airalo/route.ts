@@ -100,24 +100,52 @@ export async function GET(request: NextRequest) {
       }
 
       case 'token': {
-        // Test getAccessToken through provider class
+        // Test getAccessToken through provider class with detailed debugging
         try {
           // Access the private method via prototype for debugging
-          const providerAny = provider as unknown as { getAccessToken: () => Promise<string>; tokenUrl: string; apiUrl: string };
-          const token = await providerAny.getAccessToken();
-          return NextResponse.json({
-            success: true,
-            action: 'token',
-            result: {
-              tokenReceived: true,
-              tokenLength: token.length,
-            },
-          });
-        } catch (tokenError) {
+          const providerAny = provider as unknown as {
+            getAccessToken: () => Promise<string>;
+            tokenUrl: string;
+            apiUrl: string;
+            loadApiKey: () => string;
+            config: { apiEndpoint: string; apiKeyEnvVar: string };
+          };
+
+          // Capture provider state before attempting token fetch
+          const providerState = {
+            tokenUrl: providerAny.tokenUrl,
+            apiUrl: providerAny.apiUrl,
+            configApiEndpoint: providerAny.config?.apiEndpoint,
+            configApiKeyEnvVar: providerAny.config?.apiKeyEnvVar,
+            envAiraloApiUrl: process.env.AIRALO_API_URL,
+            envAiraloApiKey: process.env.AIRALO_API_KEY ? 'set' : 'missing',
+            envAiraloApiSecret: process.env.AIRALO_API_SECRET_KEY ? 'set' : 'missing',
+          };
+
+          try {
+            const token = await providerAny.getAccessToken();
+            return NextResponse.json({
+              success: true,
+              action: 'token',
+              result: {
+                tokenReceived: true,
+                tokenLength: token.length,
+                providerState,
+              },
+            });
+          } catch (tokenError) {
+            return NextResponse.json({
+              success: false,
+              action: 'token',
+              error: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
+              providerState,
+            });
+          }
+        } catch (outerError) {
           return NextResponse.json({
             success: false,
             action: 'token',
-            error: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
+            error: outerError instanceof Error ? outerError.message : 'Unknown outer error',
           });
         }
       }
