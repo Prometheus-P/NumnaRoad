@@ -76,15 +76,27 @@ export async function GET(request: NextRequest) {
   try {
     switch (action) {
       case 'health': {
-        const isHealthy = await provider.healthCheck();
-        return NextResponse.json({
-          success: true,
-          action: 'health',
-          result: {
-            healthy: isHealthy,
-            apiUrl: process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2',
-          },
-        });
+        try {
+          const isHealthy = await provider.healthCheck();
+          return NextResponse.json({
+            success: true,
+            action: 'health',
+            result: {
+              healthy: isHealthy,
+              apiUrl: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
+            },
+          });
+        } catch (healthError) {
+          return NextResponse.json({
+            success: true,
+            action: 'health',
+            result: {
+              healthy: false,
+              apiUrl: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
+              error: healthError instanceof Error ? healthError.message : 'Unknown health check error',
+            },
+          });
+        }
       }
 
       case 'debug': {
