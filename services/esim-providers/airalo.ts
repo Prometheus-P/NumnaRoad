@@ -13,13 +13,12 @@ export class AiraloProvider extends BaseProvider {
   private tokenExpiry: number | null = null;
 
   private get apiUrl(): string {
-    return this.config.apiEndpoint || process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2';
+    return this.config.apiEndpoint || process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
   }
 
   private get tokenUrl(): string {
-    // OAuth token endpoint is at root level, not under /v2
-    const baseUrl = this.apiUrl.replace(/\/v2\/?$/, '');
-    return `${baseUrl}/token`;
+    // OAuth token endpoint is at /v2/token (same level as other API endpoints)
+    return `${this.apiUrl}/token`;
   }
 
   private async getAccessToken(): Promise<string> {
