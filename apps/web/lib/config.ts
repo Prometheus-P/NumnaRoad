@@ -109,22 +109,22 @@ export function getConfig(): Config {
       adminPassword: requireEnv('POCKETBASE_ADMIN_PASSWORD'),
     },
     stripe: {
-      secretKey: requireEnv('STRIPE_SECRET_KEY'),
-      publishableKey: requireEnv('STRIPE_PUBLISHABLE_KEY'),
-      webhookSecret: requireEnv('STRIPE_WEBHOOK_SECRET'),
+      secretKey: optionalEnv('STRIPE_SECRET_KEY', ''),
+      publishableKey: optionalEnv('STRIPE_PUBLISHABLE_KEY', ''),
+      webhookSecret: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),
     },
     esimProviders: {
       esimCard: {
-        apiKey: requireEnv('ESIM_CARD_API_KEY'),
-        apiUrl: requireEnv('ESIM_CARD_API_URL'),
+        apiKey: optionalEnv('ESIM_CARD_API_KEY', ''),
+        apiUrl: optionalEnv('ESIM_CARD_API_URL', ''),
       },
       mobimatter: {
-        apiKey: requireEnv('MOBIMATTER_API_KEY'),
-        apiUrl: requireEnv('MOBIMATTER_API_URL'),
+        apiKey: optionalEnv('MOBIMATTER_API_KEY', ''),
+        apiUrl: optionalEnv('MOBIMATTER_API_URL', ''),
       },
       airalo: {
-        apiKey: requireEnv('AIRALO_API_KEY'),
-        apiUrl: requireEnv('AIRALO_API_URL'),
+        apiKey: optionalEnv('AIRALO_API_KEY', ''),
+        apiUrl: optionalEnv('AIRALO_API_URL', 'https://partners-api.airalo.com/v2'),
       },
     },
     email: {
