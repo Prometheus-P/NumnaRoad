@@ -21,7 +21,7 @@ function getAiraloConfig(): EsimProvider {
     name: 'Airalo',
     slug: 'airalo',
     priority: 1,
-    apiEndpoint: process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2',
+    apiEndpoint: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
     apiKeyEnvVar: 'AIRALO_API_KEY',
     timeoutMs: 30000,
     maxRetries: 3,
@@ -89,9 +89,8 @@ export async function GET(request: NextRequest) {
 
       case 'debug': {
         // Direct token test with detailed error reporting
-        const apiUrl = process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2';
-        const baseUrl = apiUrl.replace(/\/v2\/?$/, '');
-        const tokenUrl = `${baseUrl}/token`;
+        const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
+        const tokenUrl = `${apiUrl}/token`;
         const formData = new FormData();
         formData.append('grant_type', 'client_credentials');
         formData.append('client_id', process.env.AIRALO_API_KEY || '');
