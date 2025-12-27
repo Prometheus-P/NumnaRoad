@@ -46,14 +46,15 @@ export class AiraloProvider extends BaseProvider {
 
     const data = await response.json();
 
-    if (!data.access_token) {
-      throw new Error('Failed to get access token from Airalo API');
+    // API returns { data: { access_token, expires_in, token_type }, meta: { message } }
+    if (!data.data?.access_token) {
+      throw new Error('Failed to get access token from Airalo API: No access_token in response');
     }
 
-    this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + (data.expires_in - 60) * 1000; // 60 seconds buffer
+    this.accessToken = data.data.access_token;
+    this.tokenExpiry = Date.now() + (data.data.expires_in - 60) * 1000; // 60 seconds buffer
 
-    return data.access_token;
+    return data.data.access_token;
   }
 
   async purchase(request: EsimPurchaseRequest): Promise<EsimPurchaseResult> {
