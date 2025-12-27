@@ -83,213 +83,15 @@ export async function GET(request: NextRequest) {
   try {
     switch (action) {
       case 'health': {
-        try {
-          const isHealthy = await provider.healthCheck();
-          return NextResponse.json({
-            success: true,
-            action: 'health',
-            result: {
-              healthy: isHealthy,
-              apiUrl: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
-            },
-          });
-        } catch (healthError) {
-          return NextResponse.json({
-            success: true,
-            action: 'health',
-            result: {
-              healthy: false,
-              apiUrl: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
-              error: healthError instanceof Error ? healthError.message : 'Unknown health check error',
-            },
-          });
-        }
-      }
-
-      case 'token': {
-        // Test getAccessToken through provider class with detailed debugging
-        try {
-          // Access the private method via prototype for debugging
-          const providerAny = provider as unknown as {
-            getAccessToken: () => Promise<string>;
-            tokenUrl: string;
-            apiUrl: string;
-            loadApiKey: () => string;
-            config: { apiEndpoint: string; apiKeyEnvVar: string };
-          };
-
-          // Capture provider state before attempting token fetch
-          const providerState = {
-            tokenUrl: providerAny.tokenUrl,
-            apiUrl: providerAny.apiUrl,
-            configApiEndpoint: providerAny.config?.apiEndpoint,
-            configApiKeyEnvVar: providerAny.config?.apiKeyEnvVar,
-            envAiraloApiUrl: process.env.AIRALO_API_URL,
-            envAiraloApiKey: process.env.AIRALO_API_KEY ? 'set' : 'missing',
-            envAiraloApiSecret: process.env.AIRALO_API_SECRET_KEY ? 'set' : 'missing',
-          };
-
-          try {
-            const token = await providerAny.getAccessToken();
-            return NextResponse.json({
-              success: true,
-              action: 'token',
-              result: {
-                tokenReceived: true,
-                tokenLength: token.length,
-                providerState,
-              },
-            });
-          } catch (tokenError) {
-            return NextResponse.json({
-              success: false,
-              action: 'token',
-              error: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
-              providerState,
-            });
-          }
-        } catch (outerError) {
-          return NextResponse.json({
-            success: false,
-            action: 'token',
-            error: outerError instanceof Error ? outerError.message : 'Unknown outer error',
-          });
-        }
-      }
-
-      case 'compare': {
-        // Compare direct fetch vs provider's fetchWithTimeout
-        const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
-        const tokenUrl = `${apiUrl}/token`;
-
-        // Test 1: Direct fetch (like debug endpoint)
-        const directFormData = new FormData();
-        directFormData.append('grant_type', 'client_credentials');
-        directFormData.append('client_id', process.env.AIRALO_API_KEY || '');
-        directFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
-
-        let directResult;
-        try {
-          const directResponse = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: directFormData,
-          });
-          directResult = {
-            status: directResponse.status,
-            ok: directResponse.ok,
-          };
-        } catch (e) {
-          directResult = { error: e instanceof Error ? e.message : 'Unknown error' };
-        }
-
-        // Test 2: Using loadApiKey (like provider does)
-        const providerAny = provider as unknown as { loadApiKey: () => string; fetchWithTimeout: (url: string, options: RequestInit) => Promise<Response> };
-        let loadedApiKey;
-        try {
-          loadedApiKey = providerAny.loadApiKey();
-        } catch (e) {
-          loadedApiKey = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
-        }
-
-        const providerFormData = new FormData();
-        providerFormData.append('grant_type', 'client_credentials');
-        providerFormData.append('client_id', loadedApiKey);
-        providerFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
-
-        let providerStyleResult;
-        try {
-          const providerResponse = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: providerFormData,
-          });
-          providerStyleResult = {
-            status: providerResponse.status,
-            ok: providerResponse.ok,
-          };
-        } catch (e) {
-          providerStyleResult = { error: e instanceof Error ? e.message : 'Unknown error' };
-        }
-
-        // Test 3: Using fetchWithTimeout (the actual method used by provider)
-        const timeoutFormData = new FormData();
-        timeoutFormData.append('grant_type', 'client_credentials');
-        timeoutFormData.append('client_id', loadedApiKey);
-        timeoutFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
-
-        let fetchWithTimeoutResult;
-        try {
-          const timeoutResponse = await providerAny.fetchWithTimeout(tokenUrl, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: timeoutFormData,
-          });
-          fetchWithTimeoutResult = {
-            status: timeoutResponse.status,
-            ok: timeoutResponse.ok,
-          };
-        } catch (e) {
-          fetchWithTimeoutResult = { error: e instanceof Error ? e.message : 'Unknown error' };
-        }
-
+        const isHealthy = await provider.healthCheck();
         return NextResponse.json({
           success: true,
-          action: 'compare',
+          action: 'health',
           result: {
-            tokenUrl,
-            directEnvApiKey: process.env.AIRALO_API_KEY?.substring(0, 8) + '...',
-            loadedApiKey: typeof loadedApiKey === 'string' ? loadedApiKey.substring(0, 8) + '...' : loadedApiKey,
-            directResult,
-            providerStyleResult,
-            fetchWithTimeoutResult,
+            healthy: isHealthy,
+            apiUrl: process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2',
           },
         });
-      }
-
-      case 'debug': {
-        // Direct token test with detailed error reporting
-        const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
-        const tokenUrl = `${apiUrl}/token`;
-        const formData = new FormData();
-        formData.append('grant_type', 'client_credentials');
-        formData.append('client_id', process.env.AIRALO_API_KEY || '');
-        formData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
-
-        try {
-          const response = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: formData,
-          });
-
-          const responseText = await response.text();
-          let responseJson = null;
-          try {
-            responseJson = JSON.parse(responseText);
-          } catch {
-            // Not JSON
-          }
-
-          return NextResponse.json({
-            success: true,
-            action: 'debug',
-            result: {
-              tokenUrl,
-              status: response.status,
-              statusText: response.statusText,
-              responseText: responseText.substring(0, 1000),
-              responseJson,
-            },
-          });
-        } catch (err) {
-          return NextResponse.json({
-            success: false,
-            action: 'debug',
-            error: err instanceof Error ? err.message : 'Unknown error',
-            tokenUrl,
-          });
-        }
       }
 
       case 'packages': {
@@ -338,7 +140,7 @@ export async function GET(request: NextRequest) {
           {
             success: false,
             error: `Unknown action: ${action}`,
-            availableActions: ['health', 'token', 'debug', 'packages'],
+            availableActions: ['health', 'packages'],
           },
           { status: 400 }
         );
