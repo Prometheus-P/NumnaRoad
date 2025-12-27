@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Test 2: Using loadApiKey (like provider does)
-        const providerAny = provider as unknown as { loadApiKey: () => string };
+        const providerAny = provider as unknown as { loadApiKey: () => string; fetchWithTimeout: (url: string, options: RequestInit) => Promise<Response> };
         let loadedApiKey;
         try {
           loadedApiKey = providerAny.loadApiKey();
@@ -205,6 +205,27 @@ export async function GET(request: NextRequest) {
           providerStyleResult = { error: e instanceof Error ? e.message : 'Unknown error' };
         }
 
+        // Test 3: Using fetchWithTimeout (the actual method used by provider)
+        const timeoutFormData = new FormData();
+        timeoutFormData.append('grant_type', 'client_credentials');
+        timeoutFormData.append('client_id', loadedApiKey);
+        timeoutFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
+
+        let fetchWithTimeoutResult;
+        try {
+          const timeoutResponse = await providerAny.fetchWithTimeout(tokenUrl, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: timeoutFormData,
+          });
+          fetchWithTimeoutResult = {
+            status: timeoutResponse.status,
+            ok: timeoutResponse.ok,
+          };
+        } catch (e) {
+          fetchWithTimeoutResult = { error: e instanceof Error ? e.message : 'Unknown error' };
+        }
+
         return NextResponse.json({
           success: true,
           action: 'compare',
@@ -214,6 +235,7 @@ export async function GET(request: NextRequest) {
             loadedApiKey: typeof loadedApiKey === 'string' ? loadedApiKey.substring(0, 8) + '...' : loadedApiKey,
             directResult,
             providerStyleResult,
+            fetchWithTimeoutResult,
           },
         });
       }
