@@ -377,6 +377,132 @@ export interface AiraloSimInstructionsResponse {
   };
 }
 
+// =============================================================================
+// Airalo Async Order Types (Phase 1)
+// =============================================================================
+
+/**
+ * Request for async eSIM order via webhook callback
+ */
+export interface AiraloAsyncOrderRequest {
+  package_id: string;
+  quantity: number;
+  type: 'sim';
+  description?: string;
+  brand_settings_name?: string;
+  webhook_url: string;
+}
+
+/**
+ * Response from async order submission
+ */
+export interface AiraloAsyncOrderResponse {
+  data: {
+    request_id: string; // nanoid format
+    status: 'pending';
+  };
+  meta: {
+    message: string;
+  };
+}
+
+/**
+ * Webhook payload sent by Airalo when async order completes
+ */
+export interface AiraloWebhookPayload {
+  request_id: string;
+  status: 'completed' | 'failed';
+  data?: AiraloOrderData;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * Extended purchase request for async orders
+ */
+export interface EsimAsyncPurchaseRequest extends EsimPurchaseRequest {
+  webhookUrl: string;
+}
+
+/**
+ * Result from async purchase initiation
+ */
+export interface EsimAsyncPurchaseResult {
+  success: true;
+  requestId: string;
+  status: 'pending';
+}
+
+// =============================================================================
+// Airalo Usage Types (Phase 2)
+// =============================================================================
+
+/**
+ * eSIM usage status
+ */
+export type AiraloSimStatus = 'active' | 'expired' | 'not_activated' | 'installed';
+
+/**
+ * Response from eSIM usage query
+ */
+export interface AiraloUsageResponse {
+  data: {
+    total: string;           // e.g., "1 GB"
+    remaining: string;       // e.g., "500 MB"
+    used_percentage: number;
+    status: AiraloSimStatus;
+    expired_at: string | null;
+    activated_at: string | null;
+  };
+  meta: {
+    message: string;
+  };
+}
+
+// =============================================================================
+// Airalo Top-up Types (Phase 3)
+// =============================================================================
+
+/**
+ * Request to top-up an existing eSIM
+ */
+export interface AiraloTopUpRequest {
+  iccid: string;
+  package_id: string;
+  description?: string;
+}
+
+/**
+ * Response from top-up order
+ */
+export interface AiraloTopUpResponse {
+  data: {
+    id: number;
+    code: string;
+    package_id: string;
+    quantity: string;
+    type: 'topup';
+    price: number;
+    currency: string;
+    created_at: string;
+  };
+  meta: {
+    message: string;
+  };
+}
+
+/**
+ * Available top-up packages for a SIM
+ */
+export interface AiraloTopUpPackagesResponse {
+  data: AiraloPackageDetails[];
+  meta: {
+    message: string;
+  };
+}
+
 
 // =============================================================================
 // Error Types
