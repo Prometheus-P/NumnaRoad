@@ -150,6 +150,74 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      case 'compare': {
+        // Compare direct fetch vs provider's fetchWithTimeout
+        const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
+        const tokenUrl = `${apiUrl}/token`;
+
+        // Test 1: Direct fetch (like debug endpoint)
+        const directFormData = new FormData();
+        directFormData.append('grant_type', 'client_credentials');
+        directFormData.append('client_id', process.env.AIRALO_API_KEY || '');
+        directFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
+
+        let directResult;
+        try {
+          const directResponse = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: directFormData,
+          });
+          directResult = {
+            status: directResponse.status,
+            ok: directResponse.ok,
+          };
+        } catch (e) {
+          directResult = { error: e instanceof Error ? e.message : 'Unknown error' };
+        }
+
+        // Test 2: Using loadApiKey (like provider does)
+        const providerAny = provider as unknown as { loadApiKey: () => string };
+        let loadedApiKey;
+        try {
+          loadedApiKey = providerAny.loadApiKey();
+        } catch (e) {
+          loadedApiKey = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
+        }
+
+        const providerFormData = new FormData();
+        providerFormData.append('grant_type', 'client_credentials');
+        providerFormData.append('client_id', loadedApiKey);
+        providerFormData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
+
+        let providerStyleResult;
+        try {
+          const providerResponse = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: providerFormData,
+          });
+          providerStyleResult = {
+            status: providerResponse.status,
+            ok: providerResponse.ok,
+          };
+        } catch (e) {
+          providerStyleResult = { error: e instanceof Error ? e.message : 'Unknown error' };
+        }
+
+        return NextResponse.json({
+          success: true,
+          action: 'compare',
+          result: {
+            tokenUrl,
+            directEnvApiKey: process.env.AIRALO_API_KEY?.substring(0, 8) + '...',
+            loadedApiKey: typeof loadedApiKey === 'string' ? loadedApiKey.substring(0, 8) + '...' : loadedApiKey,
+            directResult,
+            providerStyleResult,
+          },
+        });
+      }
+
       case 'debug': {
         // Direct token test with detailed error reporting
         const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
