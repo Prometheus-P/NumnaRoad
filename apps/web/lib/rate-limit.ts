@@ -24,11 +24,11 @@ function startCleanup(): void {
 
   cleanupTimer = setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
+    Array.from(rateLimitStore.entries()).forEach(([key, entry]) => {
       if (entry.resetTime < now) {
         rateLimitStore.delete(key);
       }
-    }
+    });
   }, CLEANUP_INTERVAL);
 
   // Allow the process to exit even with the timer running
