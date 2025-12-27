@@ -7,12 +7,19 @@ import {
 } from './provider-factory';
 import { ProviderSlug, ErrorType, AiraloPackageResponse, AiraloPackageData, AiraloOperator, AiraloPackageDetails, EsimProduct, AiraloOrderResponse, AiraloSimInstructionsResponse } from './types';
 
-const AIRALO_API_URL = 'https://api.airalo.com/v2';
-
 export class AiraloProvider extends BaseProvider {
   readonly slug: ProviderSlug = 'airalo';
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
+
+  private get apiUrl(): string {
+    return this.config.apiEndpoint || process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
+  }
+
+  private get tokenUrl(): string {
+    // OAuth token endpoint is at /v2/token (same level as other API endpoints)
+    return `${this.apiUrl}/token`;
+  }
 
   private async getAccessToken(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && this.tokenExpiry > Date.now()) {
@@ -24,7 +31,7 @@ export class AiraloProvider extends BaseProvider {
     formData.append('client_id', this.loadApiKey()); // Assuming loadApiKey returns client_id
     formData.append('client_secret', process.env.AIRALO_API_SECRET_KEY as string);
 
-    const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/token`, {
+    const response = await this.fetchWithTimeout(this.tokenUrl, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -33,19 +40,21 @@ export class AiraloProvider extends BaseProvider {
     });
 
     if (!response.ok) {
-        throw new Error('Failed to get access token from Airalo API');
+        const errorBody = await response.text().catch(() => 'Unable to read error body');
+        throw new Error(`Failed to get access token from Airalo API: HTTP ${response.status} - ${errorBody}`);
     }
 
     const data = await response.json();
 
-    if (!data.access_token) {
-      throw new Error('Failed to get access token from Airalo API');
+    // API returns { data: { access_token, expires_in, token_type }, meta: { message } }
+    if (!data.data?.access_token) {
+      throw new Error('Failed to get access token from Airalo API: No access_token in response');
     }
 
-    this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + (data.expires_in - 60) * 1000; // 60 seconds buffer
+    this.accessToken = data.data.access_token;
+    this.tokenExpiry = Date.now() + (data.data.expires_in - 60) * 1000; // 60 seconds buffer
 
-    return data.access_token;
+    return data.data.access_token;
   }
 
   async purchase(request: EsimPurchaseRequest): Promise<EsimPurchaseResult> {
@@ -59,7 +68,7 @@ export class AiraloProvider extends BaseProvider {
       formData.append('description', `Order for ${request.customerEmail}, SKU: ${request.providerSku}`);
       formData.append('brand_settings_name', ''); // Can be null, sending empty string as per example for unbranded
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/orders`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/orders`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -112,7 +121,7 @@ export class AiraloProvider extends BaseProvider {
     try {
       const accessToken = await this.getAccessToken();
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/packages?limit=1000`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/packages?limit=1000`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -153,7 +162,7 @@ export class AiraloProvider extends BaseProvider {
     try {
       const accessToken = await this.getAccessToken();
 
-      const response = await this.fetchWithTimeout(`${AIRALO_API_URL}/sims/${simId}/instructions`, {
+      const response = await this.fetchWithTimeout(`${this.apiUrl}/sims/${simId}/instructions`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
