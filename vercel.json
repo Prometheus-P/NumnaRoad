@@ -1,14 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["icn1"],
-  "functions": {
-    "app/api/**/*": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
@@ -39,12 +35,8 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/retry-stuck-orders",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/sync-smartstore-orders",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }
