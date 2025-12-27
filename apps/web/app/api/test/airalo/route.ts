@@ -87,6 +87,50 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case 'debug': {
+        // Direct token test with detailed error reporting
+        const tokenUrl = `${process.env.AIRALO_API_URL || 'https://sandbox-partners-api.airalo.com/v2'}/token`;
+        const formData = new FormData();
+        formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', process.env.AIRALO_API_KEY || '');
+        formData.append('client_secret', process.env.AIRALO_API_SECRET_KEY || '');
+
+        try {
+          const response = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: formData,
+          });
+
+          const responseText = await response.text();
+          let responseJson = null;
+          try {
+            responseJson = JSON.parse(responseText);
+          } catch {
+            // Not JSON
+          }
+
+          return NextResponse.json({
+            success: true,
+            action: 'debug',
+            result: {
+              tokenUrl,
+              status: response.status,
+              statusText: response.statusText,
+              responseText: responseText.substring(0, 1000),
+              responseJson,
+            },
+          });
+        } catch (err) {
+          return NextResponse.json({
+            success: false,
+            action: 'debug',
+            error: err instanceof Error ? err.message : 'Unknown error',
+            tokenUrl,
+          });
+        }
+      }
+
       case 'packages': {
         const packagesResponse = await provider.getPackages();
         const summary = {
@@ -133,7 +177,7 @@ export async function GET(request: NextRequest) {
           {
             success: false,
             error: `Unknown action: ${action}`,
-            availableActions: ['health', 'packages'],
+            availableActions: ['health', 'debug', 'packages'],
           },
           { status: 400 }
         );
