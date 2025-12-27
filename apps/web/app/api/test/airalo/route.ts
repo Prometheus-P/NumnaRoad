@@ -99,6 +99,29 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      case 'token': {
+        // Test getAccessToken through provider class
+        try {
+          // Access the private method via prototype for debugging
+          const providerAny = provider as unknown as { getAccessToken: () => Promise<string>; tokenUrl: string; apiUrl: string };
+          const token = await providerAny.getAccessToken();
+          return NextResponse.json({
+            success: true,
+            action: 'token',
+            result: {
+              tokenReceived: true,
+              tokenLength: token.length,
+            },
+          });
+        } catch (tokenError) {
+          return NextResponse.json({
+            success: false,
+            action: 'token',
+            error: tokenError instanceof Error ? tokenError.message : 'Unknown token error',
+          });
+        }
+      }
+
       case 'debug': {
         // Direct token test with detailed error reporting
         const apiUrl = process.env.AIRALO_API_URL || 'https://partners-api.airalo.com/v2';
@@ -190,7 +213,7 @@ export async function GET(request: NextRequest) {
           {
             success: false,
             error: `Unknown action: ${action}`,
-            availableActions: ['health', 'debug', 'packages'],
+            availableActions: ['health', 'token', 'debug', 'packages'],
           },
           { status: 400 }
         );
