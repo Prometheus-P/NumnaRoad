@@ -26,9 +26,15 @@ export class SmartStoreAuth {
   private config: NaverAuthConfig;
 
   constructor(config?: Partial<NaverAuthConfig>) {
+    // Decode base64 secret if provided (to avoid $ variable expansion issues)
+    let appSecret = config?.appSecret || process.env.NAVER_COMMERCE_APP_SECRET || '';
+    if (!appSecret && process.env.NAVER_COMMERCE_APP_SECRET_B64) {
+      appSecret = Buffer.from(process.env.NAVER_COMMERCE_APP_SECRET_B64, 'base64').toString('utf-8');
+    }
+
     this.config = {
       appId: config?.appId || process.env.NAVER_COMMERCE_APP_ID || '',
-      appSecret: config?.appSecret || process.env.NAVER_COMMERCE_APP_SECRET || '',
+      appSecret,
       sellerId: config?.sellerId || process.env.SMARTSTORE_SELLER_ID,
     };
   }
@@ -72,6 +78,17 @@ export class SmartStoreAuth {
   }
 
   /**
+   * Generate bcrypt-based signature for Naver Commerce API.
+   * Naver uses bcrypt hashing with clientSecret as salt.
+   */
+  private generateSignature(clientId: string, timestamp: string, clientSecret: string): string {
+    const bcrypt = require('bcryptjs');
+    const password = `${clientId}_${timestamp}`;
+    const hashed = bcrypt.hashSync(password, clientSecret);
+    return Buffer.from(hashed).toString('base64');
+  }
+
+  /**
    * Refresh the access token from Naver API.
    */
   private async refreshToken(): Promise<string> {
@@ -80,18 +97,23 @@ export class SmartStoreAuth {
     }
 
     try {
-      // Naver Commerce API uses client_credentials grant type
-      const credentials = Buffer.from(
-        `${this.config.appId}:${this.config.appSecret}`
-      ).toString('base64');
+      // Naver Commerce API uses HMAC-SHA256 signature authentication
+      const timestamp = Date.now().toString();
+      const signature = this.generateSignature(
+        this.config.appId,
+        timestamp,
+        this.config.appSecret
+      );
 
       const response = await fetch(NAVER_AUTH_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${credentials}`,
         },
         body: new URLSearchParams({
+          client_id: this.config.appId,
+          timestamp: timestamp,
+          client_secret_sign: signature,
           grant_type: 'client_credentials',
           type: 'SELF',
         }).toString(),

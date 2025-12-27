@@ -97,8 +97,8 @@ async function checkStripe(): Promise<ServiceStatus> {
 async function checkSmartStore(): Promise<ServiceStatus> {
   const start = Date.now();
   try {
-    const clientId = process.env.NAVER_CLIENT_ID;
-    const clientSecret = process.env.NAVER_CLIENT_SECRET;
+    const clientId = process.env.NAVER_COMMERCE_APP_ID;
+    const clientSecret = process.env.NAVER_COMMERCE_APP_SECRET || process.env.NAVER_COMMERCE_APP_SECRET_B64;
 
     if (!clientId || !clientSecret) {
       return {
