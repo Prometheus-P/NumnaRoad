@@ -290,3 +290,4 @@ automation/.cache/
 security-report.*
 vulnerability-report.*
 audit-report.*
+*.csv
