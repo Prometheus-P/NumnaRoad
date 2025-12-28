@@ -1,30 +1,100 @@
 # NumnaRoad Development Guidelines
 
-## Development Principles
+## Core Principles
 
-### 1. 기술 구현과 비즈니스 작업 분리
+| 섹션 | 핵심 원칙 |
+|------|-----------|
+| 1. TDD | 테스트 먼저 → Red/Green/Refactor 사이클 |
+| 2. 외부 설정 | 수동 설정 필요 시 GitHub Issue 등록 필수 |
+| 3. 디자인 시스템 | Clean Architecture, DI, Event-Driven |
+| 4. 커밋 메시지 | Conventional Commits, AI 언급 금지 |
+| 5. 코드 스타일 | gofmt, golangci-lint, 단일 책임 원칙 |
+| 6. 응답 원칙 | CTO 관점, 객관적, 근거 필수 |
+| 7. PR 체크리스트 | 7개 항목 체크 후 머지 |
+
+---
+
+## 1. TDD (Test-Driven Development)
+
+- **Red**: 실패하는 테스트 먼저 작성
+- **Green**: 테스트 통과하는 최소 코드 작성
+- **Refactor**: 코드 개선 (테스트 유지)
+
+```bash
+npm run test:run    # 전체 테스트 실행
+npm run lint        # 린트 검사
+```
+
+## 2. 외부 설정 원칙
+
 - **기술 구현**: 코드 작성, 테스트, 리팩토링 → Claude가 직접 수행
 - **비즈니스/운영 작업**: 외부 계정 설정, API 키 발급, 환경 변수 설정, 가격 정책 결정 → GitHub Issue로 등록
 - 수동 작업이 필요한 경우 `[Biz]` prefix로 issue 생성
 
-### 2. Provider 우선순위 원칙
-```
-RedteaGO (100) → eSIMCard (80) → MobiMatter (60) → Airalo (40) → Manual (10)
-```
-- 도매가 우선, 소매가 최후 fallback
-- Circuit Breaker로 장애 provider 자동 차단
+## 3. 디자인 시스템
 
-### 3. 테스트 우선 개발
-- 새로운 Provider 추가 시 반드시 단위 테스트 작성
-- `npm run test:run`으로 전체 테스트 통과 확인 후 커밋
+- **Clean Architecture**: 도메인 중심 설계
+- **DI (Dependency Injection)**: 의존성 주입으로 테스트 용이성 확보
+- **Event-Driven**: 느슨한 결합, 확장성
+
+## 4. 커밋 메시지
+
+- **Conventional Commits** 형식 준수
+- AI 생성 언급 금지 (Co-Authored-By 제외)
+- 예: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+
+## 5. 코드 스타일
+
+- TypeScript 5.3+ (strict mode, `any` prohibited)
+- 단일 책임 원칙 (SRP)
+- ESLint/Prettier 준수
+
+## 6. 응답 원칙
+
+### CTO 관점
+- 결정 중심 (옵션 나열 X)
+- 트레이드오프/리스크/ROI 명시
+- P0/P1/P2 우선순위
+- 간결함
+
+### 객관성
+- 감정 배제
+- 사실 기반
+- 정량적 표현
+
+### 근거 확보
+- 공식 문서 참조
+- 코드 라인 명시 (예: `file.ts:123`)
+- 테스트 결과 포함
+- 벤치마크 데이터
+
+### 금지 표현
+- ❌ "아마도...", "~일 것 같습니다"
+- ❌ "보통은...", "일반적으로..."
+- ❌ 출처 없는 주장
+
+## 7. 비즈니스 관점
+
+| 항목 | 내용 |
+|------|------|
+| 소비자 중심 사고 | 리서치/피드백은 최종 사용자 관점 |
+| 비즈니스 임팩트 | 수익/비용/시장 영향 고려 |
+| 가치 전달 | 기술 ≠ 비즈니스 구분 |
+| 시장 현실 | 이상 < 실용 |
+
+B2C/B2B/B2G 전 영역 적용.
+
+---
 
 ## Active Technologies
+
 - TypeScript 5.3+ (strict mode, `any` prohibited)
 - Next.js 14 (App Router)
-- MUI v6+ (M3 theme)
+- MUI v7+ (M3 theme)
 - PocketBase SDK
 - Stripe SDK
 - Resend (email)
+- TanStack React Query v5
 
 ## Project Structure
 
@@ -42,14 +112,6 @@ tests/              # 테스트 파일
   contract/         # API 계약 테스트
 ```
 
-## Commands
-
-```bash
-npm run test:run    # 전체 테스트 실행
-npm run lint        # 린트 검사
-npm run build       # 프로덕션 빌드
-```
-
 ## eSIM Provider Architecture
 
 | Provider | Priority | 용도 | 파일 |
@@ -59,6 +121,8 @@ npm run build       # 프로덕션 빌드
 | MobiMatter | 60 | Backup | `services/esim-providers/mobimatter.ts` |
 | Airalo | 40 | Fallback (소매) | `services/esim-providers/airalo.ts` |
 | Manual | 10 | 수동 처리 | `services/esim-providers/manual.ts` |
+
+Circuit Breaker로 장애 provider 자동 차단.
 
 ## Environment Variables
 
