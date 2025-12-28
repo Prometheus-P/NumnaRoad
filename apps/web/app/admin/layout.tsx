@@ -4,8 +4,18 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Box, AppBar, Toolbar, Typography, IconButton, Avatar, Menu, MenuItem } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminAuthProvider, useAdminAuth } from '@/components/admin/AdminAuthProvider';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      retry: 1,
+    },
+  },
+});
 
 const DRAWER_WIDTH = 260;
 
@@ -105,8 +115,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AdminAuthProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
-    </AdminAuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AdminAuthProvider>
+        <AdminLayoutContent>{children}</AdminLayoutContent>
+      </AdminAuthProvider>
+    </QueryClientProvider>
   );
 }
