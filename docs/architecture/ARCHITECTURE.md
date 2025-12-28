@@ -8,9 +8,9 @@
 |------|------|
 | **문서 유형** | Technical Specification |
 | **대상 독자** | 개발자, DevOps, 시스템 아키텍트 |
-| **최종 수정** | 2024-12-01 |
-| **버전** | 2.0.0 |
-| **연관 문서** | [PRD.md](./PRD.md), [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md), [API_DOCS.md](./docs/API_DOCS.md) |
+| **최종 수정** | 2025-12-28 |
+| **버전** | 3.0.0 |
+| **연관 문서** | [PRD.md](../planning/PRD.md), [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md), [API_DOCS.md](../api/API_DOCS.md) |
 | **우선순위** | ⭐⭐⭐ (Core) |
 
 ---
@@ -65,99 +65,143 @@
 
 ## 아키텍처 다이어그램
 
-### 전체 시스템 구조
+### 전체 시스템 구조 (v3.0 - 2025.12)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        고객 (Customer)                            │
-└────────┬────────────────────────────────────────────────────┬───┘
-         │                                                    │
-         ▼                                                    ▼
-┌─────────────────────┐                            ┌──────────────────┐
-│   Next.js Frontend  │                            │  네이버 스마트스토어  │
-│   (Vercel/Railway)  │                            │  (SmartStore API) │
-└──────────┬──────────┘                            └────────┬─────────┘
-           │                                                │
-           │  REST API / WebSocket                          │
-           │                                                │
-           ▼                                                ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                      PocketBase Backend                          │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌───────────┐ │
-│  │ Auth       │  │ Database   │  │ File       │  │ Realtime  │ │
-│  │ System     │  │ (SQLite)   │  │ Storage    │  │ WebSocket │ │
-│  └────────────┘  └────────────┘  └────────────┘  └───────────┘ │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    Webhook Hooks                           │ │
-│  │  - orders.pb.js (주문 생성 시 n8n 트리거)                   │ │
-│  │  - payments.pb.js (결제 완료 시 주문 상태 업데이트)         │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└────────┬─────────────────────────────────────────────────────────┘
-         │
-         │  HTTP Webhook
-         │
-         ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                         n8n Workflow                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Order        │→ │ eSIM Provider│→ │ Email        │          │
-│  │ Processing   │  │ API Call     │  │ Sending      │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Inventory    │  │ Price Sync   │  │ Marketing    │          │
-│  │ Sync (Cron)  │  │ (Cron)       │  │ Automation   │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-└────────┬─────────────────────────────┬───────────────────────────┘
-         │                             │
-         ▼                             ▼
-┌─────────────────────┐      ┌──────────────────────┐
-│  eSIM Providers     │      │  Email Service       │
-│  - eSIM Card        │      │  - Resend            │
-│  - MobiMatter       │      │  - Mailgun (백업)    │
-│  - Airalo           │      └──────────────────────┘
-└─────────────────────┘
-         │
-         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           고객 (Customer)                                │
+└────────┬────────────────────────────────────────────────────────┬───────┘
+         │                                                        │
+         ▼                                                        ▼
+┌─────────────────────┐                                ┌──────────────────┐
+│   Next.js 14 App    │                                │  네이버 스마트스토어  │
+│   (Vercel)          │                                │  (SmartStore)     │
+│   numnaroad.vercel  │                                │                   │
+│   .app              │                                │                   │
+└──────────┬──────────┘                                └────────┬─────────┘
+           │                                                    │
+           │  Stripe Webhook                                    │ (IP 화이트리스트 필요)
+           │                                                    │
+           ▼                                                    ▼
+┌────────────────────────────────────────────┐    ┌──────────────────────────┐
+│           Vercel Serverless API            │    │   Oracle Cloud VM        │
+│  ┌──────────────────────────────────────┐  │    │   (161.118.129.219)      │
+│  │ /api/webhooks/stripe                 │  │    │  ┌────────────────────┐  │
+│  │ /api/orders/[id]/fulfill             │  │    │  │ smartstore-sync    │  │
+│  │ /api/cron/retry-stuck-orders         │  │    │  │ (cron: 5분마다)     │  │
+│  └──────────────────────────────────────┘  │    │  └─────────┬──────────┘  │
+└────────────────────┬───────────────────────┘    └────────────┼─────────────┘
+                     │                                         │
+                     │                                         │ Naver Commerce API
+                     │                                         │
+                     ▼                                         ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      PocketBase Backend (Railway)                         │
+│                  pocketbase-production-2413.up.railway.app               │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌───────────────────┐  │
+│  │ Auth       │  │ Database   │  │ File       │  │ Collections       │  │
+│  │ System     │  │ (SQLite)   │  │ Storage    │  │ - orders          │  │
+│  └────────────┘  └────────────┘  └────────────┘  │ - esim_products   │  │
+│                                                   │ - automation_logs │  │
+│                                                   └───────────────────┘  │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+          ┌──────────────────────────┼──────────────────────────┐
+          │                          │                          │
+          ▼                          ▼                          ▼
+┌─────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+│  eSIM Providers     │  │  Email Service       │  │  Notifications       │
+│  (Priority Order)   │  │                      │  │                      │
+│  1. Airalo (주력)   │  │  Resend              │  │  Discord Webhooks    │
+│  2. eSIMCard        │  │  (re_...)            │  │  (장애 알림)          │
+│  3. MobiMatter      │  │                      │  │                      │
+│  4. Manual Fallback │  │                      │  │                      │
+└─────────────────────┘  └──────────────────────┘  └──────────────────────┘
+          │
+          ▼
 ┌─────────────────────┐
 │  Payment Gateway    │
-│  - Stripe           │
-│  - 토스페이먼츠       │
+│  - Stripe (주력)    │
+│  - SmartStore 결제  │
 └─────────────────────┘
 ```
 
-### 자동화 파이프라인
+### v2.0 → v3.0 주요 변경사항
+
+| 항목 | v2.0 (이전) | v3.0 (현재) |
+|------|------------|-------------|
+| **주문 처리** | n8n Workflow | Inline Fulfillment (Vercel API) |
+| **SmartStore 연동** | Vercel에서 직접 호출 | Oracle Cloud VM (고정 IP) |
+| **주력 eSIM 공급사** | eSIMCard | Airalo (OAuth 2.0) |
+| **이메일 서비스** | Mailgun 백업 포함 | Resend 단일 |
+| **배포 플랫폼** | Railway/Vercel | Vercel + Railway + Oracle Cloud |
+
+### 자동화 파이프라인 (v3.0 - Inline Fulfillment)
+
+#### A. Stripe 결제 Flow (주력)
 
 ```
-고객 결제
+고객 결제 완료
    ↓
-Stripe Webhook
+Stripe Webhook (checkout.session.completed)
    ↓
-PocketBase: Order 생성 (status: pending)
+Vercel API: /api/webhooks/stripe
    ↓
-PocketBase Hook: n8n Webhook 호출
+├─ Webhook 서명 검증
+├─ 중복 처리 방지 (payment_intent_id)
+└─ Order 생성/업데이트 (status: payment_received)
    ↓
-n8n: Order Processing 워크플로우 시작
+Inline Fulfillment Service 시작
    ↓
-n8n: eSIM Provider API 호출 (eSIM Card)
+Provider Failover Loop (10초 타임아웃/공급사)
+   ├─ 1순위: Airalo API 호출
+   ├─ 2순위: eSIMCard API 호출
+   ├─ 3순위: MobiMatter API 호출
+   └─ 최종: Manual Fallback (Discord 알림)
    ↓
-API 성공? 
-   ├─ Yes → eSIM QR 코드 수신
-   │         ↓
-   │    PocketBase: Order 업데이트 (status: completed)
-   │         ↓
-   │    n8n: Email 발송 (QR 코드 첨부)
-   │         ↓
-   │    완료
-   │
-   └─ No → 재시도 (3회)
-            ↓
-        모두 실패?
-            ├─ Yes → 대체 공급사(MobiMatter) 시도
-            │         ↓
-            │    성공 시 위와 동일
-            │    실패 시 Slack 알림 + 환불 처리
-            │
-            └─ No → 성공 시 위와 동일
+성공 시:
+   ├─ Order 업데이트 (status: provider_confirmed)
+   ├─ eSIM 정보 저장 (QR URL, ICCID, Activation Code)
+   ├─ Resend로 이메일 발송
+   └─ Order 완료 (status: email_sent → delivered)
+   ↓
+실패 시:
+   ├─ status: provider_failed
+   ├─ Discord 알림 발송
+   └─ Cron Job이 재시도 (/api/cron/retry-stuck-orders)
+```
+
+#### B. SmartStore 주문 Flow (네이버 판매)
+
+```
+SmartStore 결제 완료
+   ↓
+Oracle Cloud VM (5분마다 cron 실행)
+   ↓
+/opt/numnaroad/sync.js 실행
+   ↓
+├─ Naver Commerce API 토큰 발급 (bcrypt 서명)
+├─ 주문 상태 변경 조회 (PAYED 상태)
+└─ 신규 주문 감지
+   ↓
+각 주문에 대해:
+   ├─ PocketBase에 Order 생성
+   └─ Vercel API 호출: /api/orders/{id}/fulfill
+   ↓
+(이후 Stripe Flow와 동일한 Fulfillment 처리)
+```
+
+#### C. 장애 복구 Flow
+
+```
+Cron Job: /api/cron/retry-stuck-orders (10분마다)
+   ↓
+stuck 상태 주문 조회:
+   ├─ fulfillment_started (30분 이상 경과)
+   ├─ provider_failed (재시도 횟수 < 3)
+   └─ payment_received (미처리)
+   ↓
+각 주문에 대해 Fulfillment 재시도
 ```
 
 ---
@@ -743,14 +787,102 @@ onRecordAfterCreateRequest((e) => {
 
 ---
 
-## 다음 단계
+## 아키텍처 리뷰 (2025-12-28)
 
-1. **PocketBase 로컬 설치 및 테스트**
-2. **Collections 생성 및 샘플 데이터 입력**
-3. **Next.js 프론트엔드 기본 구조 완성**
-4. **n8n 워크플로우 구축 (로컬 테스트)**
-5. **Railway 배포 및 프로덕션 환경 설정**
+### ✅ 강점 (Strengths)
+
+| 항목 | 평가 | 설명 |
+|------|------|------|
+| **관심사 분리** | ⭐⭐⭐⭐⭐ | services/, apps/, scripts/ 명확한 분리 |
+| **Provider Failover** | ⭐⭐⭐⭐⭐ | 다중 공급사 자동 전환으로 안정성 확보 |
+| **State Machine** | ⭐⭐⭐⭐ | 주문 상태 관리가 명확하고 추적 가능 |
+| **Correlation ID** | ⭐⭐⭐⭐ | 분산 추적 가능한 로깅 구조 |
+| **TypeScript Strict** | ⭐⭐⭐⭐ | 타입 안정성 확보 |
+| **Multi-Channel** | ⭐⭐⭐⭐ | Stripe + SmartStore 통합 완료 |
+
+### ⚠️ 개선 필요 (Areas for Improvement)
+
+| 우선순위 | 항목 | 현재 상태 | 권장 사항 |
+|---------|------|----------|----------|
+| 🔴 **Critical** | 하드코딩된 시크릿 | scripts/*.js에 평문 저장 | 환경변수로 이동 |
+| 🔴 **Critical** | Git 히스토리 내 시크릿 | 커밋에 노출됨 | git-filter-repo로 정리 |
+| 🟠 **High** | API Rate Limiting | 미구현 | Vercel Edge Config 사용 |
+| 🟠 **High** | PocketBase 확장성 | SQLite 단일 인스턴스 | 10K+ 주문 시 PostgreSQL 전환 |
+| 🟡 **Medium** | API 문서화 | 수동 관리 | OpenAPI/Swagger 자동 생성 |
+| 🟡 **Medium** | 에러 핸들링 | 분산됨 | 중앙집중식 에러 핸들러 |
+| 🟢 **Low** | n8n 레거시 코드 | 사용 안함 | 제거 또는 문서화 |
+
+### 🔒 보안 이슈 (Security Issues)
+
+#### 🔴 즉시 조치 필요
+
+**1. 하드코딩된 시크릿 발견**
+
+```
+파일: scripts/smartstore-sync-standalone.js
+- NAVER_APP_SECRET (Base64 인코딩됨)
+- POCKETBASE_ADMIN_PASSWORD
+- CRON_SECRET
+```
+
+**조치 방법:**
+```bash
+# 1. 시크릿을 환경변수로 이동
+ssh -i ssh-key-*.key ubuntu@161.118.129.219
+export NAVER_COMMERCE_APP_SECRET="..."
+export POCKETBASE_ADMIN_PASSWORD="..."
+export CRON_SECRET="..."
+
+# 2. 코드에서 하드코딩 제거
+# 3. Git 히스토리 정리 (git-filter-repo)
+# 4. 모든 시크릿 로테이션
+```
+
+**2. SSH 키 관리**
+- 현재 위치: 프로젝트 루트 (`ssh-key-2025-12-28.key`)
+- 권장: `~/.ssh/` 디렉토리로 이동, 절대 Git에 커밋 금지
+
+### 📊 확장성 로드맵
+
+| 월간 주문량 | 현재 아키텍처 | 변경 필요 사항 |
+|------------|-------------|---------------|
+| 0-1,000 | ✅ 충분 | - |
+| 1,000-5,000 | ⚠️ 모니터링 필요 | PocketBase 리소스 증가 |
+| 5,000-10,000 | 🔄 마이그레이션 필요 | PostgreSQL + Redis 전환 |
+| 10,000+ | 🏗️ 재설계 필요 | 마이크로서비스 분리 |
+
+### 🛠️ 권장 다음 단계
+
+1. **즉시 (이번 주)**
+   - [ ] 하드코딩된 시크릿 제거 및 환경변수화
+   - [ ] Git 히스토리에서 시크릿 정리
+   - [ ] 모든 API 키 로테이션
+
+2. **단기 (1개월)**
+   - [ ] API Rate Limiting 구현
+   - [ ] OpenAPI 문서 자동 생성 설정
+   - [ ] 중앙집중식 에러 핸들러 구현
+
+3. **중기 (3개월)**
+   - [ ] 모니터링 대시보드 구축
+   - [ ] 자동화된 테스트 커버리지 확대
+   - [ ] 성능 벤치마킹 및 최적화
 
 ---
 
-**자동화가 완성되면, 잠자는 동안에도 돈을 번다.**
+## 인프라 구성 요약
+
+| 컴포넌트 | 서비스 | 비용 | 역할 |
+|---------|-------|------|------|
+| Frontend + API | Vercel | Free~$20/월 | Next.js 호스팅 |
+| Database | Railway (PocketBase) | $5/월 | SQLite 데이터 저장 |
+| SmartStore Sync | Oracle Cloud | Free | 고정 IP로 Naver API 호출 |
+| Email | Resend | Free~$20/월 | 주문 확인 이메일 |
+| Monitoring | Sentry | Free | 에러 추적 |
+| Alerts | Discord | Free | 장애 알림 |
+
+**총 예상 비용: $5-45/월**
+
+---
+
+**자동화가 완성되면, 잠자는 동안에도 돈을 번다.** 🚀
