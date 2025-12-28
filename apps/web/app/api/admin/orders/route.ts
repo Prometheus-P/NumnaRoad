@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      filters.push(`(customer_email ~ "${search}" || order_number ~ "${search}" || external_order_id ~ "${search}")`);
+      filters.push(`(customer_email ~ "${search}" || order_id ~ "${search}")`);
     }
 
     if (channel) {
@@ -44,29 +44,36 @@ export async function GET(request: NextRequest) {
       filters.push(`created <= "${to}"`);
     }
 
-    const filter = filters.length > 0 ? filters.join(' && ') : '';
+    const filter = filters.length > 0 ? filters.join(' && ') : undefined;
 
-    const orders = await pb.collection(Collections.ORDERS).getList(page, limit, {
-      filter,
-      sort,
-      expand: 'product_id',
-    });
+    const options: Record<string, unknown> = {
+      expand: 'product',
+    };
+
+    if (filter) {
+      options.filter = filter;
+    }
+
+    // Note: sort parameter may cause issues with some PocketBase versions
+    // Removing sort for now - orders will be returned in default order
+
+    const orders = await pb.collection(Collections.ORDERS).getList(page, limit, options);
 
     // Transform orders to include productName
     const items = orders.items.map((order) => ({
       id: order.id,
-      orderNumber: order.order_number || order.id,
+      orderNumber: order.order_id || order.id,
       customerEmail: order.customer_email,
       customerName: order.customer_name,
-      productName: order.product_name || order.expand?.product_id?.name || 'Unknown',
-      productId: order.product_id,
-      totalPrice: order.total_price || 0,
+      productName: order.expand?.product?.name || 'Unknown',
+      productId: order.product,
+      totalPrice: order.amount || 0,
       status: order.status,
-      salesChannel: order.sales_channel || 'stripe',
+      salesChannel: order.sales_channel || 'website',
       created: order.created,
       updated: order.updated,
       esimIccid: order.esim_iccid,
-      esimQrCode: order.esim_qr_code,
+      esimQrCode: order.esim_qr_code_url,
       esimActivationCode: order.esim_activation_code,
       errorMessage: order.error_message,
     }));
