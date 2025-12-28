@@ -9,7 +9,7 @@
 | **문서 유형** | Technical Specification |
 | **대상 독자** | 개발자, DevOps, 시스템 아키텍트 |
 | **최종 수정** | 2025-12-28 |
-| **버전** | 3.0.0 |
+| **버전** | 3.1.0 |
 | **연관 문서** | [PRD.md](../planning/PRD.md), [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md), [API_DOCS.md](../api/API_DOCS.md) |
 | **우선순위** | ⭐⭐⭐ (Core) |
 
@@ -65,7 +65,7 @@
 
 ## 아키텍처 다이어그램
 
-### 전체 시스템 구조 (v3.0 - 2025.12)
+### 전체 시스템 구조 (v3.1 - 2025.12)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -80,30 +80,35 @@
 │   .app              │                                │                   │
 └──────────┬──────────┘                                └────────┬─────────┘
            │                                                    │
-           │  Stripe Webhook                                    │ (IP 화이트리스트 필요)
+           │  Stripe Webhook                                    │ (IP 화이트리스트)
            │                                                    │
            ▼                                                    ▼
-┌────────────────────────────────────────────┐    ┌──────────────────────────┐
-│           Vercel Serverless API            │    │   Oracle Cloud VM        │
-│  ┌──────────────────────────────────────┐  │    │   (161.118.129.219)      │
-│  │ /api/webhooks/stripe                 │  │    │  ┌────────────────────┐  │
-│  │ /api/orders/[id]/fulfill             │  │    │  │ smartstore-sync    │  │
-│  │ /api/cron/retry-stuck-orders         │  │    │  │ (cron: 5분마다)     │  │
-│  └──────────────────────────────────────┘  │    │  └─────────┬──────────┘  │
-└────────────────────┬───────────────────────┘    └────────────┼─────────────┘
-                     │                                         │
-                     │                                         │ Naver Commerce API
-                     │                                         │
-                     ▼                                         ▼
+┌────────────────────────────────────────────┐    ┌─────────────────────────────────┐
+│           Vercel Serverless API            │    │      Oracle Cloud VM            │
+│  ┌──────────────────────────────────────┐  │    │      (161.118.129.219)          │
+│  │ /api/webhooks/stripe                 │  │    │  ┌─────────────────────────┐    │
+│  │ /api/orders/[id]/fulfill             │  │    │  │ SmartStore Sync         │    │
+│  │ /api/cron/retry-stuck-orders         │  │    │  │ (cron: 5분마다)          │    │
+│  └──────────────────────────────────────┘  │    │  └─────────────────────────┘    │
+└────────────────────┬───────────────────────┘    │  ┌─────────────────────────┐    │
+                     │                            │  │ PocketBase (port 8090)  │    │
+                     │                            │  │ - orders                │    │
+                     │                            │  │ - esim_products         │    │
+                     │                            │  │ - automation_logs       │    │
+                     │                            │  └────────────┬────────────┘    │
+                     │                            │               │                 │
+                     │                            │  ┌────────────▼────────────┐    │
+                     │                            │  │ Cloudflare Tunnel       │    │
+                     │                            │  │ (cloudflared)           │    │
+                     │                            │  └────────────┬────────────┘    │
+                     │                            └───────────────┼─────────────────┘
+                     │                                            │
+                     │    ┌───────────────────────────────────────┘
+                     │    │
+                     ▼    ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                      PocketBase Backend (Railway)                         │
-│                  pocketbase-production-2413.up.railway.app               │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌───────────────────┐  │
-│  │ Auth       │  │ Database   │  │ File       │  │ Collections       │  │
-│  │ System     │  │ (SQLite)   │  │ Storage    │  │ - orders          │  │
-│  └────────────┘  └────────────┘  └────────────┘  │ - esim_products   │  │
-│                                                   │ - automation_logs │  │
-│                                                   └───────────────────┘  │
+│                      Cloudflare (DNS + Tunnel)                            │
+│                  numnaroad.ondacoreana.com → Oracle VM                   │
 └────────────────────────────────────┬─────────────────────────────────────┘
                                      │
           ┌──────────────────────────┼──────────────────────────┐
@@ -113,7 +118,7 @@
 │  eSIM Providers     │  │  Email Service       │  │  Notifications       │
 │  (Priority Order)   │  │                      │  │                      │
 │  1. Airalo (주력)   │  │  Resend              │  │  Discord Webhooks    │
-│  2. eSIMCard        │  │  (re_...)            │  │  (장애 알림)          │
+│  2. eSIMCard        │  │                      │  │  (장애 알림)          │
 │  3. MobiMatter      │  │                      │  │                      │
 │  4. Manual Fallback │  │                      │  │                      │
 └─────────────────────┘  └──────────────────────┘  └──────────────────────┘
@@ -126,6 +131,18 @@
 └─────────────────────┘
 ```
 
+### v3.0 → v3.1 주요 변경사항 (2025-12-28)
+
+| 항목 | v3.0 (이전) | v3.1 (현재) |
+|------|------------|-------------|
+| **PocketBase 위치** | Railway ($5/월) | Oracle Cloud VM (무료) |
+| **외부 접근** | Railway 도메인 | Cloudflare Tunnel (고정 URL) |
+| **PocketBase URL** | pocketbase-production-2413.up.railway.app | numnaroad.ondacoreana.com |
+| **월 비용** | $5 | **$0** |
+| **서버 구성** | Vercel + Railway + Oracle | Vercel + Oracle (통합) |
+| **시크릿 관리** | 일부 하드코딩 | 환경변수 완전 분리 |
+| **백업** | 수동 | 자동 (매일 3AM KST) |
+
 ### v2.0 → v3.0 주요 변경사항
 
 | 항목 | v2.0 (이전) | v3.0 (현재) |
@@ -134,7 +151,7 @@
 | **SmartStore 연동** | Vercel에서 직접 호출 | Oracle Cloud VM (고정 IP) |
 | **주력 eSIM 공급사** | eSIMCard | Airalo (OAuth 2.0) |
 | **이메일 서비스** | Mailgun 백업 포함 | Resend 단일 |
-| **배포 플랫폼** | Railway/Vercel | Vercel + Railway + Oracle Cloud |
+| **배포 플랫폼** | Railway/Vercel | Vercel + Oracle Cloud |
 
 ### 자동화 파이프라인 (v3.0 - Inline Fulfillment)
 
@@ -800,47 +817,41 @@ onRecordAfterCreateRequest((e) => {
 | **TypeScript Strict** | ⭐⭐⭐⭐ | 타입 안정성 확보 |
 | **Multi-Channel** | ⭐⭐⭐⭐ | Stripe + SmartStore 통합 완료 |
 
-### ⚠️ 개선 필요 (Areas for Improvement)
+### ⚠️ 개선 필요 (Areas for Improvement) - v3.1 Updated
 
 | 우선순위 | 항목 | 현재 상태 | 권장 사항 |
 |---------|------|----------|----------|
-| 🔴 **Critical** | 하드코딩된 시크릿 | scripts/*.js에 평문 저장 | 환경변수로 이동 |
-| 🔴 **Critical** | Git 히스토리 내 시크릿 | 커밋에 노출됨 | git-filter-repo로 정리 |
+| ~~🔴 Critical~~ | ~~하드코딩된 시크릿~~ | ✅ 해결됨 | - |
+| ~~🔴 Critical~~ | ~~Git 히스토리 내 시크릿~~ | ✅ 해결됨 | - |
 | 🟠 **High** | API Rate Limiting | 미구현 | Vercel Edge Config 사용 |
 | 🟠 **High** | PocketBase 확장성 | SQLite 단일 인스턴스 | 10K+ 주문 시 PostgreSQL 전환 |
 | 🟡 **Medium** | API 문서화 | 수동 관리 | OpenAPI/Swagger 자동 생성 |
 | 🟡 **Medium** | 에러 핸들링 | 분산됨 | 중앙집중식 에러 핸들러 |
 | 🟢 **Low** | n8n 레거시 코드 | 사용 안함 | 제거 또는 문서화 |
 
-### 🔒 보안 이슈 (Security Issues)
+### 🔒 보안 상태 (Security Status) - v3.1 Updated
 
-#### 🔴 즉시 조치 필요
+#### ✅ 해결됨 (2025-12-28)
 
-**1. 하드코딩된 시크릿 발견**
+**1. 하드코딩된 시크릿 제거**
+- 모든 시크릿을 환경변수로 이동
+- Git 히스토리에서 시크릿 정리 완료 (git-filter-repo)
+- 모든 시크릿 로테이션 완료
 
-```
-파일: scripts/smartstore-sync-standalone.js
-- NAVER_APP_SECRET (Base64 인코딩됨)
-- POCKETBASE_ADMIN_PASSWORD
-- CRON_SECRET
-```
-
-**조치 방법:**
+**2. 환경변수 구성**
 ```bash
-# 1. 시크릿을 환경변수로 이동
-ssh -i ssh-key-*.key ubuntu@161.118.129.219
-export NAVER_COMMERCE_APP_SECRET="..."
-export POCKETBASE_ADMIN_PASSWORD="..."
-export CRON_SECRET="..."
-
-# 2. 코드에서 하드코딩 제거
-# 3. Git 히스토리 정리 (git-filter-repo)
-# 4. 모든 시크릿 로테이션
+# Oracle VM: /opt/numnaroad/.env
+NAVER_COMMERCE_APP_ID=***
+NAVER_COMMERCE_APP_SECRET_B64=*** (Base64 인코딩)
+POCKETBASE_URL=http://localhost:8090
+POCKETBASE_ADMIN_EMAIL=***
+POCKETBASE_ADMIN_PASSWORD=***
+CRON_SECRET=***
 ```
 
-**2. SSH 키 관리**
-- 현재 위치: 프로젝트 루트 (`ssh-key-2025-12-28.key`)
-- 권장: `~/.ssh/` 디렉토리로 이동, 절대 Git에 커밋 금지
+**3. SSH 키 관리**
+- 프로젝트 루트에서 제거됨
+- `.gitignore`에 `*.key` 패턴 추가
 
 ### 📊 확장성 로드맵
 
@@ -853,10 +864,12 @@ export CRON_SECRET="..."
 
 ### 🛠️ 권장 다음 단계
 
-1. **즉시 (이번 주)**
-   - [ ] 하드코딩된 시크릿 제거 및 환경변수화
-   - [ ] Git 히스토리에서 시크릿 정리
-   - [ ] 모든 API 키 로테이션
+1. **완료됨 ✅ (2025-12-28)**
+   - [x] 하드코딩된 시크릿 제거 및 환경변수화
+   - [x] Git 히스토리에서 시크릿 정리
+   - [x] 모든 API 키 로테이션
+   - [x] PocketBase Oracle Cloud 마이그레이션
+   - [x] Cloudflare Tunnel 고정 URL 설정
 
 2. **단기 (1개월)**
    - [ ] API Rate Limiting 구현
@@ -870,18 +883,31 @@ export CRON_SECRET="..."
 
 ---
 
-## 인프라 구성 요약
+## 인프라 구성 요약 (v3.1)
 
 | 컴포넌트 | 서비스 | 비용 | 역할 |
 |---------|-------|------|------|
 | Frontend + API | Vercel | Free~$20/월 | Next.js 호스팅 |
-| Database | Railway (PocketBase) | $5/월 | SQLite 데이터 저장 |
+| Database | Oracle Cloud (PocketBase) | **Free** | SQLite 데이터 저장 |
+| Tunnel | Cloudflare Tunnel | Free | HTTPS 터널링 |
 | SmartStore Sync | Oracle Cloud | Free | 고정 IP로 Naver API 호출 |
 | Email | Resend | Free~$20/월 | 주문 확인 이메일 |
 | Monitoring | Sentry | Free | 에러 추적 |
 | Alerts | Discord | Free | 장애 알림 |
 
-**총 예상 비용: $5-45/월**
+**총 예상 비용: $0-20/월** (Railway 제거로 $5 절약)
+
+### Oracle Cloud VM 구성
+
+| 항목 | 값 |
+|------|-----|
+| IP | 161.118.129.219 |
+| PocketBase URL | https://numnaroad.ondacoreana.com |
+| Tunnel ID | numnaroad-pb |
+| 백업 주기 | 매일 03:00 KST |
+| 백업 위치 | /opt/backups/ |
+| Sync 주기 | 5분마다 (cron) |
+| 로그 위치 | /var/log/numnaroad-sync.log |
 
 ---
 
