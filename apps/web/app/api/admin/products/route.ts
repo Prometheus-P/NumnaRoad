@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (provider) {
-      filters.push(`providerId = "${provider}"`);
+      filters.push(`provider = "${provider}"`);
     }
 
     const filter = filters.length > 0 ? filters.join(' && ') : '';
@@ -40,16 +40,16 @@ export async function GET(request: NextRequest) {
       name: product.name,
       slug: product.slug,
       country: product.country,
-      dataLimit: product.dataLimit,
-      durationDays: product.durationDays,
-      providerId: product.providerId,
-      providerSku: product.providerSku,
-      costPrice: product.costPrice || 0,
-      price: product.price,
-      isActive: product.isActive !== false,
-      isFeatured: product.isFeatured === true,
-      stockCount: product.stockCount || 999,
-      sortOrder: product.sortOrder || 0,
+      dataLimit: product.data_limit,
+      durationDays: product.duration,
+      providerId: product.provider,
+      providerSku: product.provider_product_id,
+      costPrice: product.wholesale_price || 0,
+      price: product.retail_price,
+      isActive: product.is_active !== false,
+      isFeatured: product.is_featured === true,
+      stockCount: product.stock || 999,
+      sortOrder: product.sort_order || 0,
       created: product.created,
       updated: product.updated,
     }));
