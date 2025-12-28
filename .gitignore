@@ -291,3 +291,4 @@ security-report.*
 vulnerability-report.*
 audit-report.*
 *.csv
+ssh-key-*.key*

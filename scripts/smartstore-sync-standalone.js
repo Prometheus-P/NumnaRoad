@@ -118,7 +118,7 @@ async function fetchOrderChanges(lastSyncTime) {
   const url = new URL(`${NAVER_API_URL}/pay-order/seller/product-orders/last-changed-statuses`);
   url.searchParams.set('lastChangedFrom', fromDate.toISOString());
   url.searchParams.set('lastChangedTo', toDate.toISOString());
-  url.searchParams.set('lastChangedType', 'PAYED');
+  url.searchParams.set('orderStatusType', 'PAYED');
 
   const response = await fetch(url.toString(), {
     headers: {
