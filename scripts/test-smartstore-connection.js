@@ -1,22 +1,47 @@
+#!/usr/bin/env node
+/**
+ * SmartStore Connection Test Script
+ *
+ * Tests OAuth token generation and order query API.
+ *
+ * Required environment variables:
+ * - NAVER_COMMERCE_APP_ID
+ * - NAVER_COMMERCE_APP_SECRET
+ */
+
 const bcrypt = require("bcryptjs");
+
+// Validate required environment variables
+const REQUIRED_ENV = ['NAVER_COMMERCE_APP_ID', 'NAVER_COMMERCE_APP_SECRET'];
+const missing = REQUIRED_ENV.filter(key => !process.env[key]);
+
+if (missing.length > 0) {
+  console.error('[FATAL] Missing required environment variables:');
+  missing.forEach(key => console.error(`  - ${key}`));
+  console.error('\nUsage: NAVER_COMMERCE_APP_ID=xxx NAVER_COMMERCE_APP_SECRET=xxx node test-smartstore-connection.js');
+  process.exit(1);
+}
+
+const APP_ID = process.env.NAVER_COMMERCE_APP_ID;
+const APP_SECRET = process.env.NAVER_COMMERCE_APP_SECRET;
 
 async function testConnection() {
   console.log("=== SmartStore 연결 테스트 ===\n");
 
-  const appId = "7jrOwGqIMgOf5qfRt7yS1d";
-  const appSecret = Buffer.from("REDACTED_SECRET_B64", "base64").toString("utf-8");
-
   console.log("1. OAuth 토큰 발급...");
   const timestamp = Date.now().toString();
-  const hashed = bcrypt.hashSync(appId + "_" + timestamp, appSecret);
+  const hashed = bcrypt.hashSync(APP_ID + "_" + timestamp, APP_SECRET);
   const signature = Buffer.from(hashed).toString("base64");
 
   const tokenRes = await fetch("https://api.commerce.naver.com/external/v1/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: appId, timestamp, client_secret_sign: signature,
-      grant_type: "client_credentials", type: "SELF",
+      client_id: APP_ID,
+      timestamp,
+      client_secret_sign: signature,
+      grant_type: "client_credentials",
+      type: "SELF",
     }).toString(),
   });
 

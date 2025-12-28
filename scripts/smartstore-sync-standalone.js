@@ -4,28 +4,64 @@
  *
  * Runs on Oracle Cloud VM with static IP to bypass Naver's IP whitelist requirement.
  * Fetches orders from SmartStore and sends them to Vercel API for processing.
+ *
+ * Required environment variables:
+ * - NAVER_COMMERCE_APP_ID
+ * - NAVER_COMMERCE_APP_SECRET
+ * - SMARTSTORE_SELLER_ID
+ * - CRON_SECRET
+ * - POCKETBASE_URL
+ * - POCKETBASE_ADMIN_EMAIL
+ * - POCKETBASE_ADMIN_PASSWORD
+ * - VERCEL_API_URL (optional, defaults to https://numnaroad.vercel.app)
  */
 
 const crypto = require('crypto');
 
-// Configuration
-const NAVER_APP_SECRET_B64 = 'REDACTED_SECRET_B64';
+// Helper to get secret (supports direct value or base64 encoded)
+function getSecret(envKey) {
+  // First try direct value
+  if (process.env[envKey]) {
+    return process.env[envKey];
+  }
+  // Then try base64 encoded value
+  const b64Key = `${envKey}_B64`;
+  if (process.env[b64Key]) {
+    return Buffer.from(process.env[b64Key], 'base64').toString('utf-8');
+  }
+  return null;
+}
 
+// Build config with support for base64 encoded secrets
 const CONFIG = {
-  // SmartStore credentials (from environment or hardcoded for VM)
-  NAVER_APP_ID: process.env.NAVER_COMMERCE_APP_ID || '7jrOwGqIMgOf5qfRt7yS1d',
-  NAVER_APP_SECRET: process.env.NAVER_COMMERCE_APP_SECRET || Buffer.from(NAVER_APP_SECRET_B64, 'base64').toString('utf-8'),
-  SMARTSTORE_SELLER_ID: process.env.SMARTSTORE_SELLER_ID || 'ncp_1owkx8_01',
-
-  // Vercel API
+  NAVER_APP_ID: process.env.NAVER_COMMERCE_APP_ID,
+  NAVER_APP_SECRET: getSecret('NAVER_COMMERCE_APP_SECRET'),
+  SMARTSTORE_SELLER_ID: process.env.SMARTSTORE_SELLER_ID,
   VERCEL_API_URL: process.env.VERCEL_API_URL || 'https://numnaroad.vercel.app',
-  CRON_SECRET: process.env.CRON_SECRET || 'REDACTED_CRON_SECRET',
-
-  // PocketBase
-  POCKETBASE_URL: process.env.POCKETBASE_URL || 'https://pocketbase-production-2413.up.railway.app',
-  POCKETBASE_ADMIN_EMAIL: process.env.POCKETBASE_ADMIN_EMAIL || 'admin@numnaroad.com',
-  POCKETBASE_ADMIN_PASSWORD: process.env.POCKETBASE_ADMIN_PASSWORD || 'REDACTED_PASSWORD',
+  CRON_SECRET: process.env.CRON_SECRET,
+  POCKETBASE_URL: process.env.POCKETBASE_URL,
+  POCKETBASE_ADMIN_EMAIL: process.env.POCKETBASE_ADMIN_EMAIL,
+  POCKETBASE_ADMIN_PASSWORD: process.env.POCKETBASE_ADMIN_PASSWORD,
 };
+
+// Validate required config
+const REQUIRED_CONFIG = [
+  ['NAVER_APP_ID', 'NAVER_COMMERCE_APP_ID'],
+  ['NAVER_APP_SECRET', 'NAVER_COMMERCE_APP_SECRET or NAVER_COMMERCE_APP_SECRET_B64'],
+  ['SMARTSTORE_SELLER_ID', 'SMARTSTORE_SELLER_ID'],
+  ['CRON_SECRET', 'CRON_SECRET'],
+  ['POCKETBASE_URL', 'POCKETBASE_URL'],
+  ['POCKETBASE_ADMIN_EMAIL', 'POCKETBASE_ADMIN_EMAIL'],
+  ['POCKETBASE_ADMIN_PASSWORD', 'POCKETBASE_ADMIN_PASSWORD'],
+];
+
+const missing = REQUIRED_CONFIG.filter(([configKey]) => !CONFIG[configKey]);
+if (missing.length > 0) {
+  console.error('[FATAL] Missing required environment variables:');
+  missing.forEach(([, envKey]) => console.error(`  - ${envKey}`));
+  console.error('\nPlease set these in /opt/numnaroad/.env or export them before running.');
+  process.exit(1);
+}
 
 const NAVER_API_URL = 'https://api.commerce.naver.com/external/v1';
 
