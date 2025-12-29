@@ -14,6 +14,8 @@ import {
   Typography,
   Divider,
   Collapse,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
@@ -27,7 +29,7 @@ import AllInboxIcon from '@mui/icons-material/AllInbox';
 import PendingIcon from '@mui/icons-material/Pending';
 import ErrorIcon from '@mui/icons-material/Error';
 
-const DRAWER_WIDTH = 260;
+export const DRAWER_WIDTH = 260;
 
 interface NavItem {
   label: string;
@@ -74,9 +76,16 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
+
+export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
     '/admin/orders': true,
   });
@@ -89,6 +98,16 @@ export function AdminSidebar() {
       }));
     } else {
       router.push(item.path);
+      if (isMobile) {
+        onMobileClose();
+      }
+    }
+  };
+
+  const handleChildNavClick = (path: string) => {
+    router.push(path);
+    if (isMobile) {
+      onMobileClose();
     }
   };
 
@@ -99,20 +118,8 @@ export function AdminSidebar() {
     return pathname.startsWith(path.split('?')[0]);
   };
 
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: DRAWER_WIDTH,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: DRAWER_WIDTH,
-          boxSizing: 'border-box',
-          borderRight: '1px solid',
-          borderColor: 'divider',
-        },
-      }}
-    >
+  const drawerContent = (
+    <>
       <Toolbar>
         <Typography variant="h6" noWrap component="div" fontWeight={600}>
           NumnaRoad Admin
@@ -154,8 +161,8 @@ export function AdminSidebar() {
                     {item.children.map((child) => (
                       <ListItem key={child.path} disablePadding>
                         <ListItemButton
-                          onClick={() => router.push(child.path)}
-                          selected={pathname + (window?.location?.search || '') === child.path}
+                          onClick={() => handleChildNavClick(child.path)}
+                          selected={pathname + (typeof window !== 'undefined' ? window?.location?.search || '' : '') === child.path}
                           sx={{
                             pl: 4,
                             mx: 1,
@@ -181,7 +188,48 @@ export function AdminSidebar() {
           ))}
         </List>
       </Box>
-    </Drawer>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile drawer */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{
+          keepMounted: true, // Better open performance on mobile
+        }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* Desktop drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            borderRight: '1px solid',
+            borderColor: 'divider',
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    </>
   );
 }
 
