@@ -7,7 +7,7 @@
  * @see https://developers.solapi.dev/
  */
 
-import SolapiMessageService from 'solapi';
+import { SolapiMessageService } from 'solapi';
 
 // =============================================================================
 // Types
