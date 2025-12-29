@@ -4,6 +4,7 @@ import '../globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from '@/i18n';
+import { Header } from '@/components/layout/Header';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,6 +27,7 @@ export default async function RootLayout({
       <body className={inter.className}>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeProvider>
+            <Header />
             {children}
           </ThemeProvider>
         </NextIntlClientProvider>
