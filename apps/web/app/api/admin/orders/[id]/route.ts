@@ -83,6 +83,59 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const pb = await getAdminPocketBase();
     const body = await request.json();
 
+    // 수동 fulfillment 처리
+    if (body.action === 'manual_fulfillment') {
+      const { esimIccid, esimActivationCode, esimQrCode, providerUsed } = body;
+
+      // 필수 필드 검증
+      if (!esimIccid || !esimActivationCode) {
+        return NextResponse.json(
+          { error: 'ICCID and activation code are required' },
+          { status: 400 }
+        );
+      }
+
+      // 현재 주문 상태 확인
+      const currentOrder = await pb.collection(Collections.ORDERS).getOne(id);
+      if (currentOrder.status !== 'pending_manual_fulfillment' &&
+          currentOrder.status !== 'provider_failed' &&
+          currentOrder.status !== 'failed') {
+        return NextResponse.json(
+          { error: `Cannot manually fulfill order with status: ${currentOrder.status}` },
+          { status: 400 }
+        );
+      }
+
+      // 주문 업데이트
+      const order = await pb.collection(Collections.ORDERS).update(id, {
+        status: 'delivered',
+        esim_iccid: esimIccid,
+        esim_activation_code: esimActivationCode,
+        esim_qr_code: esimQrCode || '',
+        provider_used: providerUsed || 'manual',
+      });
+
+      // automation_logs에 기록
+      try {
+        await pb.collection(Collections.AUTOMATION_LOGS).create({
+          orderId: id,
+          stepName: 'manual_fulfillment_completed',
+          status: 'success',
+          providerName: providerUsed || 'manual',
+        });
+      } catch {
+        // 로그 기록 실패해도 주문 업데이트는 성공
+        console.warn('Failed to create automation log for manual fulfillment');
+      }
+
+      return NextResponse.json({
+        success: true,
+        order,
+        message: 'Manual fulfillment completed successfully',
+      });
+    }
+
+    // 일반 업데이트
     const order = await pb.collection(Collections.ORDERS).update(id, body);
 
     return NextResponse.json({

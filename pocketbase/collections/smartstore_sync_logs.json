@@ -1,0 +1,90 @@
+{
+  "id": "smartstore_sync_logs",
+  "name": "smartstore_sync_logs",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "timestamp",
+      "name": "timestamp",
+      "type": "date",
+      "required": true,
+      "options": {}
+    },
+    {
+      "id": "message",
+      "name": "message",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": null,
+        "max": 500,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "orders_found",
+      "name": "orders_found",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null,
+        "noDecimal": true
+      }
+    },
+    {
+      "id": "orders_processed",
+      "name": "orders_processed",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null,
+        "noDecimal": true
+      }
+    },
+    {
+      "id": "duration_ms",
+      "name": "duration_ms",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null,
+        "noDecimal": true
+      }
+    },
+    {
+      "id": "errors",
+      "name": "errors",
+      "type": "json",
+      "required": false,
+      "options": {
+        "maxSize": 10000
+      }
+    },
+    {
+      "id": "sync_type",
+      "name": "sync_type",
+      "type": "select",
+      "required": false,
+      "options": {
+        "maxSelect": 1,
+        "values": [
+          "webhook",
+          "cron",
+          "manual"
+        ]
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_timestamp ON smartstore_sync_logs (timestamp DESC)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

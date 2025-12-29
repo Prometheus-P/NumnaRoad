@@ -34,7 +34,14 @@ import SyncIcon from '@mui/icons-material/Sync';
 import AddIcon from '@mui/icons-material/Add';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+interface InternalProduct {
+  id: string;
+  name: string;
+  providerSku?: string;
+}
 
 interface SmartStoreStatus {
   isActive: boolean;
@@ -56,9 +63,13 @@ interface ProductMapping {
 }
 
 interface SyncLog {
+  id?: string;
   timestamp: string;
   message: string;
   ordersFound: number;
+  ordersProcessed?: number;
+  durationMs?: number;
+  errors?: unknown;
 }
 
 // Format time ago
@@ -78,7 +89,13 @@ function formatTimeAgo(date?: string): string {
 export default function SmartStorePage() {
   const queryClient = useQueryClient();
   const [mappingDialogOpen, setMappingDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedMapping, setSelectedMapping] = React.useState<ProductMapping | null>(null);
+  const [mappingForm, setMappingForm] = React.useState({
+    smartstoreProductName: '',
+    smartstoreProductId: '',
+    internalProductId: '',
+  });
 
   // Fetch SmartStore status
   const { data: status, isLoading: statusLoading } = useQuery<SmartStoreStatus>({
@@ -104,12 +121,20 @@ export default function SmartStorePage() {
   const { data: logs, isLoading: logsLoading } = useQuery<SyncLog[]>({
     queryKey: ['admin', 'smartstore', 'logs'],
     queryFn: async () => {
-      // Mock data for now - would need API endpoint
-      return [
-        { timestamp: new Date().toISOString(), message: 'Sync completed', ordersFound: 0 },
-        { timestamp: new Date(Date.now() - 300000).toISOString(), message: 'Sync completed', ordersFound: 2 },
-        { timestamp: new Date(Date.now() - 600000).toISOString(), message: 'Sync completed', ordersFound: 1 },
-      ];
+      const res = await fetch('/api/admin/smartstore/sync-logs?limit=20');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Fetch internal products for mapping
+  const { data: products } = useQuery<InternalProduct[]>({
+    queryKey: ['admin', 'products', 'list'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/products');
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.products || data || [];
     },
   });
 
@@ -124,6 +149,72 @@ export default function SmartStorePage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'smartstore'] });
     },
   });
+
+  // Save mapping mutation (create or update)
+  const saveMappingMutation = useMutation({
+    mutationFn: async (data: { id?: string; smartstoreProductName: string; smartstoreProductId: string; internalProductId: string }) => {
+      const method = data.id ? 'PATCH' : 'POST';
+      const res = await fetch('/api/admin/smartstore/mappings', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to save mapping');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'smartstore'] });
+      setMappingDialogOpen(false);
+      setSelectedMapping(null);
+      setMappingForm({ smartstoreProductName: '', smartstoreProductId: '', internalProductId: '' });
+    },
+  });
+
+  // Delete mapping mutation
+  const deleteMappingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/smartstore/mappings?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete mapping');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'smartstore'] });
+      setDeleteDialogOpen(false);
+      setSelectedMapping(null);
+    },
+  });
+
+  // Handle dialog open for edit
+  const handleEditMapping = (mapping: ProductMapping) => {
+    setSelectedMapping(mapping);
+    setMappingForm({
+      smartstoreProductName: mapping.smartstoreProductName,
+      smartstoreProductId: mapping.smartstoreProductId,
+      internalProductId: mapping.internalProductId || '',
+    });
+    setMappingDialogOpen(true);
+  };
+
+  // Handle dialog open for new
+  const handleNewMapping = () => {
+    setSelectedMapping(null);
+    setMappingForm({ smartstoreProductName: '', smartstoreProductId: '', internalProductId: '' });
+    setMappingDialogOpen(true);
+  };
+
+  // Handle save
+  const handleSaveMapping = () => {
+    saveMappingMutation.mutate({
+      id: selectedMapping?.id,
+      ...mappingForm,
+    });
+  };
+
+  // Handle delete confirmation
+  const handleDeleteClick = (mapping: ProductMapping) => {
+    setSelectedMapping(mapping);
+    setDeleteDialogOpen(true);
+  };
 
   return (
     <Box>
@@ -255,10 +346,7 @@ export default function SmartStorePage() {
                 </Typography>
                 <Button
                   startIcon={<AddIcon />}
-                  onClick={() => {
-                    setSelectedMapping(null);
-                    setMappingDialogOpen(true);
-                  }}
+                  onClick={handleNewMapping}
                 >
                   Add Mapping
                 </Button>
@@ -311,15 +399,21 @@ export default function SmartStorePage() {
                             />
                           </TableCell>
                           <TableCell align="right">
-                            <Button
-                              size="small"
-                              onClick={() => {
-                                setSelectedMapping(mapping);
-                                setMappingDialogOpen(true);
-                              }}
-                            >
-                              Edit
-                            </Button>
+                            <Box display="flex" gap={1} justifyContent="flex-end">
+                              <Button
+                                size="small"
+                                onClick={() => handleEditMapping(mapping)}
+                              >
+                                Edit
+                              </Button>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteClick(mapping)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))
@@ -411,35 +505,77 @@ export default function SmartStorePage() {
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             <TextField
               label="SmartStore Product Name"
-              defaultValue={selectedMapping?.smartstoreProductName}
+              value={mappingForm.smartstoreProductName}
+              onChange={(e) => setMappingForm({ ...mappingForm, smartstoreProductName: e.target.value })}
               fullWidth
               disabled={!!selectedMapping}
+              required
             />
             <TextField
               label="SmartStore Product ID"
-              defaultValue={selectedMapping?.smartstoreProductId}
+              value={mappingForm.smartstoreProductId}
+              onChange={(e) => setMappingForm({ ...mappingForm, smartstoreProductId: e.target.value })}
               fullWidth
               disabled={!!selectedMapping}
+              required
             />
             <FormControl fullWidth>
               <InputLabel>Internal Product</InputLabel>
               <Select
                 label="Internal Product"
-                defaultValue={selectedMapping?.internalProductId || ''}
+                value={mappingForm.internalProductId}
+                onChange={(e) => setMappingForm({ ...mappingForm, internalProductId: e.target.value })}
               >
                 <MenuItem value="">
                   <em>Not linked</em>
                 </MenuItem>
-                {/* Would need to fetch products list */}
-                <MenuItem value="product1">Japan 7-Day Unlimited</MenuItem>
-                <MenuItem value="product2">Thailand 15-Day 10GB</MenuItem>
+                {products?.map((product) => (
+                  <MenuItem key={product.id} value={product.id}>
+                    {product.name} {product.providerSku && `(${product.providerSku})`}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setMappingDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained">Save</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveMapping}
+            disabled={
+              saveMappingMutation.isPending ||
+              !mappingForm.smartstoreProductName ||
+              !mappingForm.smartstoreProductId
+            }
+          >
+            {saveMappingMutation.isPending ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Mapping</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the mapping for &quot;{selectedMapping?.smartstoreProductName}&quot;?
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => selectedMapping && deleteMappingMutation.mutate(selectedMapping.id)}
+            disabled={deleteMappingMutation.isPending}
+          >
+            {deleteMappingMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
