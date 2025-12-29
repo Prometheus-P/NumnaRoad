@@ -28,6 +28,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PendingIcon from '@mui/icons-material/Pending';
+import EditIcon from '@mui/icons-material/Edit';
+import EmailIcon from '@mui/icons-material/Email';
+import TextField from '@mui/material/TextField';
+import Snackbar from '@mui/material/Snackbar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface OrderLog {
@@ -160,6 +164,18 @@ export default function OrderDetailPage() {
   const orderId = params.id as string;
 
   const [retryDialogOpen, setRetryDialogOpen] = React.useState(false);
+  const [manualDialogOpen, setManualDialogOpen] = React.useState(false);
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  const [manualForm, setManualForm] = React.useState({
+    esimIccid: '',
+    esimActivationCode: '',
+    esimQrCode: '',
+    providerUsed: 'manual',
+  });
 
   const { data: order, isLoading, error } = useQuery<OrderDetail>({
     queryKey: ['admin', 'order', orderId],
@@ -181,6 +197,62 @@ export default function OrderDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
       setRetryDialogOpen(false);
+    },
+  });
+
+  const manualFulfillmentMutation = useMutation({
+    mutationFn: async (data: typeof manualForm) => {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'manual_fulfillment',
+          ...data,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Manual fulfillment failed');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
+      setManualDialogOpen(false);
+      setManualForm({
+        esimIccid: '',
+        esimActivationCode: '',
+        esimQrCode: '',
+        providerUsed: 'manual',
+      });
+    },
+  });
+
+  const resendEmailMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/orders/${orderId}/resend-email`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to resend email');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
+      setSnackbar({
+        open: true,
+        message: '이메일이 성공적으로 재발송되었습니다.',
+        severity: 'success',
+      });
+    },
+    onError: (error: Error) => {
+      setSnackbar({
+        open: true,
+        message: error.message || '이메일 재발송에 실패했습니다.',
+        severity: 'error',
+      });
     },
   });
 
@@ -216,15 +288,38 @@ export default function OrderDetailPage() {
           {order && <StatusBadge status={order.status} />}
         </Box>
         <Box display="flex" gap={1}>
-          {order?.status === 'failed' || order?.status === 'provider_failed' ? (
+          {(order?.status === 'pending_manual_fulfillment' ||
+            order?.status === 'provider_failed' ||
+            order?.status === 'failed') && (
             <Button
               variant="contained"
+              color="warning"
+              startIcon={<EditIcon />}
+              onClick={() => setManualDialogOpen(true)}
+            >
+              수동 처리
+            </Button>
+          )}
+          {(order?.status === 'failed' || order?.status === 'provider_failed') && (
+            <Button
+              variant="outlined"
               startIcon={<RefreshIcon />}
               onClick={() => setRetryDialogOpen(true)}
             >
-              Retry Fulfillment
+              Retry
             </Button>
-          ) : null}
+          )}
+          {order?.esimIccid && order?.esimActivationCode && (
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={resendEmailMutation.isPending ? <CircularProgress size={16} /> : <EmailIcon />}
+              onClick={() => resendEmailMutation.mutate()}
+              disabled={resendEmailMutation.isPending}
+            >
+              이메일 재발송
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -441,6 +536,97 @@ export default function OrderDetailPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Manual Fulfillment Dialog */}
+      <Dialog
+        open={manualDialogOpen}
+        onClose={() => setManualDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>수동 Fulfillment 처리</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            eSIM 정보를 직접 입력하여 주문을 완료 처리합니다.
+          </Typography>
+          {manualFulfillmentMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {(manualFulfillmentMutation.error as Error)?.message || 'Failed to process'}
+            </Alert>
+          )}
+          <Box display="flex" flexDirection="column" gap={2}>
+            <TextField
+              label="ICCID"
+              value={manualForm.esimIccid}
+              onChange={(e) => setManualForm({ ...manualForm, esimIccid: e.target.value })}
+              required
+              fullWidth
+              placeholder="89012345678901234567"
+              helperText="eSIM의 ICCID를 입력하세요"
+            />
+            <TextField
+              label="활성화 코드"
+              value={manualForm.esimActivationCode}
+              onChange={(e) => setManualForm({ ...manualForm, esimActivationCode: e.target.value })}
+              required
+              fullWidth
+              placeholder="LPA:1$..."
+              helperText="eSIM 활성화 코드를 입력하세요"
+            />
+            <TextField
+              label="QR 코드 URL (선택)"
+              value={manualForm.esimQrCode}
+              onChange={(e) => setManualForm({ ...manualForm, esimQrCode: e.target.value })}
+              fullWidth
+              placeholder="https://..."
+              helperText="QR 코드 이미지 URL (선택 사항)"
+            />
+            <TextField
+              label="Provider"
+              value={manualForm.providerUsed}
+              onChange={(e) => setManualForm({ ...manualForm, providerUsed: e.target.value })}
+              fullWidth
+              placeholder="manual"
+              helperText="eSIM 제공 업체명"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualDialogOpen(false)}>취소</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={() => manualFulfillmentMutation.mutate(manualForm)}
+            disabled={
+              manualFulfillmentMutation.isPending ||
+              !manualForm.esimIccid ||
+              !manualForm.esimActivationCode
+            }
+          >
+            {manualFulfillmentMutation.isPending ? (
+              <CircularProgress size={20} />
+            ) : (
+              '완료 처리'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
