@@ -29,7 +29,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PendingIcon from '@mui/icons-material/Pending';
 import EditIcon from '@mui/icons-material/Edit';
+import EmailIcon from '@mui/icons-material/Email';
 import TextField from '@mui/material/TextField';
+import Snackbar from '@mui/material/Snackbar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface OrderLog {
@@ -163,6 +165,11 @@ export default function OrderDetailPage() {
 
   const [retryDialogOpen, setRetryDialogOpen] = React.useState(false);
   const [manualDialogOpen, setManualDialogOpen] = React.useState(false);
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
   const [manualForm, setManualForm] = React.useState({
     esimIccid: '',
     esimActivationCode: '',
@@ -221,6 +228,34 @@ export default function OrderDetailPage() {
     },
   });
 
+  const resendEmailMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/orders/${orderId}/resend-email`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to resend email');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
+      setSnackbar({
+        open: true,
+        message: '이메일이 성공적으로 재발송되었습니다.',
+        severity: 'success',
+      });
+    },
+    onError: (error: Error) => {
+      setSnackbar({
+        open: true,
+        message: error.message || '이메일 재발송에 실패했습니다.',
+        severity: 'error',
+      });
+    },
+  });
+
   if (error) {
     return (
       <Box>
@@ -272,6 +307,17 @@ export default function OrderDetailPage() {
               onClick={() => setRetryDialogOpen(true)}
             >
               Retry
+            </Button>
+          )}
+          {order?.esimIccid && order?.esimActivationCode && (
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={resendEmailMutation.isPending ? <CircularProgress size={16} /> : <EmailIcon />}
+              onClick={() => resendEmailMutation.mutate()}
+              disabled={resendEmailMutation.isPending}
+            >
+              이메일 재발송
             </Button>
           )}
         </Box>
@@ -565,6 +611,22 @@ export default function OrderDetailPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
