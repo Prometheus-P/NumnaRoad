@@ -28,6 +28,7 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import AllInboxIcon from '@mui/icons-material/AllInbox';
 import PendingIcon from '@mui/icons-material/Pending';
 import ErrorIcon from '@mui/icons-material/Error';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 export const DRAWER_WIDTH = 260;
 
@@ -73,6 +74,11 @@ const navItems: NavItem[] = [
     label: 'Settings',
     path: '/admin/settings',
     icon: <SettingsIcon />,
+  },
+  {
+    label: 'Guide',
+    path: '/admin/guide',
+    icon: <HelpOutlineIcon />,
   },
 ];
 
