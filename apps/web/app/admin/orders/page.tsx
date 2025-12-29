@@ -20,6 +20,8 @@ import {
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import { useQuery } from '@tanstack/react-query';
 
 interface Order {
@@ -94,6 +96,51 @@ function formatDate(date: string): string {
   }).format(new Date(date));
 }
 
+// Copyable Order ID component
+function CopyableOrderId({ orderId }: { orderId: string }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    navigator.clipboard.writeText(orderId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Box display="flex" alignItems="center" gap={0.5}>
+      <Tooltip title={orderId} placement="top">
+        <Typography
+          variant="body2"
+          fontWeight={500}
+          sx={{
+            fontFamily: 'monospace',
+            fontSize: '0.8rem',
+            maxWidth: 100,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {orderId}
+        </Typography>
+      </Tooltip>
+      <Tooltip title={copied ? 'Copied!' : 'Copy ID'}>
+        <IconButton
+          size="small"
+          onClick={handleCopy}
+          sx={{
+            p: 0.25,
+            '& .MuiSvgIcon-root': { fontSize: '0.9rem' },
+          }}
+        >
+          {copied ? <CheckIcon color="success" /> : <ContentCopyIcon />}
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -135,11 +182,9 @@ export default function OrdersPage() {
     {
       field: 'orderNumber',
       headerName: 'Order ID',
-      width: 120,
+      width: 150,
       renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
-          {params.value?.slice(0, 8)}...
-        </Typography>
+        <CopyableOrderId orderId={params.value || params.row.id} />
       ),
     },
     {
