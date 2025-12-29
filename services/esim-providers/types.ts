@@ -546,6 +546,8 @@ export type StepName =
   | 'manual_fulfillment_attempt'
   | 'email_sent'
   | 'email_failed'
+  | 'alimtalk_sent'
+  | 'alimtalk_failed'
   | 'order_completed'
   | 'order_failed';
 
