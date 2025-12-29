@@ -379,7 +379,7 @@ export default function AdminGuidePage() {
           에러 모니터링
         </Typography>
         <Typography variant="body2">
-          "Recent Errors" 탭에서 최근 24시간 내 발생한 에러를 확인할 수 있습니다.
+          &quot;Recent Errors&quot; 탭에서 최근 24시간 내 발생한 에러를 확인할 수 있습니다.
           에러 메시지, 발생 횟수, 마지막 발생 시간이 표시됩니다.
         </Typography>
       </GuideSection>
