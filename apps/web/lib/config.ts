@@ -66,6 +66,18 @@ interface Config {
     webhookSecret: string;
     apiUrl: string;
   };
+  kakaoAlimtalk: {
+    enabled: boolean;
+    solapi: {
+      apiKey: string;
+      apiSecret: string;
+    };
+    kakao: {
+      pfId: string;
+      senderKey: string;
+      esimDeliveryTemplateId: string;
+    };
+  };
 }
 
 let configInstance: Config | null = null;
@@ -163,6 +175,18 @@ export function getConfig(): Config {
       sellerId: optionalEnv('SMARTSTORE_SELLER_ID', ''),
       webhookSecret: optionalEnv('NAVER_COMMERCE_WEBHOOK_SECRET', ''),
       apiUrl: optionalEnv('NAVER_COMMERCE_API_URL', 'https://api.commerce.naver.com/external/v1'),
+    },
+    kakaoAlimtalk: {
+      enabled: optionalEnv('KAKAO_ALIMTALK_ENABLED', 'false') === 'true',
+      solapi: {
+        apiKey: optionalEnv('SOLAPI_API_KEY', ''),
+        apiSecret: optionalEnv('SOLAPI_API_SECRET', ''),
+      },
+      kakao: {
+        pfId: optionalEnv('KAKAO_CHANNEL_PF_ID', ''),
+        senderKey: optionalEnv('KAKAO_ALIMTALK_SENDER_KEY', ''),
+        esimDeliveryTemplateId: optionalEnv('KAKAO_ESIM_DELIVERY_TEMPLATE_ID', ''),
+      },
     },
   };
 

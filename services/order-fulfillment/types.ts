@@ -118,6 +118,7 @@ export interface FulfillmentOrder {
   orderId: string;
   customerEmail: string;
   customerName?: string;
+  customerPhone?: string;
   productId: string;
   providerSku: string;
   amount: number;
@@ -157,6 +158,8 @@ export interface FulfillmentResult {
   };
   emailSent?: boolean;
   emailMessageId?: string;
+  alimtalkSent?: boolean;
+  alimtalkMessageId?: string;
   error?: {
     message: string;
     type: ErrorType;
@@ -177,6 +180,7 @@ export interface FulfillmentConfig {
   maxRetries: number;
   enableEmailNotification: boolean;
   enableDiscordAlerts: boolean;
+  enableKakaoAlimtalk: boolean;
 }
 
 /**
@@ -188,6 +192,7 @@ export const DEFAULT_FULFILLMENT_CONFIG: FulfillmentConfig = {
   maxRetries: 3,
   enableEmailNotification: true,
   enableDiscordAlerts: true,
+  enableKakaoAlimtalk: false, // Disabled by default until Kakao setup is complete
 };
 
 // =============================================================================
