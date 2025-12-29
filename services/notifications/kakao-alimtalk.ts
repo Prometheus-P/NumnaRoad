@@ -171,7 +171,7 @@ export async function sendEsimDeliveryAlimtalk(
 
     return {
       success: true,
-      messageId: result.groupId || result.messageId,
+      messageId: result.groupInfo?.groupId,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
