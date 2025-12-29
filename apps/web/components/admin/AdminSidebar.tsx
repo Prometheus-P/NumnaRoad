@@ -29,54 +29,56 @@ import AllInboxIcon from '@mui/icons-material/AllInbox';
 import PendingIcon from '@mui/icons-material/Pending';
 import ErrorIcon from '@mui/icons-material/Error';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import { useAdminLanguage } from '@/lib/i18n';
 
 export const DRAWER_WIDTH = 260;
 
 interface NavItem {
-  label: string;
+  id: string;
   path: string;
   icon: React.ReactNode;
-  children?: NavItem[];
+  children?: { id: string; path: string; icon: React.ReactNode }[];
 }
 
-const navItems: NavItem[] = [
+// Navigation items structure (labels come from translations)
+const navItemsConfig: NavItem[] = [
   {
-    label: 'Dashboard',
+    id: 'dashboard',
     path: '/admin',
     icon: <DashboardIcon />,
   },
   {
-    label: 'Orders',
+    id: 'orders',
     path: '/admin/orders',
     icon: <ShoppingCartIcon />,
     children: [
-      { label: 'All Orders', path: '/admin/orders', icon: <AllInboxIcon /> },
-      { label: 'Pending', path: '/admin/orders?status=pending', icon: <PendingIcon /> },
-      { label: 'Failed', path: '/admin/orders?status=failed', icon: <ErrorIcon /> },
+      { id: 'allOrders', path: '/admin/orders', icon: <AllInboxIcon /> },
+      { id: 'pending', path: '/admin/orders?status=pending', icon: <PendingIcon /> },
+      { id: 'failed', path: '/admin/orders?status=failed', icon: <ErrorIcon /> },
     ],
   },
   {
-    label: 'Products',
+    id: 'products',
     path: '/admin/products',
     icon: <InventoryIcon />,
   },
   {
-    label: 'Providers',
+    id: 'providers',
     path: '/admin/providers',
     icon: <CloudIcon />,
   },
   {
-    label: 'SmartStore',
+    id: 'smartstore',
     path: '/admin/smartstore',
     icon: <StorefrontIcon />,
   },
   {
-    label: 'Settings',
+    id: 'settings',
     path: '/admin/settings',
     icon: <SettingsIcon />,
   },
   {
-    label: 'Guide',
+    id: 'guide',
     path: '/admin/guide',
     icon: <HelpOutlineIcon />,
   },
@@ -91,10 +93,28 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useAdminLanguage();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
     '/admin/orders': true,
   });
+
+  // Get label from translations
+  const getLabel = (id: string): string => {
+    const labels: Record<string, string> = {
+      dashboard: t.sidebar.dashboard,
+      orders: t.sidebar.orders,
+      allOrders: t.sidebar.allOrders,
+      pending: t.sidebar.pending,
+      failed: t.sidebar.failed,
+      products: t.sidebar.products,
+      providers: t.sidebar.providers,
+      smartstore: t.sidebar.smartstore,
+      settings: t.sidebar.settings,
+      guide: t.sidebar.guide,
+    };
+    return labels[id] || id;
+  };
 
   const handleNavClick = (item: NavItem) => {
     if (item.children) {
@@ -128,13 +148,13 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
     <>
       <Toolbar>
         <Typography variant="h6" noWrap component="div" fontWeight={600}>
-          NumnaRoad Admin
+          {t.sidebar.title}
         </Typography>
       </Toolbar>
       <Divider />
       <Box sx={{ overflow: 'auto', py: 1 }}>
         <List disablePadding>
-          {navItems.map((item) => (
+          {navItemsConfig.map((item) => (
             <React.Fragment key={item.path}>
               <ListItem disablePadding>
                 <ListItemButton
@@ -157,7 +177,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
+                  <ListItemText primary={getLabel(item.id)} />
                   {item.children && (openMenus[item.path] ? <ExpandLess /> : <ExpandMore />)}
                 </ListItemButton>
               </ListItem>
@@ -181,7 +201,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
                         >
                           <ListItemIcon sx={{ minWidth: 36 }}>{child.icon}</ListItemIcon>
                           <ListItemText
-                            primary={child.label}
+                            primary={getLabel(child.id)}
                             primaryTypographyProps={{ variant: 'body2' }}
                           />
                         </ListItemButton>

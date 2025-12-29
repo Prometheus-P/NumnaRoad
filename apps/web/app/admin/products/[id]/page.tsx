@@ -20,11 +20,55 @@ import {
   Select,
   MenuItem,
   InputAdornment,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminLanguage, AdminLocale } from '@/lib/i18n';
+
+// 국가 목록 (인기 여행지)
+const COUNTRIES = [
+  { code: 'JP', nameKo: '일본', nameEn: 'Japan', flag: '🇯🇵' },
+  { code: 'US', nameKo: '미국', nameEn: 'United States', flag: '🇺🇸' },
+  { code: 'CN', nameKo: '중국', nameEn: 'China', flag: '🇨🇳' },
+  { code: 'TH', nameKo: '태국', nameEn: 'Thailand', flag: '🇹🇭' },
+  { code: 'VN', nameKo: '베트남', nameEn: 'Vietnam', flag: '🇻🇳' },
+  { code: 'TW', nameKo: '대만', nameEn: 'Taiwan', flag: '🇹🇼' },
+  { code: 'SG', nameKo: '싱가포르', nameEn: 'Singapore', flag: '🇸🇬' },
+  { code: 'HK', nameKo: '홍콩', nameEn: 'Hong Kong', flag: '🇭🇰' },
+  { code: 'PH', nameKo: '필리핀', nameEn: 'Philippines', flag: '🇵🇭' },
+  { code: 'MY', nameKo: '말레이시아', nameEn: 'Malaysia', flag: '🇲🇾' },
+  { code: 'ID', nameKo: '인도네시아', nameEn: 'Indonesia', flag: '🇮🇩' },
+  { code: 'AU', nameKo: '호주', nameEn: 'Australia', flag: '🇦🇺' },
+  { code: 'NZ', nameKo: '뉴질랜드', nameEn: 'New Zealand', flag: '🇳🇿' },
+  { code: 'EU', nameKo: '유럽 (다국가)', nameEn: 'Europe (Multi)', flag: '🇪🇺' },
+  { code: 'GB', nameKo: '영국', nameEn: 'United Kingdom', flag: '🇬🇧' },
+  { code: 'FR', nameKo: '프랑스', nameEn: 'France', flag: '🇫🇷' },
+  { code: 'DE', nameKo: '독일', nameEn: 'Germany', flag: '🇩🇪' },
+  { code: 'IT', nameKo: '이탈리아', nameEn: 'Italy', flag: '🇮🇹' },
+  { code: 'ES', nameKo: '스페인', nameEn: 'Spain', flag: '🇪🇸' },
+  { code: 'CA', nameKo: '캐나다', nameEn: 'Canada', flag: '🇨🇦' },
+  { code: 'MX', nameKo: '멕시코', nameEn: 'Mexico', flag: '🇲🇽' },
+  { code: 'BR', nameKo: '브라질', nameEn: 'Brazil', flag: '🇧🇷' },
+];
+
+// Helper to get country name based on locale
+function getCountryName(country: typeof COUNTRIES[number], locale: AdminLocale) {
+  return locale === 'ko' ? country.nameKo : country.nameEn;
+}
+
+// Provider 목록
+const PROVIDER_IDS = ['redteago', 'esimcard', 'mobimatter', 'airalo', 'manual'] as const;
+
+// 데이터 용량 옵션
+const DATA_OPTIONS = ['500MB', '1GB', '2GB', '3GB', '5GB', '10GB', '15GB', '20GB'];
+
+// 속도 옵션
+const SPEED_OPTIONS = ['3G', '4G LTE', '5G'];
 
 interface Product {
   id: string;
@@ -50,6 +94,7 @@ export default function ProductEditPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { t, locale } = useAdminLanguage();
   const productId = params.id as string;
   const isNew = productId === 'new';
 
@@ -60,7 +105,7 @@ export default function ProductEditPage() {
     dataLimit: '',
     durationDays: 7,
     speed: '4G LTE',
-    providerId: 'airalo',
+    providerId: 'redteago',
     providerSku: '',
     costPrice: 0,
     price: 0,
@@ -71,6 +116,24 @@ export default function ProductEditPage() {
     description: '',
     features: [],
   });
+
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+
+  // 국가 선택 시 자동으로 slug 생성
+  const generateSlug = (country: string, dataLimit: string, duration: number) => {
+    const countryInfo = COUNTRIES.find(c => c.code === country);
+    const countryName = countryInfo?.nameEn?.toLowerCase().replace(/\s+/g, '-') || country.toLowerCase();
+    const data = dataLimit.toLowerCase().replace(/\s+/g, '-');
+    return `${countryName}-${data}-${duration}d`;
+  };
+
+  // 국가 선택 시 자동으로 상품명 생성
+  const generateName = (country: string, dataLimit: string, duration: number) => {
+    const countryInfo = COUNTRIES.find(c => c.code === country);
+    const countryName = countryInfo ? getCountryName(countryInfo, locale) : country;
+    const daysLabel = locale === 'ko' ? '일' : 'days';
+    return `${countryName} eSIM ${dataLimit} ${duration}${daysLabel}`;
+  };
 
   const [featuresText, setFeaturesText] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -109,13 +172,16 @@ export default function ProductEditPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to save product');
+        throw new Error(error.error || t.products.saveFailed);
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
-      router.push('/admin/products');
+      setSuccessMessage(isNew ? t.products.detail.productCreated : t.products.detail.productUpdated);
+      setTimeout(() => {
+        router.push('/admin/products');
+      }, 1000);
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -127,7 +193,7 @@ export default function ProductEditPage() {
       const res = await fetch(`/api/admin/products/${productId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete product');
+      if (!res.ok) throw new Error(t.products.detail.deleteFailed);
       return res.json();
     },
     onSuccess: () => {
@@ -138,6 +204,18 @@ export default function ProductEditPage() {
       setError(err.message);
     },
   });
+
+  // 상품 복사 기능
+  const handleDuplicate = () => {
+    const copyLabel = locale === 'ko' ? ' (복사본)' : ' (Copy)';
+    const newFormData = {
+      ...formData,
+      name: formData.name + copyLabel,
+      slug: formData.slug + '-copy',
+    };
+    setFormData(newFormData);
+    router.push('/admin/products/new');
+  };
 
   const handleChange = (field: keyof Product, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -163,6 +241,9 @@ export default function ProductEditPage() {
     );
   }
 
+  // 선택된 국가 정보
+  const selectedCountry = COUNTRIES.find(c => c.code === formData.country);
+
   return (
     <Box component="form" onSubmit={handleSubmit}>
       {/* Header */}
@@ -172,26 +253,42 @@ export default function ProductEditPage() {
             startIcon={<ArrowBackIcon />}
             onClick={() => router.push('/admin/products')}
           >
-            Back
+            {t.products.detail.back}
           </Button>
           <Typography variant="h5" fontWeight={600}>
-            {isNew ? 'New Product' : 'Edit Product'}
+            {isNew ? t.products.newProduct : t.products.editProduct}
           </Typography>
+          {selectedCountry && (
+            <Chip
+              label={`${selectedCountry.flag} ${getCountryName(selectedCountry, locale)}`}
+              color="primary"
+              variant="outlined"
+            />
+          )}
         </Box>
         <Box display="flex" gap={1}>
           {!isNew && (
-            <Button
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={() => {
-                if (confirm('Are you sure you want to delete this product?')) {
-                  deleteMutation.mutate();
-                }
-              }}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<ContentCopyIcon />}
+                onClick={handleDuplicate}
+              >
+                {t.products.detail.copy}
+              </Button>
+              <Button
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => {
+                  if (confirm(t.products.deleteConfirm)) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                {t.common.delete}
+              </Button>
+            </>
           )}
           <Button
             type="submit"
@@ -199,13 +296,19 @@ export default function ProductEditPage() {
             startIcon={<SaveIcon />}
             disabled={saveMutation.isPending}
           >
-            Save
+            {saveMutation.isPending ? t.products.detail.saving : t.common.save}
           </Button>
         </Box>
       </Box>
 
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
+        </Alert>
+      )}
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -216,37 +319,58 @@ export default function ProductEditPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Basic Information
+                {t.products.detail.basicInfo}
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Autocomplete
+                    options={COUNTRIES}
+                    getOptionLabel={(option) => `${option.flag} ${getCountryName(option, locale)} (${option.code})`}
+                    value={COUNTRIES.find(c => c.code === formData.country) || null}
+                    onChange={(_, newValue) => {
+                      const countryCode = newValue?.code || '';
+                      handleChange('country', countryCode);
+                      // 자동으로 상품명과 slug 생성
+                      if (isNew && countryCode && formData.dataLimit && formData.durationDays) {
+                        handleChange('name', generateName(countryCode, formData.dataLimit, formData.durationDays));
+                        handleChange('slug', generateSlug(countryCode, formData.dataLimit, formData.durationDays));
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={t.products.detail.selectCountry}
+                        required
+                        placeholder={t.products.detail.selectCountryPlaceholder}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.code}>
+                        <span style={{ marginRight: 8 }}>{option.flag}</span>
+                        {getCountryName(option, locale)} ({option.code})
+                      </li>
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
-                    label="Product Name"
+                    label={t.products.productName}
                     value={formData.name}
                     onChange={(e) => handleChange('name', e.target.value)}
                     fullWidth
                     required
+                    placeholder={t.products.detail.productNamePlaceholder}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
-                    label="Slug"
+                    label={t.products.slug}
                     value={formData.slug}
                     onChange={(e) => handleChange('slug', e.target.value)}
                     fullWidth
                     required
-                    helperText="URL-friendly identifier"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    label="Country Code"
-                    value={formData.country}
-                    onChange={(e) => handleChange('country', e.target.value.toUpperCase())}
-                    fullWidth
-                    required
-                    inputProps={{ maxLength: 2 }}
-                    helperText="ISO 2-letter code (e.g., JP, US)"
+                    helperText={t.products.detail.slugHelper}
+                    placeholder={t.products.detail.slugPlaceholder}
                   />
                 </Grid>
               </Grid>
@@ -254,72 +378,106 @@ export default function ProductEditPage() {
               <Divider sx={{ my: 3 }} />
 
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Product Specs
+                {t.products.detail.productSpec}
               </Typography>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    label="Data Limit"
-                    value={formData.dataLimit}
-                    onChange={(e) => handleChange('dataLimit', e.target.value)}
-                    fullWidth
-                    required
-                    helperText="e.g., Unlimited, 10GB"
+                  <Autocomplete
+                    freeSolo
+                    options={[...DATA_OPTIONS, t.products.unlimited]}
+                    value={formData.dataLimit || ''}
+                    onChange={(_, newValue) => {
+                      handleChange('dataLimit', newValue || '');
+                      // 자동으로 상품명과 slug 업데이트
+                      if (isNew && formData.country && newValue && formData.durationDays) {
+                        handleChange('name', generateName(formData.country, newValue, formData.durationDays));
+                        handleChange('slug', generateSlug(formData.country, newValue, formData.durationDays));
+                      }
+                    }}
+                    onInputChange={(_, newValue) => {
+                      handleChange('dataLimit', newValue);
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={t.products.detail.dataCapacity}
+                        required
+                        placeholder={t.products.detail.dataPlaceholder}
+                      />
+                    )}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
-                    label="Duration (Days)"
+                    label={t.products.detail.validityDays}
                     type="number"
                     value={formData.durationDays}
-                    onChange={(e) => handleChange('durationDays', parseInt(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value) || 0;
+                      handleChange('durationDays', days);
+                      // 자동으로 상품명과 slug 업데이트
+                      if (isNew && formData.country && formData.dataLimit && days) {
+                        handleChange('name', generateName(formData.country, formData.dataLimit, days));
+                        handleChange('slug', generateSlug(formData.country, formData.dataLimit, days));
+                      }
+                    }}
                     fullWidth
                     required
+                    inputProps={{ min: 1, max: 365 }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    label="Speed"
-                    value={formData.speed}
-                    onChange={(e) => handleChange('speed', e.target.value)}
-                    fullWidth
-                    helperText="e.g., 4G LTE, 5G"
-                  />
+                  <FormControl fullWidth>
+                    <InputLabel>{t.products.speed}</InputLabel>
+                    <Select
+                      value={formData.speed || '4G LTE'}
+                      label={t.products.speed}
+                      onChange={(e) => handleChange('speed', e.target.value)}
+                    >
+                      {SPEED_OPTIONS.map(speed => (
+                        <MenuItem key={speed} value={speed}>{speed}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
               </Grid>
 
               <Divider sx={{ my: 3 }} />
 
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Pricing
+                {t.products.detail.providerAndPrice}
               </Typography>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <FormControl fullWidth>
-                    <InputLabel>Provider</InputLabel>
+                    <InputLabel>{t.products.detail.providerLabel}</InputLabel>
                     <Select
                       value={formData.providerId}
-                      label="Provider"
+                      label={t.products.detail.providerLabel}
                       onChange={(e) => handleChange('providerId', e.target.value)}
                     >
-                      <MenuItem value="airalo">Airalo</MenuItem>
-                      <MenuItem value="esimcard">eSIM Card</MenuItem>
-                      <MenuItem value="mobimatter">MobiMatter</MenuItem>
+                      {PROVIDER_IDS.map(providerId => (
+                        <MenuItem key={providerId} value={providerId}>
+                          {t.products.providers[providerId as keyof typeof t.products.providers]}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 8 }}>
                   <TextField
-                    label="Provider SKU"
+                    label={t.products.detail.providerSku}
                     value={formData.providerSku}
                     onChange={(e) => handleChange('providerSku', e.target.value)}
                     fullWidth
                     required
+                    helperText={t.products.detail.providerSkuHelper}
+                    placeholder={t.products.detail.providerSkuPlaceholder}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
-                    label="Cost Price"
+                    label={t.products.detail.costUsd}
                     type="number"
                     value={formData.costPrice}
                     onChange={(e) => handleChange('costPrice', parseFloat(e.target.value) || 0)}
@@ -327,11 +485,13 @@ export default function ProductEditPage() {
                     InputProps={{
                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                     }}
+                    inputProps={{ step: 0.01, min: 0 }}
+                    helperText={t.products.detail.costHelper}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
-                    label="Sale Price"
+                    label={t.products.detail.priceKrw}
                     type="number"
                     value={formData.price}
                     onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
@@ -340,15 +500,23 @@ export default function ProductEditPage() {
                     InputProps={{
                       startAdornment: <InputAdornment position="start">₩</InputAdornment>,
                     }}
+                    inputProps={{ step: 100, min: 0 }}
+                    helperText={t.products.detail.priceHelper}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
-                    label="Margin"
+                    label={t.products.detail.marginRate}
                     value={`${marginPercent}%`}
                     fullWidth
                     disabled
-                    helperText="Auto-calculated"
+                    helperText={t.products.detail.marginHelper}
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        color: parseFloat(marginPercent) >= 30 ? 'success.main' : parseFloat(marginPercent) >= 15 ? 'warning.main' : 'error.main',
+                        fontWeight: 600,
+                      }
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -356,26 +524,28 @@ export default function ProductEditPage() {
               <Divider sx={{ my: 3 }} />
 
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Description
+                {t.products.detail.productDescription}
               </Typography>
               <TextField
-                label="Product Description"
+                label={t.products.description}
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
                 fullWidth
                 multiline
-                rows={4}
+                rows={3}
+                placeholder={t.products.detail.descriptionPlaceholder}
               />
 
               <Box mt={2}>
                 <TextField
-                  label="Features (one per line)"
+                  label={t.products.detail.features}
                   value={featuresText}
                   onChange={(e) => setFeaturesText(e.target.value)}
                   fullWidth
                   multiline
                   rows={4}
-                  helperText="Enter each feature on a new line"
+                  helperText={t.products.detail.featuresHelper}
+                  placeholder={t.products.detail.featuresPlaceholder}
                 />
               </Box>
             </CardContent>
@@ -387,7 +557,7 @@ export default function ProductEditPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Status
+                {t.products.detail.statusSettings}
               </Typography>
               <Box display="flex" flexDirection="column" gap={2}>
                 <FormControlLabel
@@ -395,37 +565,90 @@ export default function ProductEditPage() {
                     <Switch
                       checked={formData.isActive}
                       onChange={(e) => handleChange('isActive', e.target.checked)}
+                      color="success"
                     />
                   }
-                  label="Active"
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>
+                        {t.products.detail.active}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {t.products.detail.activeHelper}
+                      </Typography>
+                    </Box>
+                  }
                 />
+                <Divider />
                 <FormControlLabel
                   control={
                     <Switch
                       checked={formData.isFeatured}
                       onChange={(e) => handleChange('isFeatured', e.target.checked)}
+                      color="primary"
                     />
                   }
-                  label="Featured"
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>
+                        {t.products.detail.featured}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {t.products.detail.featuredHelper}
+                      </Typography>
+                    </Box>
+                  }
                 />
+                <Divider />
                 <TextField
-                  label="Stock Count"
+                  label={t.products.detail.stockCount}
                   type="number"
                   value={formData.stockCount}
                   onChange={(e) => handleChange('stockCount', parseInt(e.target.value) || 0)}
                   fullWidth
+                  inputProps={{ min: 0 }}
+                  helperText={t.products.detail.stockHelper}
                 />
                 <TextField
-                  label="Sort Order"
+                  label={t.products.detail.sortOrder}
                   type="number"
                   value={formData.sortOrder}
                   onChange={(e) => handleChange('sortOrder', parseInt(e.target.value) || 0)}
                   fullWidth
-                  helperText="Lower numbers appear first"
+                  inputProps={{ min: 0 }}
+                  helperText={t.products.detail.sortHelper}
                 />
               </Box>
             </CardContent>
           </Card>
+
+          {/* Quick Preview */}
+          {formData.name && (formData.price ?? 0) > 0 && (
+            <Card sx={{ mt: 2, bgcolor: 'primary.50' }}>
+              <CardContent>
+                <Typography variant="subtitle2" color="primary" mb={1}>
+                  {t.products.preview}
+                </Typography>
+                <Typography variant="h6" fontWeight={600}>
+                  {formData.name}
+                </Typography>
+                <Box display="flex" gap={1} mt={1} flexWrap="wrap">
+                  {formData.dataLimit && (
+                    <Chip size="small" label={formData.dataLimit} />
+                  )}
+                  {formData.durationDays && (
+                    <Chip size="small" label={`${formData.durationDays}${t.products.days}`} />
+                  )}
+                  {formData.speed && (
+                    <Chip size="small" label={formData.speed} color={formData.speed === '5G' ? 'success' : 'default'} />
+                  )}
+                </Box>
+                <Typography variant="h5" color="primary" fontWeight={700} mt={2}>
+                  {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(formData.price ?? 0)}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
         </Grid>
       </Grid>
     </Box>

@@ -24,6 +24,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminLanguage } from '@/lib/i18n';
 
 interface Product {
   id: string;
@@ -79,6 +80,7 @@ function formatUSD(value: number): string {
 export default function ProductsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { t, locale } = useAdminLanguage();
 
   const [page, setPage] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(25);
@@ -138,7 +140,7 @@ export default function ProductsPage() {
   const columns: GridColDef[] = [
     {
       field: 'isActive',
-      headerName: 'Active',
+      headerName: t.common.active,
       width: 80,
       renderCell: (params: GridRenderCellParams) => (
         <Switch
@@ -148,18 +150,19 @@ export default function ProductsPage() {
             toggleActiveMutation.mutate({ id: params.row.id, isActive: e.target.checked });
           }}
           size="small"
+          color="success"
         />
       ),
     },
     {
       field: 'name',
-      headerName: 'Product Name',
+      headerName: t.products.productName,
       flex: 1,
       minWidth: 200,
     },
     {
       field: 'country',
-      headerName: 'Country',
+      headerName: t.products.country,
       width: 100,
       renderCell: (params: GridRenderCellParams) => (
         <Box display="flex" alignItems="center" gap={1}>
@@ -170,30 +173,30 @@ export default function ProductsPage() {
     },
     {
       field: 'dataLimit',
-      headerName: 'Data',
+      headerName: t.products.dataLimit,
       width: 100,
     },
     {
       field: 'durationDays',
-      headerName: 'Duration',
+      headerName: t.products.duration,
       width: 90,
-      renderCell: (params: GridRenderCellParams) => `${params.value}d`,
+      renderCell: (params: GridRenderCellParams) => `${params.value}${t.products.days}`,
     },
     {
       field: 'costPrice',
-      headerName: 'Cost',
+      headerName: t.products.costPrice,
       width: 100,
       renderCell: (params: GridRenderCellParams) => formatUSD(params.value),
     },
     {
       field: 'price',
-      headerName: 'Price',
+      headerName: t.products.salePrice,
       width: 120,
       renderCell: (params: GridRenderCellParams) => formatCurrency(params.value),
     },
     {
       field: 'providerId',
-      headerName: 'Provider',
+      headerName: t.products.provider,
       width: 100,
       renderCell: (params: GridRenderCellParams) => (
         <Chip label={params.value || 'N/A'} size="small" variant="outlined" />
@@ -201,14 +204,15 @@ export default function ProductsPage() {
     },
     {
       field: 'stockCount',
-      headerName: 'Stock',
+      headerName: t.products.stock,
       width: 80,
       renderCell: (params: GridRenderCellParams) => (
         <Typography
           variant="body2"
           color={params.value > 0 ? 'text.primary' : 'error'}
+          fontWeight={params.value === 0 ? 600 : 400}
         >
-          {params.value}
+          {params.value === 0 ? (locale === 'ko' ? '품절' : 'Sold out') : params.value}
         </Typography>
       ),
     },
@@ -229,7 +233,7 @@ export default function ProductsPage() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Products
+          {t.products.title}
         </Typography>
         <Box display="flex" gap={1}>
           <Button
@@ -238,16 +242,18 @@ export default function ProductsPage() {
             onClick={() => syncMutation.mutate()}
             disabled={syncMutation.isPending}
           >
-            Sync Products
+            {syncMutation.isPending
+              ? (locale === 'ko' ? '동기화 중...' : 'Syncing...')
+              : (locale === 'ko' ? '상품 동기화' : 'Sync Products')}
           </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => router.push('/admin/products/new')}
           >
-            Add Product
+            {t.products.addProduct}
           </Button>
-          <Tooltip title="Refresh">
+          <Tooltip title={t.common.refresh}>
             <IconButton onClick={() => refetch()}>
               <RefreshIcon />
             </IconButton>
@@ -259,7 +265,7 @@ export default function ProductsPage() {
       <Card sx={{ mb: 3, p: 2 }}>
         <Box display="flex" gap={2} flexWrap="wrap">
           <TextField
-            placeholder="Search products..."
+            placeholder={locale === 'ko' ? '상품명 검색...' : 'Search products...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
@@ -273,13 +279,13 @@ export default function ProductsPage() {
             }}
           />
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Country</InputLabel>
+            <InputLabel>{t.products.country}</InputLabel>
             <Select
               value={country}
-              label="Country"
+              label={t.products.country}
               onChange={(e) => setCountry(e.target.value)}
             >
-              <MenuItem value="">All</MenuItem>
+              <MenuItem value="">{t.common.all}</MenuItem>
               {countries.map((c) => (
                 <MenuItem key={c} value={c}>
                   {getCountryFlag(c)} {c}
@@ -288,13 +294,13 @@ export default function ProductsPage() {
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Provider</InputLabel>
+            <InputLabel>{t.products.provider}</InputLabel>
             <Select
               value={provider}
-              label="Provider"
+              label={t.products.provider}
               onChange={(e) => setProvider(e.target.value)}
             >
-              <MenuItem value="">All</MenuItem>
+              <MenuItem value="">{t.common.all}</MenuItem>
               {providers.map((p) => (
                 <MenuItem key={p} value={p}>
                   {p}

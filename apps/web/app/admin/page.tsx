@@ -41,6 +41,7 @@ import {
   Legend,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
+import { useAdminLanguage } from '@/lib/i18n';
 
 interface DashboardStats {
   todayOrders: number;
@@ -145,6 +146,8 @@ function StatCard({
   loading,
   color,
   isAlert,
+  vsYesterdayLabel,
+  alertLabel,
 }: {
   title: string;
   value: string | number;
@@ -153,6 +156,8 @@ function StatCard({
   loading?: boolean;
   color: string;
   isAlert?: boolean;
+  vsYesterdayLabel?: string;
+  alertLabel?: string;
 }) {
   return (
     <Card sx={{ height: '100%' }}>
@@ -181,13 +186,13 @@ function StatCard({
                   color={change >= 0 ? 'success.main' : 'error.main'}
                   ml={0.5}
                 >
-                  {Math.abs(change)}% vs yesterday
+                  {vsYesterdayLabel || '전일 대비'} {change >= 0 ? '+' : ''}{change}%
                 </Typography>
               </Box>
             )}
             {isAlert && (
               <Chip
-                label="Alert"
+                label={alertLabel || 'Alert'}
                 color="error"
                 size="small"
                 sx={{ mt: 1 }}
@@ -210,8 +215,8 @@ function StatCard({
   );
 }
 
-// Status Badge
-function StatusBadge({ status }: { status: string }) {
+// Status Badge with translations
+function StatusBadge({ status, statusLabels }: { status: string; statusLabels: Record<string, string> }) {
   const getColor = () => {
     switch (status) {
       case 'completed':
@@ -231,18 +236,29 @@ function StatusBadge({ status }: { status: string }) {
     }
   };
 
+  const label = statusLabels[status] || status.replace(/_/g, ' ');
+
   return (
     <Chip
-      label={status.replace(/_/g, ' ')}
+      label={label}
       color={getColor()}
       size="small"
-      sx={{ textTransform: 'capitalize' }}
     />
   );
 }
 
-// Provider Status Card
-function ProviderStatusCard({ provider }: { provider: ProviderStatus }) {
+// Provider Status Card with translations
+function ProviderStatusCard({
+  provider,
+  stateLabels,
+  successRateLabel,
+  consecutiveFailuresLabel,
+}: {
+  provider: ProviderStatus;
+  stateLabels: { closed: string; halfOpen: string; open: string };
+  successRateLabel: string;
+  consecutiveFailuresLabel: string;
+}) {
   const getStateColor = () => {
     switch (provider.state) {
       case 'CLOSED':
@@ -257,11 +273,11 @@ function ProviderStatusCard({ provider }: { provider: ProviderStatus }) {
   const getStateLabel = () => {
     switch (provider.state) {
       case 'CLOSED':
-        return 'Normal';
+        return stateLabels.closed;
       case 'HALF_OPEN':
-        return 'Testing';
+        return stateLabels.halfOpen;
       case 'OPEN':
-        return 'Blocked';
+        return stateLabels.open;
     }
   };
 
@@ -280,7 +296,7 @@ function ProviderStatusCard({ provider }: { provider: ProviderStatus }) {
         </Box>
         <Box mb={2}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Success Rate
+            {successRateLabel}
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
             <LinearProgress
@@ -295,7 +311,7 @@ function ProviderStatusCard({ provider }: { provider: ProviderStatus }) {
           </Box>
         </Box>
         <Typography variant="body2" color="text.secondary">
-          Consecutive Failures: {provider.consecutiveFailures}
+          {consecutiveFailuresLabel}: {provider.consecutiveFailures}
         </Typography>
       </CardContent>
     </Card>
@@ -310,8 +326,11 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-// Format time ago
-function formatTimeAgo(date: string): string {
+// Format time ago with translations
+function formatTimeAgo(
+  date: string,
+  timeAgoLabels: { justNow: string; minutesAgo: string; hoursAgo: string; daysAgo: string }
+): string {
   const now = new Date();
   const past = new Date(date);
   const diffMs = now.getTime() - past.getTime();
@@ -319,10 +338,10 @@ function formatTimeAgo(date: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+  if (diffMins < 1) return timeAgoLabels.justNow;
+  if (diffMins < 60) return `${diffMins}${timeAgoLabels.minutesAgo}`;
+  if (diffHours < 24) return `${diffHours}${timeAgoLabels.hoursAgo}`;
+  return `${diffDays}${timeAgoLabels.daysAgo}`;
 }
 
 // Revenue Chart Component
@@ -418,6 +437,7 @@ function RevenueChart({
 }
 
 export default function AdminDashboardPage() {
+  const { t, locale } = useAdminLanguage();
   const [demoMode, setDemoMode] = useState(true);
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
 
@@ -474,7 +494,7 @@ export default function AdminDashboardPage() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Dashboard
+          {t.dashboard.title}
         </Typography>
         <Button
           variant={demoMode ? 'contained' : 'outlined'}
@@ -483,7 +503,7 @@ export default function AdminDashboardPage() {
           onClick={() => setDemoMode(!demoMode)}
           color={demoMode ? 'primary' : 'inherit'}
         >
-          {demoMode ? '데모 모드 ON' : '실제 데이터'}
+          {demoMode ? (locale === 'ko' ? '데모 모드 ON' : 'Demo Mode ON') : (locale === 'ko' ? '실제 데이터' : 'Real Data')}
         </Button>
       </Box>
 
@@ -491,8 +511,8 @@ export default function AdminDashboardPage() {
       {demoMode && (
         <Alert severity="info" sx={{ mb: 3 }} icon={<InfoIcon />}>
           <Typography variant="body2">
-            <strong>데모 모드:</strong> 샘플 데이터로 대시보드 기능을 미리 체험할 수 있습니다.
-            실제 데이터를 보려면 &quot;데모 모드 ON&quot; 버튼을 클릭하세요.
+            <strong>{locale === 'ko' ? '데모 모드:' : 'Demo Mode:'}</strong> {locale === 'ko' ? '샘플 데이터로 대시보드 기능을 미리 체험할 수 있습니다.' : 'Preview dashboard features with sample data.'}
+            {locale === 'ko' ? ' 실제 데이터를 보려면 "데모 모드 ON" 버튼을 클릭하세요.' : ' Click "Demo Mode ON" button to view real data.'}
           </Typography>
         </Alert>
       )}
@@ -501,27 +521,29 @@ export default function AdminDashboardPage() {
       <Grid container spacing={3} mb={4}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="오늘 주문"
+            title={t.dashboard.todayOrders}
             value={stats?.todayOrders ?? 0}
             change={stats?.todayOrdersChange}
             icon={<ShoppingCartIcon />}
             loading={isLoading}
             color="#6366F1"
+            vsYesterdayLabel={t.common.vsYesterday}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="오늘 매출"
+            title={t.dashboard.todayRevenue}
             value={formatCurrency(stats?.todayRevenue ?? 0)}
             change={stats?.todayRevenueChange}
             icon={<AttachMoneyIcon />}
             loading={isLoading}
             color="#10B981"
+            vsYesterdayLabel={t.common.vsYesterday}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="대기 중"
+            title={t.dashboard.pendingOrders}
             value={stats?.pendingOrders ?? 0}
             icon={<PendingActionsIcon />}
             loading={isLoading}
@@ -530,12 +552,13 @@ export default function AdminDashboardPage() {
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="실패"
+            title={t.dashboard.failedOrders}
             value={stats?.failedOrders ?? 0}
             icon={<ErrorIcon />}
             loading={isLoading}
             color="#EF4444"
             isAlert={(stats?.failedOrders ?? 0) > 0}
+            alertLabel={locale === 'ko' ? '주의' : 'Alert'}
           />
         </Grid>
       </Grid>
@@ -545,7 +568,7 @@ export default function AdminDashboardPage() {
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
-              주간 매출 추이
+              {locale === 'ko' ? '주간 매출 추이' : 'Weekly Revenue Trend'}
             </Typography>
             <ToggleButtonGroup
               value={chartType}
@@ -553,8 +576,8 @@ export default function AdminDashboardPage() {
               onChange={(_, value) => value && setChartType(value)}
               size="small"
             >
-              <ToggleButton value="area">영역</ToggleButton>
-              <ToggleButton value="bar">막대</ToggleButton>
+              <ToggleButton value="area">{locale === 'ko' ? '영역' : 'Area'}</ToggleButton>
+              <ToggleButton value="bar">{locale === 'ko' ? '막대' : 'Bar'}</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <RevenueChart data={chartData} loading={isLoading} chartType={chartType} />
@@ -567,19 +590,19 @@ export default function AdminDashboardPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                최근 주문
+                {t.dashboard.recentOrders}
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>주문 ID</TableCell>
-                      <TableCell>고객</TableCell>
-                      <TableCell>상품</TableCell>
-                      <TableCell>금액</TableCell>
-                      <TableCell>상태</TableCell>
-                      <TableCell>채널</TableCell>
-                      <TableCell>시간</TableCell>
+                      <TableCell>{t.dashboard.orderNumber}</TableCell>
+                      <TableCell>{t.orders.customerInfo}</TableCell>
+                      <TableCell>{t.dashboard.product}</TableCell>
+                      <TableCell>{t.dashboard.amount}</TableCell>
+                      <TableCell>{t.common.status}</TableCell>
+                      <TableCell>{t.orders.channel}</TableCell>
+                      <TableCell>{t.dashboard.time}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -614,23 +637,23 @@ export default function AdminDashboardPage() {
                           <TableCell>{order.productName}</TableCell>
                           <TableCell>{formatCurrency(order.totalPrice)}</TableCell>
                           <TableCell>
-                            <StatusBadge status={order.status} />
+                            <StatusBadge status={order.status} statusLabels={t.orders.statuses} />
                           </TableCell>
                           <TableCell>
                             <Chip
-                              label={order.salesChannel}
+                              label={t.orders.channels[order.salesChannel as keyof typeof t.orders.channels] || order.salesChannel}
                               size="small"
                               variant="outlined"
                             />
                           </TableCell>
-                          <TableCell>{formatTimeAgo(order.created)}</TableCell>
+                          <TableCell>{formatTimeAgo(order.created, t.dashboard.timeAgo)}</TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} align="center">
                           <Typography variant="body2" color="text.secondary">
-                            No orders found
+                            {t.dashboard.noRecentOrders}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -645,7 +668,7 @@ export default function AdminDashboardPage() {
         {/* Provider Status */}
         <Grid size={{ xs: 12, lg: 4 }}>
           <Typography variant="h6" fontWeight={600} mb={2}>
-            프로바이더 상태
+            {t.dashboard.providerStatus}
           </Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             {isLoading ? (
@@ -658,13 +681,19 @@ export default function AdminDashboardPage() {
               ))
             ) : providers && providers.length > 0 ? (
               providers.map((provider) => (
-                <ProviderStatusCard key={provider.name} provider={provider} />
+                <ProviderStatusCard
+                  key={provider.name}
+                  provider={provider}
+                  stateLabels={t.dashboard.providerStates}
+                  successRateLabel={t.dashboard.successRate}
+                  consecutiveFailuresLabel={locale === 'ko' ? '연속 실패' : 'Consecutive failures'}
+                />
               ))
             ) : (
               <Card>
                 <CardContent>
                   <Typography variant="body2" color="text.secondary" textAlign="center">
-                    No providers configured
+                    {locale === 'ko' ? '등록된 프로바이더가 없습니다' : 'No providers registered'}
                   </Typography>
                 </CardContent>
               </Card>

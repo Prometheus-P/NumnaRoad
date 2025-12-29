@@ -33,6 +33,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import TextField from '@mui/material/TextField';
 import Snackbar from '@mui/material/Snackbar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminLanguage } from '@/lib/i18n';
 
 interface OrderLog {
   id: string;
@@ -71,7 +72,7 @@ interface OrderDetail {
 }
 
 // Status Badge
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, statusLabels }: { status: string; statusLabels: Record<string, string> }) {
   const getColor = (): 'success' | 'warning' | 'info' | 'error' | 'default' => {
     switch (status) {
       case 'completed':
@@ -93,11 +94,12 @@ function StatusBadge({ status }: { status: string }) {
     }
   };
 
+  const label = statusLabels[status] || status.replace(/_/g, ' ');
+
   return (
     <Chip
-      label={status.replace(/_/g, ' ')}
+      label={label}
       color={getColor()}
-      sx={{ textTransform: 'capitalize' }}
     />
   );
 }
@@ -161,6 +163,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { t, locale } = useAdminLanguage();
   const orderId = params.id as string;
 
   const [retryDialogOpen, setRetryDialogOpen] = React.useState(false);
@@ -243,14 +246,14 @@ export default function OrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
       setSnackbar({
         open: true,
-        message: '이메일이 성공적으로 재발송되었습니다.',
+        message: t.orders.detail.emailResent,
         severity: 'success',
       });
     },
     onError: (error: Error) => {
       setSnackbar({
         open: true,
-        message: error.message || '이메일 재발송에 실패했습니다.',
+        message: error.message || t.orders.detail.emailResendFailed,
         severity: 'error',
       });
     },
@@ -259,13 +262,13 @@ export default function OrderDetailPage() {
   if (error) {
     return (
       <Box>
-        <Alert severity="error">Order not found</Alert>
+        <Alert severity="error">{t.orders.detail.orderNotFound}</Alert>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => router.push('/admin/orders')}
           sx={{ mt: 2 }}
         >
-          Back to Orders
+          {t.orders.detail.backToList}
         </Button>
       </Box>
     );
@@ -280,12 +283,12 @@ export default function OrderDetailPage() {
             startIcon={<ArrowBackIcon />}
             onClick={() => router.push('/admin/orders')}
           >
-            Back
+            {t.orders.detail.back}
           </Button>
           <Typography variant="h5" fontWeight={600}>
-            Order Details
+            {t.orders.detail.title}
           </Typography>
-          {order && <StatusBadge status={order.status} />}
+          {order && <StatusBadge status={order.status} statusLabels={t.orders.statuses} />}
         </Box>
         <Box display="flex" gap={1}>
           {(order?.status === 'pending_manual_fulfillment' ||
@@ -297,7 +300,7 @@ export default function OrderDetailPage() {
               startIcon={<EditIcon />}
               onClick={() => setManualDialogOpen(true)}
             >
-              수동 처리
+              {t.orders.detail.manualProcess}
             </Button>
           )}
           {(order?.status === 'failed' || order?.status === 'provider_failed') && (
@@ -306,7 +309,7 @@ export default function OrderDetailPage() {
               startIcon={<RefreshIcon />}
               onClick={() => setRetryDialogOpen(true)}
             >
-              Retry
+              {t.orders.detail.retryOrder}
             </Button>
           )}
           {order?.esimIccid && order?.esimActivationCode && (
@@ -317,7 +320,7 @@ export default function OrderDetailPage() {
               onClick={() => resendEmailMutation.mutate()}
               disabled={resendEmailMutation.isPending}
             >
-              이메일 재발송
+              {t.orders.detail.resendEmail}
             </Button>
           )}
         </Box>
@@ -326,7 +329,7 @@ export default function OrderDetailPage() {
       {/* Error Message */}
       {order?.errorMessage && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight={600}>Error:</Typography>
+          <Typography variant="body2" fontWeight={600}>{t.orders.detail.error}:</Typography>
           {order.errorMessage}
         </Alert>
       )}
@@ -337,7 +340,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Order Information
+                {t.orders.detail.orderInfo}
               </Typography>
               {isLoading ? (
                 <Box>
@@ -347,16 +350,16 @@ export default function OrderDetailPage() {
                 </Box>
               ) : (
                 <>
-                  <InfoRow label="Order ID" value={order?.orderNumber} copyable />
+                  <InfoRow label={t.orders.orderNumber} value={order?.orderNumber} copyable />
                   {order?.externalOrderId && (
-                    <InfoRow label="External ID" value={order.externalOrderId} copyable />
+                    <InfoRow label={t.orders.detail.externalOrderNumber} value={order.externalOrderId} copyable />
                   )}
-                  <InfoRow label="Status" value={order?.status} />
-                  <InfoRow label="Payment" value={order?.paymentStatus || 'paid'} />
-                  <InfoRow label="Amount" value={formatCurrency(order?.totalPrice || 0, order?.currency)} />
-                  <InfoRow label="Channel" value={order?.salesChannel} />
-                  <InfoRow label="Created" value={order?.created ? formatDateTime(order.created) : '-'} />
-                  <InfoRow label="Updated" value={order?.updated ? formatDateTime(order.updated) : '-'} />
+                  <InfoRow label={t.common.status} value={t.orders.statuses[order?.status as keyof typeof t.orders.statuses] || order?.status} />
+                  <InfoRow label={t.orders.detail.paymentStatus} value={t.orders.statuses[order?.paymentStatus as keyof typeof t.orders.statuses] || order?.paymentStatus || t.orders.statuses.payment_received} />
+                  <InfoRow label={t.orders.detail.paymentAmount} value={formatCurrency(order?.totalPrice || 0, order?.currency)} />
+                  <InfoRow label={t.orders.detail.paymentChannel} value={t.orders.channels[order?.salesChannel as keyof typeof t.orders.channels] || order?.salesChannel} />
+                  <InfoRow label={t.orders.detail.orderDate} value={order?.created ? formatDateTime(order.created) : '-'} />
+                  <InfoRow label={t.orders.detail.updatedDate} value={order?.updated ? formatDateTime(order.updated) : '-'} />
                 </>
               )}
             </CardContent>
@@ -368,7 +371,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Customer Information
+                {t.orders.detail.customerInfo}
               </Typography>
               {isLoading ? (
                 <Box>
@@ -378,9 +381,9 @@ export default function OrderDetailPage() {
                 </Box>
               ) : (
                 <>
-                  <InfoRow label="Email" value={order?.customerEmail} copyable />
-                  <InfoRow label="Name" value={order?.customerName} />
-                  <InfoRow label="Phone" value={order?.customerPhone} />
+                  <InfoRow label={t.orders.detail.customerEmail} value={order?.customerEmail} copyable />
+                  <InfoRow label={t.orders.detail.customerName} value={order?.customerName} />
+                  <InfoRow label={t.orders.detail.phone} value={order?.customerPhone} />
                 </>
               )}
             </CardContent>
@@ -392,7 +395,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Product Information
+                {t.orders.detail.productInfo}
               </Typography>
               {isLoading ? (
                 <Box>
@@ -402,9 +405,9 @@ export default function OrderDetailPage() {
                 </Box>
               ) : (
                 <>
-                  <InfoRow label="Product" value={order?.productName} />
-                  <InfoRow label="Quantity" value={order?.quantity} />
-                  <InfoRow label="Provider" value={order?.providerUsed} />
+                  <InfoRow label={t.orders.productName} value={order?.productName} />
+                  <InfoRow label={t.orders.detail.quantity} value={order?.quantity} />
+                  <InfoRow label={t.orders.detail.provider} value={order?.providerUsed} />
                 </>
               )}
             </CardContent>
@@ -416,7 +419,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                eSIM Information
+                {t.orders.detail.esimInfo}
               </Typography>
               {isLoading ? (
                 <Box>
@@ -426,12 +429,12 @@ export default function OrderDetailPage() {
                 </Box>
               ) : order?.esimIccid ? (
                 <>
-                  <InfoRow label="ICCID" value={order.esimIccid} copyable />
-                  <InfoRow label="Activation Code" value={order.esimActivationCode} copyable />
+                  <InfoRow label={t.orders.detail.iccid} value={order.esimIccid} copyable />
+                  <InfoRow label={t.orders.detail.activationCode} value={order.esimActivationCode} copyable />
                   {order.esimQrCode && (
                     <Box mt={2}>
                       <Typography variant="body2" color="text.secondary" mb={1}>
-                        QR Code
+                        {t.orders.detail.qrCode}
                       </Typography>
                       <Box
                         component="img"
@@ -444,7 +447,7 @@ export default function OrderDetailPage() {
                 </>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  No eSIM data available
+                  {t.orders.detail.noEsimInfo}
                 </Typography>
               )}
             </CardContent>
@@ -456,7 +459,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                Processing Timeline
+                {t.orders.detail.orderHistory}
               </Typography>
               {isLoading ? (
                 <Skeleton height={200} />
@@ -488,7 +491,7 @@ export default function OrderDetailPage() {
                           <Box component="span">
                             {log.providerName && (
                               <Typography variant="caption" color="text.secondary" component="span">
-                                Provider: {log.providerName} |{' '}
+                                {t.orders.detail.provider}: {log.providerName} |{' '}
                               </Typography>
                             )}
                             {log.errorMessage && (
@@ -508,7 +511,7 @@ export default function OrderDetailPage() {
                 </List>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  No processing logs available
+                  {t.orders.detail.noHistory}
                 </Typography>
               )}
             </CardContent>
@@ -518,21 +521,20 @@ export default function OrderDetailPage() {
 
       {/* Retry Dialog */}
       <Dialog open={retryDialogOpen} onClose={() => setRetryDialogOpen(false)}>
-        <DialogTitle>Retry Fulfillment</DialogTitle>
+        <DialogTitle>{t.orders.detail.retryConfirmTitle}</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to retry the fulfillment for this order?
-            This will attempt to re-process the order and issue a new eSIM.
+            {t.orders.detail.retryConfirmMessage}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRetryDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setRetryDialogOpen(false)}>{t.common.cancel}</Button>
           <Button
             variant="contained"
             onClick={() => retryMutation.mutate()}
             disabled={retryMutation.isPending}
           >
-            {retryMutation.isPending ? <CircularProgress size={20} /> : 'Retry'}
+            {retryMutation.isPending ? <CircularProgress size={20} /> : t.common.retry}
           </Button>
         </DialogActions>
       </Dialog>
@@ -544,10 +546,10 @@ export default function OrderDetailPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>수동 Fulfillment 처리</DialogTitle>
+        <DialogTitle>{t.orders.detail.manualProcessTitle}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            eSIM 정보를 직접 입력하여 주문을 완료 처리합니다.
+            {t.orders.detail.manualProcessMessage}
           </Typography>
           {manualFulfillmentMutation.isError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -556,43 +558,43 @@ export default function OrderDetailPage() {
           )}
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="ICCID"
+              label={t.orders.detail.iccidLabel}
               value={manualForm.esimIccid}
               onChange={(e) => setManualForm({ ...manualForm, esimIccid: e.target.value })}
               required
               fullWidth
               placeholder="89012345678901234567"
-              helperText="eSIM의 ICCID를 입력하세요"
+              helperText={t.orders.detail.iccidHelper}
             />
             <TextField
-              label="활성화 코드"
+              label={t.orders.detail.activationCodeLabel}
               value={manualForm.esimActivationCode}
               onChange={(e) => setManualForm({ ...manualForm, esimActivationCode: e.target.value })}
               required
               fullWidth
               placeholder="LPA:1$..."
-              helperText="eSIM 활성화 코드를 입력하세요"
+              helperText={t.orders.detail.activationCodeHelper}
             />
             <TextField
-              label="QR 코드 URL (선택)"
+              label={t.orders.detail.qrCodeUrl}
               value={manualForm.esimQrCode}
               onChange={(e) => setManualForm({ ...manualForm, esimQrCode: e.target.value })}
               fullWidth
               placeholder="https://..."
-              helperText="QR 코드 이미지 URL (선택 사항)"
+              helperText={t.orders.detail.qrCodeHelper}
             />
             <TextField
-              label="Provider"
+              label={t.orders.detail.providerName}
               value={manualForm.providerUsed}
               onChange={(e) => setManualForm({ ...manualForm, providerUsed: e.target.value })}
               fullWidth
               placeholder="manual"
-              helperText="eSIM 제공 업체명"
+              helperText={t.orders.detail.providerHelper}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setManualDialogOpen(false)}>취소</Button>
+          <Button onClick={() => setManualDialogOpen(false)}>{t.common.cancel}</Button>
           <Button
             variant="contained"
             color="warning"
@@ -606,7 +608,7 @@ export default function OrderDetailPage() {
             {manualFulfillmentMutation.isPending ? (
               <CircularProgress size={20} />
             ) : (
-              '완료 처리'
+              t.orders.detail.completeProcess
             )}
           </Button>
         </DialogActions>

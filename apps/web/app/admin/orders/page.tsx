@@ -28,6 +28,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminLanguage } from '@/lib/i18n';
 
 interface Order {
   id: string;
@@ -49,8 +50,8 @@ interface OrdersResponse {
   totalPages: number;
 }
 
-// Status Badge
-function StatusBadge({ status }: { status: string }) {
+// Status Badge with translations
+function StatusBadge({ status, statusLabels }: { status: string; statusLabels: Record<string, string> }) {
   const getColor = (): 'success' | 'warning' | 'info' | 'error' | 'default' => {
     switch (status) {
       case 'completed':
@@ -72,12 +73,13 @@ function StatusBadge({ status }: { status: string }) {
     }
   };
 
+  const label = statusLabels[status] || status.replace(/_/g, ' ');
+
   return (
     <Chip
-      label={status.replace(/_/g, ' ')}
+      label={label}
       color={getColor()}
       size="small"
-      sx={{ textTransform: 'capitalize' }}
     />
   );
 }
@@ -101,8 +103,8 @@ function formatDate(date: string): string {
   }).format(new Date(date));
 }
 
-// Copyable Order ID component
-function CopyableOrderId({ orderId }: { orderId: string }) {
+// Copyable Order ID component with translations
+function CopyableOrderId({ orderId, copyLabel, copiedLabel }: { orderId: string; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -130,7 +132,7 @@ function CopyableOrderId({ orderId }: { orderId: string }) {
           {orderId}
         </Typography>
       </Tooltip>
-      <Tooltip title={copied ? 'Copied!' : 'Copy ID'}>
+      <Tooltip title={copied ? copiedLabel : copyLabel}>
         <IconButton
           size="small"
           onClick={handleCopy}
@@ -159,6 +161,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { t, locale } = useAdminLanguage();
 
   const [page, setPage] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
@@ -227,16 +230,22 @@ export default function OrdersPage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       setSelectedRowIds([]);
+      const successMsg = locale === 'ko'
+        ? `${result.retried}건 재시도 요청됨 (스킵: ${result.skipped}, 실패: ${result.failed})`
+        : `${result.retried} retries requested (skipped: ${result.skipped}, failed: ${result.failed})`;
       setSnackbar({
         open: true,
-        message: `${result.retried}건 재시도 요청됨 (스킵: ${result.skipped}, 실패: ${result.failed})`,
+        message: successMsg,
         severity: result.retried > 0 ? 'success' : 'info',
       });
     },
     onError: (error: Error) => {
+      const errorMsg = locale === 'ko'
+        ? error.message || '벌크 재시도에 실패했습니다.'
+        : error.message || 'Bulk retry failed.';
       setSnackbar({
         open: true,
-        message: error.message || '벌크 재시도에 실패했습니다.',
+        message: errorMsg,
         severity: 'error',
       });
     },
@@ -258,15 +267,19 @@ export default function OrdersPage() {
   const columns: GridColDef[] = [
     {
       field: 'orderNumber',
-      headerName: 'Order ID',
+      headerName: t.orders.orderNumber,
       width: 150,
       renderCell: (params: GridRenderCellParams) => (
-        <CopyableOrderId orderId={params.value || params.row.id} />
+        <CopyableOrderId
+          orderId={params.value || params.row.id}
+          copyLabel={locale === 'ko' ? '주문번호 복사' : 'Copy order number'}
+          copiedLabel={t.common.copied}
+        />
       ),
     },
     {
       field: 'customerEmail',
-      headerName: 'Customer',
+      headerName: t.orders.customerInfo,
       flex: 1,
       minWidth: 180,
       renderCell: (params: GridRenderCellParams) => (
@@ -284,38 +297,41 @@ export default function OrdersPage() {
     },
     {
       field: 'productName',
-      headerName: 'Product',
+      headerName: t.orders.productName,
       flex: 1,
       minWidth: 150,
     },
     {
       field: 'totalPrice',
-      headerName: 'Amount',
+      headerName: t.orders.totalPrice,
       width: 120,
-      renderCell: (params: GridRenderCellParams) => formatCurrency(params.value),
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontWeight={500}>
+          {formatCurrency(params.value)}
+        </Typography>
+      ),
     },
     {
       field: 'status',
-      headerName: 'Status',
-      width: 140,
-      renderCell: (params: GridRenderCellParams) => <StatusBadge status={params.value} />,
+      headerName: t.common.status,
+      width: 120,
+      renderCell: (params: GridRenderCellParams) => <StatusBadge status={params.value} statusLabels={t.orders.statuses} />,
     },
     {
       field: 'salesChannel',
-      headerName: 'Channel',
-      width: 120,
+      headerName: t.orders.channel,
+      width: 110,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
-          label={params.value}
+          label={t.orders.channels[params.value as keyof typeof t.orders.channels] || params.value}
           size="small"
           variant="outlined"
-          sx={{ textTransform: 'capitalize' }}
         />
       ),
     },
     {
       field: 'created',
-      headerName: 'Date',
+      headerName: t.orders.orderDate,
       width: 160,
       renderCell: (params: GridRenderCellParams) => formatDate(params.value),
     },
@@ -326,12 +342,13 @@ export default function OrdersPage() {
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
             <Typography variant="h5" fontWeight={600}>
-              Orders
+              {t.orders.title}
             </Typography>
             {selectedRowIds.length > 0 && (
               <Chip
-                label={`${selectedRowIds.length} selected`}
+                label={`${selectedRowIds.length}${t.orders.selectedCount}`}
                 size="small"
+                color="primary"
                 onDelete={() => setSelectedRowIds([])}
               />
             )}
@@ -346,10 +363,10 @@ export default function OrdersPage() {
                 onClick={handleBulkRetry}
                 disabled={bulkRetryMutation.isPending}
               >
-                Retry Selected ({retryableSelectedOrders.length})
+                {t.orders.retrySelected} ({retryableSelectedOrders.length})
               </Button>
             )}
-            <Tooltip title="Refresh">
+            <Tooltip title={t.common.refresh}>
               <IconButton onClick={() => refetch()}>
                 <RefreshIcon />
               </IconButton>
@@ -362,7 +379,7 @@ export default function OrdersPage() {
           <CardContent>
             <Box display="flex" gap={2} flexWrap="wrap">
               <TextField
-                placeholder="Search by order ID or email..."
+                placeholder={t.orders.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 size="small"
@@ -376,33 +393,35 @@ export default function OrdersPage() {
                 }}
               />
               <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>{t.common.status}</InputLabel>
                 <Select
                   value={status}
-                  label="Status"
+                  label={t.common.status}
                   onChange={(e) => setStatus(e.target.value)}
                 >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                  <MenuItem value="failed">Failed</MenuItem>
+                  <MenuItem value="">{t.common.all}</MenuItem>
+                  <MenuItem value="pending">{t.orders.statuses.pending}</MenuItem>
+                  <MenuItem value="completed">{t.orders.statuses.completed}</MenuItem>
+                  <MenuItem value="failed">{t.orders.statuses.failed}</MenuItem>
+                  <MenuItem value="payment_received">{t.orders.statuses.payment_received}</MenuItem>
+                  <MenuItem value="processing">{t.orders.statuses.processing}</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Channel</InputLabel>
+              <FormControl size="small" sx={{ minWidth: 130 }}>
+                <InputLabel>{t.orders.paymentChannel}</InputLabel>
                 <Select
                   value={channel}
-                  label="Channel"
+                  label={t.orders.paymentChannel}
                   onChange={(e) => setChannel(e.target.value)}
                 >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="stripe">Stripe</MenuItem>
-                  <MenuItem value="smartstore">SmartStore</MenuItem>
-                  <MenuItem value="tosspay">TossPay</MenuItem>
+                  <MenuItem value="">{t.common.all}</MenuItem>
+                  <MenuItem value="stripe">{t.orders.channels.stripe}</MenuItem>
+                  <MenuItem value="smartstore">{t.orders.channels.smartstore}</MenuItem>
+                  <MenuItem value="tosspay">{t.orders.channels.tosspay}</MenuItem>
                 </Select>
               </FormControl>
               <TextField
-                label="From"
+                label={t.orders.startDate}
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
@@ -411,7 +430,7 @@ export default function OrdersPage() {
                 InputLabelProps={{ shrink: true }}
               />
               <TextField
-                label="To"
+                label={t.orders.endDate}
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}

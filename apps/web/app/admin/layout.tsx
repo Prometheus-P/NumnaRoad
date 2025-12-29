@@ -17,6 +17,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminSidebar, DRAWER_WIDTH } from '@/components/admin/AdminSidebar';
 import { AdminAuthProvider, useAdminAuth } from '@/components/admin/AdminAuthProvider';
+import { AdminLanguageProvider, useAdminLanguage } from '@/lib/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +31,7 @@ const queryClient = new QueryClient({
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAdminAuth();
+  const { t, locale, toggleLocale } = useAdminLanguage();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -98,11 +100,31 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               fontWeight: 600,
             }}
           >
-            NumnaRoad Admin
+            {t.sidebar.title}
           </Typography>
 
           {/* Desktop spacer */}
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
+
+          {/* Language toggle button */}
+          <IconButton
+            size="small"
+            onClick={toggleLocale}
+            sx={{
+              mr: 1,
+              px: 1,
+              borderRadius: 1,
+              bgcolor: 'action.hover',
+              color: 'text.primary',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              '&:hover': {
+                bgcolor: 'action.selected',
+              },
+            }}
+          >
+            {locale === 'ko' ? 'EN' : '한'}
+          </IconButton>
 
           <IconButton
             size="large"
@@ -133,7 +155,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <LogoutIcon sx={{ mr: 1 }} fontSize="small" />
-              Logout
+              {locale === 'ko' ? '로그아웃' : 'Logout'}
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -160,7 +182,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <QueryClientProvider client={queryClient}>
       <AdminAuthProvider>
-        <AdminLayoutContent>{children}</AdminLayoutContent>
+        <AdminLanguageProvider>
+          <AdminLayoutContent>{children}</AdminLayoutContent>
+        </AdminLanguageProvider>
       </AdminAuthProvider>
     </QueryClientProvider>
   );
