@@ -49,6 +49,10 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    env:
+      POCKETBASE_VERSION: '0.22.22'
+      POCKETBASE_ADMIN_EMAIL: 'testadmin@example.com'
+      POCKETBASE_ADMIN_PASSWORD: 'password12345'
     steps:
       - uses: actions/checkout@v4
 
@@ -60,8 +64,36 @@ jobs:
       - name: Clean install dependencies
         run: rm -rf node_modules package-lock.json && npm install
 
+      - name: Download and setup PocketBase
+        run: |
+          mkdir -p pocketbase
+          cd pocketbase
+          curl -L "https://github.com/pocketbase/pocketbase/releases/download/v${POCKETBASE_VERSION}/pocketbase_${POCKETBASE_VERSION}_linux_amd64.zip" -o pocketbase.zip
+          unzip pocketbase.zip
+          chmod +x pocketbase
+          rm pocketbase.zip
+
+      - name: Start PocketBase
+        run: |
+          cd pocketbase
+          ./pocketbase serve --http=127.0.0.1:8090 &
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8090/api/health | grep -q '"code":200'; then
+              echo "PocketBase is ready"
+              break
+            fi
+            echo "Waiting for PocketBase... attempt $i of 30"
+            sleep 1
+          done
+
       - name: Run tests
         run: npm run test:run
+        env:
+          SKIP_POCKETBASE_TESTS: 'false'
+
+      - name: Stop PocketBase
+        if: always()
+        run: pkill pocketbase || true
 
   build:
     name: Build
