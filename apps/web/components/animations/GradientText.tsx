@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface GradientTextProps {
   children: React.ReactNode;
@@ -15,33 +15,36 @@ export function GradientText({
   colors = ['#6366F1', '#EC4899', '#6366F1'],
   animationSpeed = 3,
 }: GradientTextProps) {
-  const gradientStyle = {
+  useEffect(() => {
+    // Inject keyframes if not already present
+    const styleId = 'gradient-text-keyframes';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @keyframes gradientShift {
+          0% { background-position: 0% center; }
+          50% { background-position: 100% center; }
+          100% { background-position: 0% center; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  const gradientStyle: React.CSSProperties = {
     background: `linear-gradient(90deg, ${colors.join(', ')})`,
     backgroundSize: '200% auto',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
-    animation: `gradient ${animationSpeed}s ease infinite`,
+    animation: `gradientShift ${animationSpeed}s ease infinite`,
+    display: 'inline-block',
   };
 
   return (
-    <>
-      <style jsx global>{`
-        @keyframes gradient {
-          0% {
-            background-position: 0% center;
-          }
-          50% {
-            background-position: 100% center;
-          }
-          100% {
-            background-position: 0% center;
-          }
-        }
-      `}</style>
-      <span className={className} style={gradientStyle}>
-        {children}
-      </span>
-    </>
+    <span className={className} style={gradientStyle}>
+      {children}
+    </span>
   );
 }
