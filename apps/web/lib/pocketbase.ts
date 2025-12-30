@@ -33,6 +33,7 @@ export const Collections = {
   ESIM_PROVIDERS: 'esim_providers',
   AUTOMATION_LOGS: 'automation_logs',
   SMARTSTORE_CONFIG: 'smartstore_config',
+  SMARTSTORE_SYNC_LOGS: 'smartstore_sync_logs',
   PRODUCT_MAPPINGS: 'product_mappings',
   USERS: 'users',
 } as const;

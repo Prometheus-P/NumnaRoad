@@ -5,6 +5,15 @@
  */
 
 import { vi, expect, test, describe, beforeEach, afterEach } from 'vitest';
+
+// Mock bcryptjs before importing auth module
+vi.mock('bcryptjs', () => ({
+  default: {
+    hashSync: vi.fn().mockReturnValue('$2a$10$mockedHashValue'),
+  },
+  hashSync: vi.fn().mockReturnValue('$2a$10$mockedHashValue'),
+}));
+
 import { SmartStoreAuth, createSmartStoreAuth } from '../../services/sales-channels/smartstore/auth';
 
 describe('SmartStoreAuth', () => {

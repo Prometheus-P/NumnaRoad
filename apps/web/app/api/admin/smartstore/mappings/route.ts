@@ -52,3 +52,68 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const pb = await getAdminPocketBase();
+    const body = await request.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: 'Mapping ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (body.internalProductId !== undefined) {
+      updateData.internal_product = body.internalProductId;
+    }
+    if (body.isActive !== undefined) {
+      updateData.is_active = body.isActive;
+    }
+    if (body.smartstoreProductName !== undefined) {
+      updateData.external_product_name = body.smartstoreProductName;
+    }
+
+    const mapping = await pb.collection(Collections.PRODUCT_MAPPINGS).update(body.id, updateData);
+
+    return NextResponse.json({
+      success: true,
+      mapping,
+    });
+  } catch (error) {
+    console.error('Failed to update mapping:', error);
+    return NextResponse.json(
+      { error: 'Failed to update mapping' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const pb = await getAdminPocketBase();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Mapping ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await pb.collection(Collections.PRODUCT_MAPPINGS).delete(id);
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('Failed to delete mapping:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete mapping' },
+      { status: 500 }
+    );
+  }
+}

@@ -2,11 +2,22 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { Box, AppBar, Toolbar, Typography, IconButton, Avatar, Menu, MenuItem } from '@mui/material';
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Avatar,
+  Menu,
+  MenuItem,
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminSidebar, DRAWER_WIDTH } from '@/components/admin/AdminSidebar';
 import { AdminAuthProvider, useAdminAuth } from '@/components/admin/AdminAuthProvider';
+import { AdminLanguageProvider, useAdminLanguage } from '@/lib/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,14 +28,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const DRAWER_WIDTH = 260;
-
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAdminAuth();
+  const { t, locale, toggleLocale } = useAdminLanguage();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const isLoginPage = pathname === '/admin/login';
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -50,17 +65,67 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         position="fixed"
         elevation={0}
         sx={{
-          width: `calc(100% - ${DRAWER_WIDTH}px)`,
-          ml: `${DRAWER_WIDTH}px`,
+          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { xs: 0, md: `${DRAWER_WIDTH}px` },
           bgcolor: 'background.paper',
           borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
         <Toolbar>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: 'text.primary' }}>
-            {/* Page title */}
+          {/* Hamburger menu for mobile */}
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{
+              mr: 2,
+              display: { md: 'none' },
+              color: 'text.primary',
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          {/* Mobile title */}
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              flexGrow: 1,
+              color: 'text.primary',
+              display: { xs: 'block', md: 'none' },
+              fontWeight: 600,
+            }}
+          >
+            {t.sidebar.title}
           </Typography>
+
+          {/* Desktop spacer */}
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
+
+          {/* Language toggle button */}
+          <IconButton
+            size="small"
+            onClick={toggleLocale}
+            sx={{
+              mr: 1,
+              px: 1,
+              borderRadius: 1,
+              bgcolor: 'action.hover',
+              color: 'text.primary',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              '&:hover': {
+                bgcolor: 'action.selected',
+              },
+            }}
+          >
+            {locale === 'ko' ? 'EN' : '한'}
+          </IconButton>
+
           <IconButton
             size="large"
             onClick={handleMenu}
@@ -90,18 +155,18 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <LogoutIcon sx={{ mr: 1 }} fontSize="small" />
-              Logout
+              {locale === 'ko' ? '로그아웃' : 'Logout'}
             </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
-      <AdminSidebar />
+      <AdminSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: `calc(100% - ${DRAWER_WIDTH}px)`,
+          p: { xs: 2, sm: 3 },
+          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` },
           mt: '64px',
           bgcolor: 'background.default',
           minHeight: 'calc(100vh - 64px)',
@@ -117,7 +182,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <QueryClientProvider client={queryClient}>
       <AdminAuthProvider>
-        <AdminLayoutContent>{children}</AdminLayoutContent>
+        <AdminLanguageProvider>
+          <AdminLayoutContent>{children}</AdminLayoutContent>
+        </AdminLanguageProvider>
       </AdminAuthProvider>
     </QueryClientProvider>
   );

@@ -57,12 +57,23 @@ export type EmailSendFn = (params: {
 }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
 
 /**
+ * Kakao Alimtalk sending function interface
+ */
+export type AlimtalkSendFn = (params: {
+  to: string;
+  orderId: string;
+  orderDetailUrl: string;
+  customerName?: string;
+}) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+
+/**
  * Fulfillment service configuration
  */
 export interface FulfillmentServiceConfig {
   persistFn: StatePersistFn;
   loadFn: StateLoadFn;
   emailFn?: EmailSendFn;
+  alimtalkFn?: AlimtalkSendFn;
   config?: Partial<FulfillmentConfig>;
 }
 
@@ -93,6 +104,7 @@ export interface FulfillmentServiceConfig {
 export class FulfillmentService {
   private stateMachine: OrderStateMachine;
   private emailFn?: EmailSendFn;
+  private alimtalkFn?: AlimtalkSendFn;
   private config: FulfillmentConfig;
 
   constructor(serviceConfig: FulfillmentServiceConfig) {
@@ -108,6 +120,7 @@ export class FulfillmentService {
     });
 
     this.emailFn = serviceConfig.emailFn;
+    this.alimtalkFn = serviceConfig.alimtalkFn;
   }
 
   /**
@@ -265,42 +278,107 @@ export class FulfillmentService {
       }
     );
 
-    // Send email if configured
+    // Send notifications in parallel (email + Kakao Alimtalk)
     let emailSent = false;
     let emailMessageId: string | undefined;
+    let alimtalkSent = false;
+    let alimtalkMessageId: string | undefined;
 
+    // Prepare notification promises
+    interface NotificationResult {
+      type: 'email' | 'alimtalk';
+      success: boolean;
+      messageId?: string;
+      error?: string;
+    }
+    const notificationPromises: Promise<NotificationResult>[] = [];
+
+    // Email notification
     if (this.emailFn && this.config.enableEmailNotification) {
       const emailStep = logger.step('email_sent');
       emailStep.start({ to: order.customerEmail });
 
-      try {
-        const emailResult = await this.emailFn({
+      notificationPromises.push(
+        this.emailFn({
           to: order.customerEmail,
           orderId: order.orderId,
           qrCodeUrl: result.qrCodeUrl ?? '',
           activationCode: result.activationCode,
           directAppleInstallationUrl: result.directAppleInstallationUrl,
-        });
+        })
+          .then((emailResult) => {
+            if (emailResult.success) {
+              emailStep.success({ message_id: emailResult.messageId });
+            } else {
+              emailStep.fail({ message: emailResult.error ?? 'Email failed', type: 'provider_error' });
+            }
+            return { type: 'email' as const, ...emailResult };
+          })
+          .catch((error) => {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown email error';
+            emailStep.fail({ message: errorMessage, type: 'unknown' });
+            logger.emailFailed(errorMessage);
+            return { type: 'email' as const, success: false, error: errorMessage };
+          })
+      );
+    }
 
-        if (emailResult.success) {
-          emailSent = true;
-          emailMessageId = emailResult.messageId;
-          emailStep.success({ message_id: emailMessageId });
+    // Kakao Alimtalk notification
+    if (this.alimtalkFn && this.config.enableKakaoAlimtalk && order.customerPhone) {
+      const alimtalkStep = logger.step('alimtalk_sent');
+      alimtalkStep.start({ to: order.customerPhone });
 
-          // Transition to email_sent
-          await this.stateMachine.transition(
-            order.id,
-            order.correlationId,
-            'email_sent',
-            { emailMessageId }
-          );
-        } else {
-          emailStep.fail({ message: emailResult.error ?? 'Email failed', type: 'provider_error' });
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://numnaroad.com';
+      const orderDetailUrl = `${appUrl}/order/${order.orderId}`;
+
+      notificationPromises.push(
+        this.alimtalkFn({
+          to: order.customerPhone,
+          orderId: order.orderId,
+          orderDetailUrl,
+          customerName: order.customerName,
+        })
+          .then((alimtalkResult) => {
+            if (alimtalkResult.success) {
+              alimtalkStep.success({ message_id: alimtalkResult.messageId });
+            } else {
+              alimtalkStep.fail({ message: alimtalkResult.error ?? 'Alimtalk failed', type: 'provider_error' });
+            }
+            return { type: 'alimtalk' as const, ...alimtalkResult };
+          })
+          .catch((error) => {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown alimtalk error';
+            alimtalkStep.fail({ message: errorMessage, type: 'unknown' });
+            return { type: 'alimtalk' as const, success: false, error: errorMessage };
+          })
+      );
+    }
+
+    // Wait for all notifications (don't block on failures)
+    if (notificationPromises.length > 0) {
+      const results = await Promise.allSettled(notificationPromises);
+
+      for (const settledResult of results) {
+        if (settledResult.status === 'fulfilled') {
+          const notifResult = settledResult.value;
+          if (notifResult.type === 'email' && notifResult.success) {
+            emailSent = true;
+            emailMessageId = notifResult.messageId;
+          } else if (notifResult.type === 'alimtalk' && notifResult.success) {
+            alimtalkSent = true;
+            alimtalkMessageId = notifResult.messageId;
+          }
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown email error';
-        emailStep.fail({ message: errorMessage, type: 'unknown' });
-        logger.emailFailed(errorMessage);
+      }
+
+      // Transition to email_sent if email was successful
+      if (emailSent) {
+        await this.stateMachine.transition(
+          order.id,
+          order.correlationId,
+          'email_sent',
+          { emailMessageId }
+        );
       }
     }
 
@@ -328,6 +406,8 @@ export class FulfillmentService {
       },
       emailSent,
       emailMessageId,
+      alimtalkSent,
+      alimtalkMessageId,
       totalDurationMs: Date.now() - startTime,
     };
   }

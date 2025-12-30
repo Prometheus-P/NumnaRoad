@@ -1,6 +1,6 @@
 {
   "name": "numnaroad",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "NumnaRoad - Automated travel connectivity platform with 24/7 order processing",
   "keywords": [
@@ -45,6 +45,7 @@
     "pocketbase": "^0.21.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "solapi": "^5.5.3",
     "stripe": "^14.0.0",
     "tailwind-merge": "^2.2.0",
     "zod": "^3.22.0"

@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import '../globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from '@/i18n';
-
-const inter = Inter({ subsets: ['latin'] });
+import { Header } from '@/components/layout/Header';
 
 export const metadata: Metadata = {
   title: 'NumnaRoad - 해외여행 eSIM',
@@ -23,9 +21,10 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <body className={inter.className}>
+      <body>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeProvider>
+            <Header />
             {children}
           </ThemeProvider>
         </NextIntlClientProvider>

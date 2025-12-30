@@ -2,7 +2,8 @@
  * Notifications Service Module
  *
  * Provides operational notifications via various channels.
- * Currently supports Discord webhooks.
+ * - Discord webhooks (operational alerts)
+ * - Kakao Alimtalk (customer notifications)
  */
 
 export {
@@ -22,3 +23,17 @@ export {
   isDiscordConfigured,
   testWebhookConnection,
 } from './discord-notifier';
+
+export {
+  // Types
+  type AlimtalkSendParams,
+  type AlimtalkSendResult,
+  type AlimtalkSendFn,
+  type AlimtalkConfig,
+  // Functions
+  formatKoreanPhone,
+  isAlimtalkConfigured,
+  sendEsimDeliveryAlimtalk,
+  createAlimtalkSendFn,
+  testAlimtalkConnection,
+} from './kakao-alimtalk';
