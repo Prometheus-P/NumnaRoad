@@ -61,6 +61,16 @@ export default function Home() {
             transform: translateY(-20px) scale(1.05);
           }
         }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
       `}</style>
 
       <Container maxWidth="md" sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
@@ -142,18 +152,6 @@ export default function Home() {
             animationDelay: '1.8s',
           }}
         >
-          <style jsx global>{`
-            @keyframes fadeInUp {
-              from {
-                opacity: 0;
-                transform: translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-          `}</style>
           <Button
             variant="contained"
             size="large"
