@@ -194,8 +194,24 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
                             mx: 1,
                             borderRadius: 2,
                             mb: 0.5,
-                            '&.Mui-selected': {
+                            transition: 'all 0.15s ease-in-out',
+                            '&:hover': {
+                              bgcolor: 'action.hover',
+                            },
+                            '&:active': {
                               bgcolor: 'action.selected',
+                              transform: 'scale(0.98)',
+                            },
+                            '&.Mui-selected': {
+                              bgcolor: 'primary.light',
+                              color: 'primary.dark',
+                              '&:hover': {
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                              },
+                              '& .MuiListItemIcon-root': {
+                                color: 'primary.dark',
+                              },
                             },
                           }}
                         >
