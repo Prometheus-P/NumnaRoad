@@ -5,7 +5,7 @@ import { PaletteMode } from '@mui/material'; // Import PaletteMode for typing
 const primaryColor = '#6366F1'; // Indigo
 
 const typographyConfig = {
-  fontFamily: '"Pretendard", "Roboto", "sans-serif"', // Simplified font stack
+  fontFamily: '"NanumSquare", "Pretendard", "Roboto", sans-serif',
   h1: { fontSize: '57px', lineHeight: '64px', fontWeight: 400 }, // displayLarge
   h2: { fontSize: '45px', lineHeight: '52px', fontWeight: 400 }, // displayMedium
   h3: { fontSize: '36px', lineHeight: '44px', fontWeight: 400 }, // displaySmall
