@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface SplitTextProps {
   text: string;
@@ -14,14 +14,23 @@ export function SplitText({
   text,
   className = '',
   delay = 0,
-  staggerDelay = 50,
+  staggerDelay = 30, // Reduced from 50 for faster animation
   gradientColors,
 }: SplitTextProps) {
-  const [isVisible, setIsVisible] = useState(false);
+  // Start visible for better LCP, then animate
+  const [isAnimated, setIsAnimated] = useState(false);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+
+    // Use requestAnimationFrame for smoother animation start
+    const raf = requestAnimationFrame(() => {
+      const timer = setTimeout(() => setIsAnimated(true), Math.min(delay, 100)); // Cap delay at 100ms
+      return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [delay]);
 
   const gradientStyle: React.CSSProperties | undefined = gradientColors
@@ -41,9 +50,10 @@ export function SplitText({
           key={index}
           style={{
             display: 'inline-block',
-            opacity: isVisible ? 1 : 0,
-            transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-            transition: `opacity 0.4s ease, transform 0.4s ease`,
+            // Start at opacity 0.7 for visible LCP, animate to 1
+            opacity: isAnimated ? 1 : 0.7,
+            transform: isAnimated ? 'translateY(0)' : 'translateY(8px)',
+            transition: `opacity 0.3s ease, transform 0.3s ease`,
             transitionDelay: `${index * staggerDelay}ms`,
             whiteSpace: char === ' ' ? 'pre' : 'normal',
             ...gradientStyle,

@@ -21,6 +21,16 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
+      <head>
+        {/* Preload critical fonts for faster LCP */}
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareR.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeProvider>

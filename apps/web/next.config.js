@@ -12,6 +12,18 @@ const nextConfig = {
   images: {
     domains: ['pocketbase.yourdomain.com'],
   },
+  // Performance optimizations
+  compress: true,
+  poweredByHeader: false,
+  experimental: {
+    // Optimize MUI and other large package imports
+    optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+  },
+  // Compiler optimizations
+  compiler: {
+    // Remove console.log in production
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 };
 
 module.exports = withNextIntl(nextConfig);

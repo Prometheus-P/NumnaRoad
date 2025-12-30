@@ -123,8 +123,8 @@ export default function Home() {
         >
           <SplitText
             text={locale === 'ko' ? '해외여행 eSIM 자동 판매 플랫폼' : 'Automated eSIM Platform for Travelers'}
-            delay={500}
-            staggerDelay={30}
+            delay={100}
+            staggerDelay={20}
           />
         </Typography>
 
@@ -141,8 +141,8 @@ export default function Home() {
         >
           <BlurText
             text={locale === 'ko' ? '주문부터 발급까지 10초 내 자동 처리' : 'From order to delivery in 10 seconds'}
-            delay={1200}
-            duration={800}
+            delay={200}
+            duration={400}
           />
         </Typography>
 
@@ -150,8 +150,8 @@ export default function Home() {
         <Box
           sx={{
             opacity: 0,
-            animation: 'fadeInUp 0.6s ease forwards',
-            animationDelay: '1.8s',
+            animation: 'fadeInUp 0.5s ease forwards',
+            animationDelay: '0.3s',
           }}
         >
           <Button
@@ -185,8 +185,8 @@ export default function Home() {
             gap: { xs: 4, md: 8 },
             mt: 8,
             opacity: 0,
-            animation: 'fadeInUp 0.6s ease forwards',
-            animationDelay: '2.2s',
+            animation: 'fadeInUp 0.5s ease forwards',
+            animationDelay: '0.5s',
           }}
         >
           {[
