@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
   Drawer,
@@ -92,12 +92,16 @@ interface AdminSidebarProps {
 export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const theme = useTheme();
   const { t } = useAdminLanguage();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
     '/admin/orders': true,
   });
+
+  // Compute current full path including query params for child item selection
+  const currentFullPath = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '');
 
   // Get label from translations
   const getLabel = (id: string): string => {
@@ -188,7 +192,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
                       <ListItem key={child.path} disablePadding>
                         <ListItemButton
                           onClick={() => handleChildNavClick(child.path)}
-                          selected={pathname + (typeof window !== 'undefined' ? window?.location?.search || '' : '') === child.path}
+                          selected={currentFullPath === child.path}
                           sx={{
                             pl: 4,
                             mx: 1,
