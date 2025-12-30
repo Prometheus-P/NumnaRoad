@@ -7,6 +7,7 @@ interface SplitTextProps {
   className?: string;
   delay?: number;
   staggerDelay?: number;
+  gradientColors?: string[];
 }
 
 export function SplitText({
@@ -14,6 +15,7 @@ export function SplitText({
   className = '',
   delay = 0,
   staggerDelay = 50,
+  gradientColors,
 }: SplitTextProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -21,6 +23,16 @@ export function SplitText({
     const timer = setTimeout(() => setIsVisible(true), delay);
     return () => clearTimeout(timer);
   }, [delay]);
+
+  const gradientStyle: React.CSSProperties | undefined = gradientColors
+    ? {
+        background: `linear-gradient(90deg, ${gradientColors.join(', ')})`,
+        backgroundSize: '200% auto',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+      }
+    : undefined;
 
   return (
     <span className={className} style={{ display: 'inline-block' }}>
@@ -34,6 +46,7 @@ export function SplitText({
             transition: `opacity 0.4s ease, transform 0.4s ease`,
             transitionDelay: `${index * staggerDelay}ms`,
             whiteSpace: char === ' ' ? 'pre' : 'normal',
+            ...gradientStyle,
           }}
         >
           {char === ' ' ? '\u00A0' : char}

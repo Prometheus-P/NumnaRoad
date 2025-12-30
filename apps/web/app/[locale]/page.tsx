@@ -5,7 +5,7 @@ import { Box, Container, Button, Typography } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SimCardIcon from '@mui/icons-material/SimCard';
-import { SplitText, BlurText, GradientText } from '@/components/animations';
+import { SplitText, BlurText } from '@/components/animations';
 
 export default function Home() {
   const params = useParams();
@@ -103,9 +103,11 @@ export default function Home() {
             letterSpacing: '-0.02em',
           }}
         >
-          <GradientText colors={['#6366F1', '#8B5CF6', '#EC4899', '#6366F1']}>
-            <SplitText text="NumnaRoad" staggerDelay={80} />
-          </GradientText>
+          <SplitText
+            text="NumnaRoad"
+            staggerDelay={80}
+            gradientColors={['#6366F1', '#8B5CF6', '#EC4899', '#6366F1']}
+          />
         </Typography>
 
         {/* Tagline */}
