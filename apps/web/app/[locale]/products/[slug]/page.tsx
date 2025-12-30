@@ -18,6 +18,7 @@ import {
   Breadcrumbs,
   Card,
   CardContent,
+  IconButton,
 } from '@mui/material';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -170,16 +171,28 @@ export default function ProductDetailPage() {
   return (
     <Box sx={{ bgcolor: 'grey.50', minHeight: 'calc(100vh - 64px)' }}>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Breadcrumbs */}
-        <Breadcrumbs sx={{ mb: 3 }}>
-          <Link href={`/${locale}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-            홈
-          </Link>
-          <Link href={`/${locale}/products`} style={{ color: 'inherit', textDecoration: 'none' }}>
-            상품
-          </Link>
-          <Typography color="text.primary">{product.country_name}</Typography>
-        </Breadcrumbs>
+        {/* Navigation */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <IconButton
+            onClick={() => router.back()}
+            sx={{
+              bgcolor: 'grey.100',
+              '&:hover': { bgcolor: 'grey.200' },
+            }}
+            size="small"
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Breadcrumbs>
+            <Link href={`/${locale}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+              홈
+            </Link>
+            <Link href={`/${locale}/products`} style={{ color: 'inherit', textDecoration: 'none' }}>
+              상품
+            </Link>
+            <Typography color="text.primary">{product.country_name}</Typography>
+          </Breadcrumbs>
+        </Box>
 
         <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
           {/* Product Info */}
