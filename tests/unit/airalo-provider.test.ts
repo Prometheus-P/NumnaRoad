@@ -35,8 +35,12 @@ describe('AiraloProvider', () => {
     });
 
     const mockAccessTokenResponse = {
-        access_token: 'test-token',
-        expires_in: 3600,
+        data: {
+            access_token: 'test-token',
+            expires_in: 3600,
+            token_type: 'Bearer',
+        },
+        meta: { message: 'success' },
     };
 
     const mockAiraloPackageResponse: AiraloPackageResponse = {
@@ -222,6 +226,12 @@ describe('AiraloProvider', () => {
             AIRALO_API_KEY: 'test-api-key',
             AIRALO_API_SECRET_KEY: 'test-api-secret',
         };
+        // Reset global fetch mock - individual tests will override as needed
+        global.fetch = vi.fn();
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
     });
 
     test('healthCheck should return true when API is healthy', async () => {

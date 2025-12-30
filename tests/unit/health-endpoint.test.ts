@@ -24,8 +24,8 @@ describe('Health Check Endpoint', () => {
     it('should return healthy when all services are ok', async () => {
       // Setup environment
       vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_123');
-      vi.stubEnv('NAVER_CLIENT_ID', 'test_client_id');
-      vi.stubEnv('NAVER_CLIENT_SECRET', 'test_client_secret');
+      vi.stubEnv('NAVER_COMMERCE_APP_ID', 'test_app_id');
+      vi.stubEnv('NAVER_COMMERCE_APP_SECRET', 'test_app_secret');
 
       // Mock PocketBase
       const { getAdminPocketBase } = await import('@/lib/pocketbase');
@@ -58,8 +58,8 @@ describe('Health Check Endpoint', () => {
 
     it('should return degraded when optional services fail', async () => {
       vi.stubEnv('STRIPE_SECRET_KEY', ''); // Invalid
-      vi.stubEnv('NAVER_CLIENT_ID', '');
-      vi.stubEnv('NAVER_CLIENT_SECRET', '');
+      vi.stubEnv('NAVER_COMMERCE_APP_ID', '');
+      vi.stubEnv('NAVER_COMMERCE_APP_SECRET', '');
 
       const { getAdminPocketBase } = await import('@/lib/pocketbase');
       vi.mocked(getAdminPocketBase).mockResolvedValue({

@@ -175,9 +175,8 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch.mockImplementationOnce(async () => ({
         ok: true,
         json: async () => ({
-          access_token: 'test-access-token',
-          expires_in: 3600,
-          token_type: 'Bearer',
+          data: { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' },
+          meta: { message: 'success' },
         }),
       }));
 
@@ -209,8 +208,8 @@ describe('Airalo Fulfillment Integration', () => {
         .mockImplementationOnce(async () => ({
           ok: true,
           json: async () => ({
-            access_token: 'test-token',
-            expires_in: 3600,
+            data: { access_token: 'test-token', expires_in: 3600, token_type: 'Bearer' },
+            meta: { message: 'success' },
           }),
         }))
         .mockImplementationOnce(async () => ({
@@ -236,7 +235,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async (url: string, options: RequestInit) => {
           orderRequestBody = options.body as FormData;
@@ -263,7 +262,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'cached-token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'cached-token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: true,
@@ -299,7 +298,7 @@ describe('Airalo Fulfillment Integration', () => {
       // Mock: Airalo fails, eSIMCard succeeds
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
-          return { ok: true, json: async () => ({ access_token: 'token', expires_in: 3600 }) };
+          return { ok: true, json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }) };
         }
         if (url.includes('api.airalo.com/v2/orders')) {
           return { ok: false, status: 500, json: async () => ({ error: 'Airalo error' }) };
@@ -335,7 +334,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: false,
@@ -369,7 +368,7 @@ describe('Airalo Fulfillment Integration', () => {
       // First provider (airalo) succeeds
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
-          return { ok: true, json: async () => ({ access_token: 'token', expires_in: 3600 }) };
+          return { ok: true, json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }) };
         }
         if (url.includes('api.airalo.com/v2/orders')) {
           return { ok: true, json: async () => mockAiraloSuccessResponse };
@@ -417,7 +416,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: false,
@@ -483,7 +482,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: true,
@@ -508,7 +507,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: true,
@@ -550,7 +549,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: true,
@@ -573,7 +572,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: false,
@@ -602,7 +601,7 @@ describe('Airalo Fulfillment Integration', () => {
       mockFetch
         .mockImplementationOnce(async () => ({
           ok: true,
-          json: async () => ({ access_token: 'token', expires_in: 3600 }),
+          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
         }))
         .mockImplementationOnce(async () => ({
           ok: false,
@@ -639,7 +638,7 @@ describe('Airalo Fulfillment Integration', () => {
 
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
-          return { ok: true, json: async () => ({ access_token: 't', expires_in: 3600 }) };
+          return { ok: true, json: async () => ({ data: { access_token: 't', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }) };
         }
         if (url.includes('api.airalo.com/v2/orders')) {
           orderAttempts++;
@@ -667,7 +666,7 @@ describe('Airalo Fulfillment Integration', () => {
 
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('token')) {
-          return { ok: true, json: async () => ({ access_token: 't', expires_in: 3600 }) };
+          return { ok: true, json: async () => ({ data: { access_token: 't', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }) };
         }
         attempts++;
         return {
