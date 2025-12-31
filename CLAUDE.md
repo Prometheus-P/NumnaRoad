@@ -1,245 +1,86 @@
 # NumnaRoad Development Guidelines
 
-## Core Principles
-
-| 섹션 | 핵심 원칙 |
-|------|-----------|
-| 1. TDD | 테스트 먼저 → Red/Green/Refactor 사이클 |
-| 2. 외부 설정 | 수동 설정 필요 시 GitHub Issue 등록 필수 |
-| 3. 디자인 시스템 | Clean Architecture, DI, Event-Driven |
-| 4. 커밋 메시지 | Conventional Commits, AI 언급 금지 |
-| 5. 코드 스타일 | gofmt, golangci-lint, 단일 책임 원칙 |
-| 6. 응답 원칙 | CTO 관점, 객관적, 근거 필수 |
-| 7. PR 체크리스트 | 7개 항목 체크 후 머지 |
-
----
-
-## 1. TDD (Test-Driven Development)
-
-- **Red**: 실패하는 테스트 먼저 작성
-- **Green**: 테스트 통과하는 최소 코드 작성
-- **Refactor**: 코드 개선 (테스트 유지)
+## Commands
 
 ```bash
-npm run test:run    # 전체 테스트 실행
-npm run lint        # 린트 검사
+# Development
+npm run dev              # Start web app (localhost:3000)
+npm run dev:web          # Start web app only
+
+# Build & Check
+npm run build            # Production build
+npm run lint             # ESLint
+npm run typecheck        # TypeScript check
+
+# Testing
+npm run test             # Vitest watch mode
+npm run test:run         # Vitest single run
+npm run test:coverage    # Coverage report
 ```
-
-## 2. 외부 설정 원칙
-
-- **기술 구현**: 코드 작성, 테스트, 리팩토링 → Claude가 직접 수행
-- **비즈니스/운영 작업**: 외부 계정 설정, API 키 발급, 환경 변수 설정, 가격 정책 결정 → GitHub Issue로 등록
-- 수동 작업이 필요한 경우 `[Biz]` prefix로 issue 생성
-
-## 3. 디자인 시스템
-
-- **Clean Architecture**: 도메인 중심 설계
-- **DI (Dependency Injection)**: 의존성 주입으로 테스트 용이성 확보
-- **Event-Driven**: 느슨한 결합, 확장성
-
-## 4. 커밋 메시지
-
-- **Conventional Commits** 형식 준수
-- AI 생성 언급 금지 (Co-Authored-By 제외)
-- 예: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
-
-## 5. 코드 스타일
-
-- TypeScript 5.3+ (strict mode, `any` prohibited)
-- 단일 책임 원칙 (SRP)
-- ESLint/Prettier 준수
-
-## 6. 응답 원칙
-
-### CTO 관점
-- 결정 중심 (옵션 나열 X)
-- 트레이드오프/리스크/ROI 명시
-- P0/P1/P2 우선순위
-- 간결함
-
-### 객관성
-- 감정 배제
-- 사실 기반
-- 정량적 표현
-
-### 근거 확보
-- 공식 문서 참조
-- 코드 라인 명시 (예: `file.ts:123`)
-- 테스트 결과 포함
-- 벤치마크 데이터
-
-### 금지 표현
-- ❌ "아마도...", "~일 것 같습니다"
-- ❌ "보통은...", "일반적으로..."
-- ❌ 출처 없는 주장
-
-## 7. 비즈니스 관점
-
-| 항목 | 내용 |
-|------|------|
-| 소비자 중심 사고 | 리서치/피드백은 최종 사용자 관점 |
-| 비즈니스 임팩트 | 수익/비용/시장 영향 고려 |
-| 가치 전달 | 기술 ≠ 비즈니스 구분 |
-| 시장 현실 | 이상 < 실용 |
-
-B2C/B2B/B2G 전 영역 적용.
-
----
-
-## Active Technologies
-
-- TypeScript 5.3+ (strict mode, `any` prohibited)
-- Next.js 14 (App Router)
-- MUI v7+ (M3 theme)
-- PocketBase SDK
-- Stripe SDK
-- Resend (email)
-- TanStack React Query v5
 
 ## Project Structure
 
-```text
-apps/web/           # Next.js 웹 애플리케이션
-services/           # 비즈니스 로직
-  esim-providers/   # eSIM Provider 어댑터들
-  notifications/    # Discord, Email 알림
-  order-fulfillment/# 주문 처리 서비스
-pocketbase/         # PocketBase 설정 및 마이그레이션
-tests/              # 테스트 파일
-  unit/             # 단위 테스트
-  integration/      # 통합 테스트
-  e2e/              # E2E 테스트 (Playwright)
-  contract/         # API 계약 테스트
+```
+apps/web/                # Next.js 14 (App Router)
+  app/                   # Routes
+    [locale]/            # i18n (ko, en, ja, zh, es)
+    admin/               # Admin dashboard
+    api/                 # API routes
+  components/            # React components
+  lib/                   # Utilities
+
+services/                # Business logic
+  esim-providers/        # Provider adapters (RedteaGO, Airalo, etc.)
+  notifications/         # Discord, Email
+  order-fulfillment/     # Order processing
+
+pocketbase/              # Backend (BaaS)
 ```
 
 ## eSIM Provider Architecture
 
-| Provider | Priority | 용도 | 파일 |
-|----------|----------|------|------|
-| RedteaGO | 100 | Primary (도매) | `services/esim-providers/redteago.ts` |
-| eSIMCard | 80 | Backup | `services/esim-providers/esimcard.ts` |
-| MobiMatter | 60 | Backup | `services/esim-providers/mobimatter.ts` |
-| Airalo | 40 | Fallback (소매) | `services/esim-providers/airalo.ts` |
-| Manual | 10 | 수동 처리 | `services/esim-providers/manual.ts` |
+| Provider   | Priority | Use Case            |
+|------------|----------|---------------------|
+| RedteaGO   | 100      | Primary (wholesale) |
+| eSIMCard   | 80       | Backup              |
+| MobiMatter | 60       | Backup              |
+| Airalo     | 40       | Fallback (retail)   |
+| Manual     | 10       | Manual processing   |
 
-Circuit Breaker로 장애 provider 자동 차단.
+- Circuit Breaker automatically blocks failing providers
+- Provider caching: 5-min TTL in `/apps/web/lib/cache/providers.ts`
+
+## Tech Stack
+
+- **TypeScript 5.3+** - strict mode, `any` prohibited
+- **Next.js 14** - App Router, SSG/SSR
+- **MUI v7** - Material Design 3 theme
+- **PocketBase** - Backend as a Service
+- **Stripe** - Payments
+- **Resend** - Transactional email
+- **TanStack Query v5** - Data fetching
+
+## Conventions
+
+### Commits
+- Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+- No AI mentions in commit body (Co-Authored-By is OK)
+
+### TDD Workflow
+1. Write failing test (Red)
+2. Write minimal code to pass (Green)
+3. Refactor (maintain tests)
+
+### External Setup
+- Code implementation: Claude handles directly
+- Business/ops (API keys, env vars, pricing): Create GitHub Issue with `[Biz]` prefix
+
+### Code Style
+- Single Responsibility Principle
+- ESLint/Prettier enforced
+- File line limit: ~300 lines (split if larger)
 
 ## Environment Variables
 
-필수 환경 변수는 `.env.example` 참조.
-프로덕션 설정은 GitHub Issue #34 참조.
-
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
-
----
-
-## Vibe Coding: Effective AI Collaboration
-
-### Philosophy
-
-**"AI is a Pair Programming Partner, Not Just a Tool"**
-
-Collaboration with Claude is not mere code generation—it's a process of sharing thought processes and solving problems together.
-
-### 1. Context Provision Principles
-
-**Provide Sufficient Background:**
-```markdown
-# BAD: No context
-"Create a login feature"
-
-# GOOD: Rich context
-"Our project uses Next.js 14 + Supabase.
-Auth-related code is in /app/auth folder.
-Following existing patterns, add OAuth login.
-Reference: src/app/auth/login/page.tsx"
-```
-
-**Context Checklist:**
-- [ ] Specify project tech stack
-- [ ] Provide relevant file paths
-- [ ] Mention existing patterns/conventions
-- [ ] Describe expected output format
-- [ ] State constraints and considerations
-
-### 2. Iterative Refinement Cycle
-
-```
-VIBE CODING CYCLE
-
-1. SPECIFY    → Describe desired functionality specifically
-2. GENERATE   → Claude generates initial code
-3. REVIEW     → Review generated code yourself
-4. REFINE     → Provide feedback for modifications
-5. VERIFY     → Run tests and verify edge cases
-
-Repeat 2-5 as needed
-```
-
-### 3. Effective Prompt Patterns
-
-**Pattern 1: Role Assignment**
-```
-"You are a senior React developer with 10 years experience.
-Review this component and suggest improvements."
-```
-
-**Pattern 2: Step-by-Step Requests**
-```
-"Proceed in this order:
-1. Analyze current code problems
-2. Present 3 improvement options
-3. Refactor using the most suitable option
-4. Explain the changes"
-```
-
-**Pattern 3: Constraint Specification**
-```
-"Implement with these constraints:
-- Maintain existing API contract
-- No new dependencies
-- Test coverage >= 80%"
-```
-
-**Pattern 4: Example-Based Requests**
-```
-"Create OrderService.ts following the same pattern as
-UserService.ts. Especially follow the error handling approach."
-```
-
-### 4. Boundaries
-
-**DO NOT delegate to Claude:**
-- Security credential generation/management
-- Direct production DB manipulation
-- Code deployment without verification
-- Sensitive business logic full delegation
-
-**Human verification REQUIRED:**
-- Security-related code (auth, permissions)
-- Financial transaction logic
-- Personal data processing code
-- Irreversible operations
-- External API integration code
-
-### 5. Vibe Coding Checklist
-
-```
-Before Starting:
-- [ ] Shared CLAUDE.md file with Claude?
-- [ ] Explained project structure and conventions?
-- [ ] Clearly defined task objectives?
-
-During Coding:
-- [ ] Providing sufficient context?
-- [ ] Understanding generated code?
-- [ ] Giving specific feedback?
-
-After Coding:
-- [ ] Personally reviewed generated code?
-- [ ] Ran tests?
-- [ ] Verified security-related code?
-- [ ] Removed AI mentions from commit messages?
-```
-
+See `.env.example` for required variables.
+Production setup: GitHub Issue #34.
