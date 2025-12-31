@@ -10,9 +10,43 @@ import {
   isTimeoutResult,
   type FulfillmentOrder,
 } from '@services/order-fulfillment';
-import { createAutomationLogger } from '@services/logging';
-import type { EsimProvider } from '@services/esim-providers/types';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
+import { createAlimtalkSendFn } from '@services/notifications/kakao-alimtalk';
+
+// =============================================================================
+// Structured Logging Helper
+// =============================================================================
+
+interface LogContext {
+  correlationId?: string;
+  orderId?: string;
+  paymentIntentId?: string;
+  [key: string]: unknown;
+}
+
+function structuredLog(
+  level: 'info' | 'warn' | 'error',
+  event: string,
+  context: LogContext = {}
+) {
+  const logEntry = JSON.stringify({
+    level,
+    event,
+    ...context,
+    timestamp: new Date().toISOString(),
+  });
+
+  switch (level) {
+    case 'error':
+      console.error(logEntry);
+      break;
+    case 'warn':
+      console.warn(logEntry);
+      break;
+    default:
+      console.log(logEntry);
+  }
+}
 
 // In-memory store for rate limiting (per IP)
 const ipStore = new Map<
@@ -54,6 +88,8 @@ function validateCheckoutSession(session: Stripe.Checkout.Session): {
   data?: {
     paymentIntentId: string;
     customerEmail: string;
+    customerPhone: string | null;
+    customerName: string | null;
     productId: string;
     sessionId: string;
     amount: number;
@@ -79,11 +115,17 @@ function validateCheckoutSession(session: Stripe.Checkout.Session): {
     return { valid: false, error: 'Missing product_id in metadata' };
   }
 
+  // Extract customer phone from customer_details (collected via phone_number_collection)
+  const customerPhone = session.customer_details?.phone ?? null;
+  const customerName = session.customer_details?.name ?? null;
+
   return {
     valid: true,
     data: {
       paymentIntentId,
       customerEmail: session.customer_email,
+      customerPhone,
+      customerName,
       productId,
       sessionId: session.id,
       amount: session.amount_total ?? 0,
@@ -118,6 +160,8 @@ async function createOrder(
   data: {
     paymentIntentId: string;
     customerEmail: string;
+    customerPhone: string | null;
+    customerName: string | null;
     productId: string;
     sessionId: string;
     correlationId: string;
@@ -131,6 +175,8 @@ async function createOrder(
   return pb.collection(Collections.ORDERS).create({
     order_id: orderId,
     customer_email: data.customerEmail,
+    customer_phone: data.customerPhone || '',
+    customer_name: data.customerName || '',
     product: data.productId,
     stripe_payment_intent: data.paymentIntentId,
     stripe_session_id: data.sessionId,
@@ -242,16 +288,13 @@ async function processOrderInline(
   correlationId: string,
   config: ReturnType<typeof getConfig>
 ) {
-  const logger = createAutomationLogger({
-    orderId: order.id as string,
-    correlationId,
-  });
+  const orderId = order.id as string;
 
   // Get providers
   const providers = await getCachedActiveProviders();
   if (providers.length === 0) {
-    console.error('No active providers available');
-    await updateOrderWithResult(pb, order.id as string, {
+    structuredLog('error', 'no_active_providers', { correlationId, orderId });
+    await updateOrderWithResult(pb, orderId, {
       success: false,
       error: { message: 'No active providers available' },
       finalState: 'provider_failed',
@@ -262,8 +305,12 @@ async function processOrderInline(
   // Get product details
   const product = await getProductDetails(pb, order.product as string);
   if (!product) {
-    console.error('Product not found');
-    await updateOrderWithResult(pb, order.id as string, {
+    structuredLog('error', 'product_not_found', {
+      correlationId,
+      orderId,
+      productId: order.product as string,
+    });
+    await updateOrderWithResult(pb, orderId, {
       success: false,
       error: { message: 'Product not found' },
       finalState: 'failed',
@@ -271,11 +318,13 @@ async function processOrderInline(
     return { success: false, error: 'Product not found' };
   }
 
-  // Create fulfillment order object
+  // Create fulfillment order object with customer phone for Kakao Alimtalk
+  const customerPhone = (order.customer_phone as string) || undefined;
   const fulfillmentOrder: FulfillmentOrder = {
-    id: order.id as string,
+    id: orderId,
     orderId: order.order_id as string,
     customerEmail: order.customer_email as string,
+    customerPhone,
     productId: order.product as string,
     providerSku: product.providerSku,
     amount: order.amount as number,
@@ -285,10 +334,15 @@ async function processOrderInline(
     stripePaymentIntent: order.stripe_payment_intent as string,
   };
 
-  // Create fulfillment service
+  // Create Kakao Alimtalk send function if enabled and configured
+  const alimtalkFn = config.kakaoAlimtalk.enabled
+    ? createAlimtalkSendFn(config.kakaoAlimtalk)
+    : undefined;
+
+  // Create fulfillment service with Kakao Alimtalk support
   const fulfillmentService = createFulfillmentService({
-    persistFn: async (orderId, state, metadata) => {
-      await pb.collection(Collections.ORDERS).update(orderId, {
+    persistFn: async (id, state, metadata) => {
+      await pb.collection(Collections.ORDERS).update(id, {
         status: state,
         ...(metadata?.providerName && { provider_used: metadata.providerName }),
         ...(metadata?.errorMessage && { error_message: metadata.errorMessage }),
@@ -297,17 +351,26 @@ async function processOrderInline(
         }),
       });
     },
-    loadFn: async (orderId) => {
-      const o = await pb.collection(Collections.ORDERS).getOne(orderId);
+    loadFn: async (id) => {
+      const o = await pb.collection(Collections.ORDERS).getOne(id);
       return o.status;
     },
+    alimtalkFn,
     config: {
       webhookTimeoutMs: config.fulfillment.webhookTimeoutMs,
       providerTimeoutMs: 10000,
       maxRetries: 3,
       enableEmailNotification: config.fulfillment.enableEmailNotification,
       enableDiscordAlerts: config.fulfillment.enableDiscordAlerts,
+      enableKakaoAlimtalk: config.kakaoAlimtalk.enabled && !!customerPhone,
     },
+  });
+
+  structuredLog('info', 'fulfillment_starting', {
+    correlationId,
+    orderId,
+    providerCount: providers.length,
+    hasAlimtalk: !!alimtalkFn && !!customerPhone,
   });
 
   // Execute fulfillment with timeout
@@ -320,12 +383,24 @@ async function processOrderInline(
 
   if (isTimeoutResult(result)) {
     // Timeout - order stays in fulfillment_started, will be picked up by cron
-    console.log(`Order ${order.id} fulfillment timed out, will retry via cron`);
+    structuredLog('warn', 'fulfillment_timeout', {
+      correlationId,
+      orderId,
+      timeoutMs: config.fulfillment.webhookTimeoutMs,
+    });
     return { success: true, timedOut: true };
   }
 
   // Update order with final result
-  await updateOrderWithResult(pb, order.id as string, result);
+  await updateOrderWithResult(pb, orderId, result);
+
+  structuredLog('info', 'fulfillment_completed', {
+    correlationId,
+    orderId,
+    success: result.success,
+    providerUsed: result.providerUsed,
+    finalState: result.finalState,
+  });
 
   return result;
 }
@@ -359,7 +434,7 @@ export async function POST(request: NextRequest) {
   ipStore.set(ip, ipData);
 
   if (ipData.count > MAX_REQUESTS_PER_INTERVAL) {
-    console.warn(`Rate limit exceeded for IP: ${ip}`);
+    structuredLog('warn', 'rate_limit_exceeded', { correlationId, ip });
     return NextResponse.json(
       { error: 'Too Many Requests' },
       { status: 429, headers: { 'Retry-After': (RATE_LIMIT_INTERVAL_MS / 1000).toString() } }
@@ -375,6 +450,7 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('stripe-signature');
 
     if (!signature) {
+      structuredLog('warn', 'missing_stripe_signature', { correlationId });
       return NextResponse.json(
         { error: 'Missing stripe-signature header' },
         { status: 400 }
@@ -386,7 +462,10 @@ export async function POST(request: NextRequest) {
     try {
       event = verifyWebhookSignature(Buffer.from(body), signature);
     } catch (err) {
-      console.error('Webhook signature verification failed:', err);
+      structuredLog('error', 'webhook_signature_verification_failed', {
+        correlationId,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -403,25 +482,38 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     const validation = validateCheckoutSession(session);
     if (!validation.valid || !validation.data) {
-      console.error('Invalid checkout session:', validation.error);
+      structuredLog('error', 'invalid_checkout_session', {
+        correlationId,
+        error: validation.error,
+        sessionId: session.id,
+      });
       return NextResponse.json(
         { error: validation.error },
         { status: 400 }
       );
     }
 
-    const { paymentIntentId, customerEmail, productId, sessionId, amount, currency } =
-      validation.data;
+    const {
+      paymentIntentId,
+      customerEmail,
+      customerPhone,
+      customerName,
+      productId,
+      sessionId,
+      amount,
+      currency,
+    } = validation.data;
 
     const pb = await getAdminPocketBase();
 
     // Idempotency check
     const existingOrder = await findExistingOrder(pb, paymentIntentId);
     if (existingOrder) {
-      console.log(
-        `Order already exists for payment_intent ${paymentIntentId}:`,
-        existingOrder.id
-      );
+      structuredLog('info', 'order_already_exists', {
+        correlationId,
+        paymentIntentId,
+        orderId: existingOrder.id,
+      });
       return NextResponse.json({
         received: true,
         handled: true,
@@ -437,6 +529,8 @@ export async function POST(request: NextRequest) {
       {
         paymentIntentId,
         customerEmail,
+        customerPhone,
+        customerName,
         productId,
         sessionId,
         correlationId,
@@ -446,10 +540,13 @@ export async function POST(request: NextRequest) {
       useInlineFulfillment
     );
 
-    console.log(
-      `Created order ${order.id} with correlation_id ${correlationId}`,
-      `[mode: ${useInlineFulfillment ? 'inline' : 'n8n'}]`
-    );
+    structuredLog('info', 'order_created', {
+      correlationId,
+      orderId: order.id,
+      paymentIntentId,
+      mode: useInlineFulfillment ? 'inline' : 'n8n',
+      hasPhone: !!customerPhone,
+    });
 
     // Process order based on feature flag
     if (useInlineFulfillment) {
@@ -471,8 +568,16 @@ export async function POST(request: NextRequest) {
       // Legacy n8n flow
       try {
         await triggerOrderProcessing(order.id, correlationId);
+        structuredLog('info', 'n8n_workflow_triggered', {
+          correlationId,
+          orderId: order.id,
+        });
       } catch (err) {
-        console.error('Failed to trigger order processing:', err);
+        structuredLog('error', 'n8n_workflow_trigger_failed', {
+          correlationId,
+          orderId: order.id,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
       }
 
       const durationMs = Date.now() - startTime;
@@ -487,7 +592,11 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    structuredLog('error', 'webhook_processing_failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
 
     // Return 500 to trigger Stripe retry
     return NextResponse.json(

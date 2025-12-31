@@ -1,0 +1,113 @@
+{
+  "id": "smartstore_products",
+  "name": "smartstore_products",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "internalProductId",
+      "name": "internalProductId",
+      "type": "relation",
+      "required": true,
+      "options": {
+        "collectionId": "esim_products",
+        "cascadeDelete": false,
+        "minSelect": null,
+        "maxSelect": 1,
+        "displayFields": ["name"]
+      }
+    },
+    {
+      "id": "smartstoreProductNo",
+      "name": "smartstoreProductNo",
+      "type": "text",
+      "required": false,
+      "options": {
+        "min": null,
+        "max": 50,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "smartstoreChannelProductNo",
+      "name": "smartstoreChannelProductNo",
+      "type": "text",
+      "required": false,
+      "options": {
+        "min": null,
+        "max": 50,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "syncStatus",
+      "name": "syncStatus",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["pending", "synced", "failed", "not_synced"]
+      }
+    },
+    {
+      "id": "lastSyncAt",
+      "name": "lastSyncAt",
+      "type": "date",
+      "required": false,
+      "options": {
+        "min": "",
+        "max": ""
+      }
+    },
+    {
+      "id": "lastError",
+      "name": "lastError",
+      "type": "text",
+      "required": false,
+      "options": {
+        "min": null,
+        "max": 1000,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "autoSync",
+      "name": "autoSync",
+      "type": "bool",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "categoryId",
+      "name": "categoryId",
+      "type": "text",
+      "required": false,
+      "options": {
+        "min": null,
+        "max": 50,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "dataHash",
+      "name": "dataHash",
+      "type": "text",
+      "required": false,
+      "options": {
+        "min": null,
+        "max": 32,
+        "pattern": ""
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_internal_product ON smartstore_products (internalProductId)",
+    "CREATE INDEX idx_sync_status ON smartstore_products (syncStatus)",
+    "CREATE INDEX idx_auto_sync ON smartstore_products (autoSync)"
+  ],
+  "listRule": "",
+  "viewRule": "",
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

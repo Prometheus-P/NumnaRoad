@@ -18,6 +18,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminSidebar, DRAWER_WIDTH } from '@/components/admin/AdminSidebar';
 import { AdminAuthProvider, useAdminAuth } from '@/components/admin/AdminAuthProvider';
 import { AdminLanguageProvider, useAdminLanguage } from '@/lib/i18n';
+import { SkipLink } from '@/components/layout/SkipLink';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +62,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <SkipLink mainContentId="admin-main-content" label="메인 콘텐츠로 건너뛰기" />
       <AppBar
         position="fixed"
         elevation={0}
@@ -163,6 +165,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       <AdminSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <Box
         component="main"
+        id="admin-main-content"
+        role="main"
+        aria-label="관리자 메인 콘텐츠"
+        tabIndex={-1}
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
@@ -170,6 +176,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           mt: '64px',
           bgcolor: 'background.default',
           minHeight: 'calc(100vh - 64px)',
+          outline: 'none',
         }}
       >
         {children}

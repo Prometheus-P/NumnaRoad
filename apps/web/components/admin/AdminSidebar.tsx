@@ -151,87 +151,125 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   const drawerContent = (
     <>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div" fontWeight={600}>
+        <Typography variant="h6" noWrap component="div" fontWeight={600} id="admin-sidebar-title">
           {t.sidebar.title}
         </Typography>
       </Toolbar>
       <Divider />
-      <Box sx={{ overflow: 'auto', py: 1 }}>
-        <List disablePadding>
-          {navItemsConfig.map((item) => (
-            <React.Fragment key={item.path}>
-              <ListItem disablePadding>
-                <ListItemButton
-                  onClick={() => handleNavClick(item)}
-                  selected={isActive(item.path) && !item.children}
-                  sx={{
-                    mx: 1,
-                    borderRadius: 2,
-                    mb: 0.5,
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: 'primary.dark',
-                      },
-                      '& .MuiListItemIcon-root': {
+      <Box
+        component="nav"
+        aria-labelledby="admin-sidebar-title"
+        sx={{ overflow: 'auto', py: 1 }}
+      >
+        <List disablePadding component="ul" role="menubar" aria-label="관리자 메뉴">
+          {navItemsConfig.map((item) => {
+            const isItemActive = isActive(item.path) && !item.children;
+            const isExpanded = !!openMenus[item.path];
+
+            return (
+              <React.Fragment key={item.path}>
+                <ListItem disablePadding component="li" role="none">
+                  <ListItemButton
+                    onClick={() => handleNavClick(item)}
+                    selected={isItemActive}
+                    role="menuitem"
+                    aria-current={isItemActive ? 'page' : undefined}
+                    aria-expanded={item.children ? isExpanded : undefined}
+                    aria-haspopup={item.children ? 'menu' : undefined}
+                    sx={{
+                      mx: 1,
+                      borderRadius: 2,
+                      mb: 0.5,
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
                         color: 'primary.contrastText',
+                        '&:hover': {
+                          bgcolor: 'primary.dark',
+                        },
+                        '& .MuiListItemIcon-root': {
+                          color: 'primary.contrastText',
+                        },
                       },
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={getLabel(item.id)} />
-                  {item.children && (openMenus[item.path] ? <ExpandLess /> : <ExpandMore />)}
-                </ListItemButton>
-              </ListItem>
-              {item.children && (
-                <Collapse in={openMenus[item.path]} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    {item.children.map((child) => (
-                      <ListItem key={child.path} disablePadding>
-                        <ListItemButton
-                          onClick={() => handleChildNavClick(child.path)}
-                          selected={currentFullPath === child.path}
-                          sx={{
-                            pl: 4,
-                            mx: 1,
-                            borderRadius: 2,
-                            mb: 0.5,
-                            transition: 'all 0.15s ease-in-out',
-                            '&:hover': {
-                              bgcolor: 'action.hover',
-                            },
-                            '&:active': {
-                              bgcolor: 'action.selected',
-                              transform: 'scale(0.98)',
-                            },
-                            '&.Mui-selected': {
-                              bgcolor: 'primary.light',
-                              color: 'primary.dark',
-                              '&:hover': {
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
-                              },
-                              '& .MuiListItemIcon-root': {
-                                color: 'primary.dark',
-                              },
-                            },
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 36 }}>{child.icon}</ListItemIcon>
-                          <ListItemText
-                            primary={getLabel(child.id)}
-                            primaryTypographyProps={{ variant: 'body2' }}
-                          />
-                        </ListItemButton>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Collapse>
-              )}
-            </React.Fragment>
-          ))}
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }} aria-hidden="true">
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={getLabel(item.id)} />
+                    {item.children && (
+                      <Box aria-hidden="true">
+                        {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                      </Box>
+                    )}
+                  </ListItemButton>
+                </ListItem>
+                {item.children && (
+                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                    <List
+                      component="ul"
+                      disablePadding
+                      role="menu"
+                      aria-label={`${getLabel(item.id)} 하위 메뉴`}
+                    >
+                      {item.children.map((child) => {
+                        const isChildActive = currentFullPath === child.path;
+                        return (
+                          <ListItem key={child.path} disablePadding component="li" role="none">
+                            <ListItemButton
+                              onClick={() => handleChildNavClick(child.path)}
+                              selected={isChildActive}
+                              role="menuitem"
+                              aria-current={isChildActive ? 'page' : undefined}
+                              sx={{
+                                pl: 4,
+                                mx: 1,
+                                borderRadius: 2,
+                                mb: 0.5,
+                                transition: 'all 0.15s ease-in-out',
+                                '&:hover': {
+                                  bgcolor: 'action.hover',
+                                },
+                                '&:active': {
+                                  bgcolor: 'action.selected',
+                                  transform: 'scale(0.98)',
+                                },
+                                '&.Mui-selected': {
+                                  bgcolor: 'primary.light',
+                                  color: 'primary.dark',
+                                  '&:hover': {
+                                    bgcolor: 'primary.main',
+                                    color: 'primary.contrastText',
+                                  },
+                                  '& .MuiListItemIcon-root': {
+                                    color: 'primary.dark',
+                                  },
+                                },
+                                // Respect reduced motion
+                                '@media (prefers-reduced-motion: reduce)': {
+                                  transition: 'none',
+                                  '&:active': {
+                                    transform: 'none',
+                                  },
+                                },
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 36 }} aria-hidden="true">
+                                {child.icon}
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={getLabel(child.id)}
+                                primaryTypographyProps={{ variant: 'body2' }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </Collapse>
+                )}
+              </React.Fragment>
+            );
+          })}
         </List>
       </Box>
     </>
@@ -246,6 +284,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
         onClose={onMobileClose}
         ModalProps={{
           keepMounted: true, // Better open performance on mobile
+          'aria-labelledby': 'admin-sidebar-title',
         }}
         sx={{
           display: { xs: 'block', md: 'none' },
@@ -261,6 +300,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
       {/* Desktop drawer */}
       <Drawer
         variant="permanent"
+        aria-labelledby="admin-sidebar-title"
         sx={{
           display: { xs: 'none', md: 'block' },
           width: DRAWER_WIDTH,

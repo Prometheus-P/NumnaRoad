@@ -34,6 +34,7 @@ export const Collections = {
   AUTOMATION_LOGS: 'automation_logs',
   SMARTSTORE_CONFIG: 'smartstore_config',
   SMARTSTORE_SYNC_LOGS: 'smartstore_sync_logs',
+  SMARTSTORE_PRODUCTS: 'smartstore_products',
   PRODUCT_MAPPINGS: 'product_mappings',
   USERS: 'users',
 } as const;

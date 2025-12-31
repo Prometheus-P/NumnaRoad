@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getStripe } from '@/lib/stripe';
+import { getAdminPocketBase } from '@/lib/pocketbase';
+import { getConfig } from '@/lib/config';
 
 /**
  * POST /api/checkout/create-session
- * Stripe 결제 세션 생성
+ *
+ * Creates a Stripe Checkout Session for eSIM purchase.
+ * Includes phone_number_collection for Kakao Alimtalk notifications.
  */
 
 const sessionSchema = z.object({
-  orderId: z.string().uuid(),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
+  productId: z.string(),
+  quantity: z.number().int().positive().default(1),
 });
 
 export async function POST(request: NextRequest) {
@@ -29,46 +33,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orderId: _orderId, successUrl: _successUrl, cancelUrl: _cancelUrl } = validation.data;
+    const { productId, quantity } = validation.data;
+    const config = getConfig();
 
-    // Stripe SDK는 실제 환경에서 설정 필요
-    // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    // Get product from PocketBase
+    const pb = await getAdminPocketBase();
+    let product;
+    try {
+      product = await pb.collection('esim_products').getOne(productId);
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Product not found' },
+        { status: 404 }
+      );
+    }
 
-    // TODO: PocketBase에서 주문 조회
-    // const order = await pb.collection('orders').getFirstListItem(`order_id="${orderId}"`);
+    if (!product.is_active) {
+      return NextResponse.json(
+        { success: false, error: 'Product is not available' },
+        { status: 400 }
+      );
+    }
 
-    // TODO: Stripe 세션 생성
-    // const session = await stripe.checkout.sessions.create({
-    //   payment_method_types: ['card'],
-    //   line_items: [{
-    //     price_data: {
-    //       currency: 'krw',
-    //       product_data: {
-    //         name: order.expand.product.name,
-    //       },
-    //       unit_amount: order.amount,
-    //     },
-    //     quantity: 1,
-    //   }],
-    //   mode: 'payment',
-    //   success_url: successUrl,
-    //   cancel_url: cancelUrl,
-    //   metadata: {
-    //     order_id: orderId,
-    //   },
-    // });
+    // Create Stripe checkout session
+    const stripe = getStripe();
+    const appUrl = config.app.url;
 
-    // 임시 응답 (실제 구현 시 Stripe 세션 반환)
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'krw',
+            product_data: {
+              name: `${product.country_name} eSIM`,
+              description: `${product.data_limit} / ${product.duration}일`,
+              metadata: {
+                product_id: productId,
+              },
+            },
+            unit_amount: Math.round(product.retail_price),
+          },
+          quantity,
+        },
+      ],
+      // Enable phone number collection for Kakao Alimtalk
+      phone_number_collection: {
+        enabled: config.kakaoAlimtalk.enabled,
+      },
+      customer_creation: 'always',
+      success_url: `${appUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/products/${product.slug}`,
+      metadata: {
+        product_id: productId,
+        product_name: product.name,
+        country: product.country,
+        data_limit: product.data_limit,
+        duration: product.duration.toString(),
+      },
+      // Expand customer_details in webhook
+      expand: ['customer_details'],
+    });
+
     return NextResponse.json({
       success: true,
-      data: {
-        sessionId: 'cs_test_placeholder',
-        url: 'https://checkout.stripe.com/placeholder',
-      },
-      message: 'This is a placeholder. Stripe integration required.',
+      sessionId: session.id,
+      url: session.url,
     });
   } catch (error) {
-    console.error('Create checkout session error:', error);
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'checkout_session_creation_failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    }));
+
     return NextResponse.json(
       {
         success: false,

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SimCardIcon from '@mui/icons-material/SimCard';
 import { SplitText, BlurText } from '@/components/animations';
+import { useReducedMotion } from '@/lib/accessibility';
 
 interface HeroSectionProps {
   locale: string;
@@ -13,8 +14,9 @@ interface HeroSectionProps {
 
 export function HeroSection({ locale }: HeroSectionProps) {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
 
-  // Inject keyframes once on mount
+  // Inject keyframes once on mount, with reduced-motion support
   useEffect(() => {
     if (typeof document !== 'undefined' && !document.getElementById('hero-keyframes')) {
       const style = document.createElement('style');
@@ -27,6 +29,16 @@ export function HeroSection({ locale }: HeroSectionProps) {
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        /* Disable animations for users who prefer reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes float {
+            0%, 100% { transform: none; }
+          }
+          @keyframes fadeInUp {
+            from { opacity: 1; transform: none; }
+            to { opacity: 1; transform: none; }
+          }
         }
       `;
       document.head.appendChild(style);
@@ -45,8 +57,9 @@ export function HeroSection({ locale }: HeroSectionProps) {
         overflow: 'hidden',
       }}
     >
-      {/* Background decoration */}
+      {/* Background decoration - hidden from screen readers */}
       <Box
+        aria-hidden="true"
         sx={{
           position: 'absolute',
           top: '10%',
@@ -56,10 +69,11 @@ export function HeroSection({ locale }: HeroSectionProps) {
           borderRadius: '50%',
           background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
           filter: 'blur(60px)',
-          animation: 'float 6s ease-in-out infinite',
+          animation: prefersReducedMotion ? 'none' : 'float 6s ease-in-out infinite',
         }}
       />
       <Box
+        aria-hidden="true"
         sx={{
           position: 'absolute',
           bottom: '20%',
@@ -69,7 +83,7 @@ export function HeroSection({ locale }: HeroSectionProps) {
           borderRadius: '50%',
           background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)',
           filter: 'blur(40px)',
-          animation: 'float 8s ease-in-out infinite reverse',
+          animation: prefersReducedMotion ? 'none' : 'float 8s ease-in-out infinite reverse',
         }}
       />
 
@@ -149,15 +163,15 @@ export function HeroSection({ locale }: HeroSectionProps) {
         {/* CTA Button */}
         <Box
           sx={{
-            opacity: 0,
-            animation: 'fadeInUp 0.5s ease forwards',
-            animationDelay: '0.3s',
+            opacity: prefersReducedMotion ? 1 : 0,
+            animation: prefersReducedMotion ? 'none' : 'fadeInUp 0.5s ease forwards',
+            animationDelay: prefersReducedMotion ? '0s' : '0.3s',
           }}
         >
           <Button
             variant="contained"
             size="large"
-            endIcon={<ArrowForwardIcon />}
+            endIcon={<ArrowForwardIcon aria-hidden="true" />}
             onClick={() => router.push(`/${locale}/products`)}
             sx={{
               py: 1.5,
@@ -167,10 +181,10 @@ export function HeroSection({ locale }: HeroSectionProps) {
               borderRadius: 3,
               boxShadow: '0 10px 40px rgba(99, 102, 241, 0.3)',
               '&:hover': {
-                transform: 'translateY(-2px)',
+                transform: prefersReducedMotion ? 'none' : 'translateY(-2px)',
                 boxShadow: '0 15px 50px rgba(99, 102, 241, 0.4)',
               },
-              transition: 'all 0.3s ease',
+              transition: prefersReducedMotion ? 'none' : 'all 0.3s ease',
             }}
           >
             {locale === 'ko' ? '상품 둘러보기' : 'Browse Products'}
@@ -179,14 +193,16 @@ export function HeroSection({ locale }: HeroSectionProps) {
 
         {/* Stats */}
         <Box
+          component="section"
+          aria-label={locale === 'ko' ? '주요 통계' : 'Key Statistics'}
           sx={{
             display: 'flex',
             justifyContent: 'center',
             gap: { xs: 4, md: 8 },
             mt: 8,
-            opacity: 0,
-            animation: 'fadeInUp 0.5s ease forwards',
-            animationDelay: '0.5s',
+            opacity: prefersReducedMotion ? 1 : 0,
+            animation: prefersReducedMotion ? 'none' : 'fadeInUp 0.5s ease forwards',
+            animationDelay: prefersReducedMotion ? '0s' : '0.5s',
           }}
         >
           {[

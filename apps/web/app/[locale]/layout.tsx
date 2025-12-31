@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from '@/i18n';
 import { Header } from '@/components/layout/Header';
+import { SkipLink, MainContent } from '@/components/layout/SkipLink';
 
 export const metadata: Metadata = {
   title: 'NumnaRoad - 해외여행 eSIM',
@@ -34,8 +35,9 @@ export default async function RootLayout({
       <body>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <ThemeProvider>
+            <SkipLink />
             <Header />
-            {children}
+            <MainContent>{children}</MainContent>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -21,6 +21,7 @@ import {
   Divider,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SimCardIcon from '@mui/icons-material/SimCard';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -43,31 +44,61 @@ export function Header() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const navId = useId();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  const handleDrawerClose = () => {
+    setMobileOpen(false);
+    // Return focus to menu button when drawer closes
+    menuButtonRef.current?.focus();
+  };
+
+  // Focus management for drawer
+  useEffect(() => {
+    if (mobileOpen && closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+  }, [mobileOpen]);
 
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(href + '/');
   };
 
   const drawer = (
-    <Box sx={{ width: 280, pt: 2 }}>
-      <Box sx={{ px: 2, pb: 2 }}>
+    <Box
+      sx={{ width: 280, pt: 2 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="네비게이션 메뉴"
+    >
+      <Box sx={{ px: 2, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" fontWeight={700} color="primary">
           NumnaRoad
         </Typography>
+        <IconButton
+          ref={closeButtonRef}
+          onClick={handleDrawerClose}
+          aria-label="메뉴 닫기"
+          size="small"
+        >
+          <CloseIcon />
+        </IconButton>
       </Box>
       <Divider />
-      <List>
+      <List component="nav" aria-label="메인 네비게이션">
         {navItems.map((item) => (
           <ListItem key={item.href} disablePadding>
             <ListItemButton
               component={Link}
               href={item.href}
               selected={isActive(item.href)}
-              onClick={handleDrawerToggle}
+              onClick={handleDrawerClose}
+              aria-current={isActive(item.href) ? 'page' : undefined}
               sx={{
                 mx: 1,
                 borderRadius: 2,
@@ -86,19 +117,19 @@ export function Header() {
         ))}
       </List>
       <Divider sx={{ my: 2 }} />
-      <List>
+      <List component="nav" aria-label="관리자 메뉴">
         <ListItem disablePadding>
           <ListItemButton
             component={Link}
             href="/admin"
-            onClick={handleDrawerToggle}
+            onClick={handleDrawerClose}
             sx={{
               mx: 1,
               borderRadius: 2,
               color: 'text.secondary',
             }}
           >
-            <AdminPanelSettingsIcon sx={{ mr: 1, fontSize: 20 }} />
+            <AdminPanelSettingsIcon sx={{ mr: 1, fontSize: 20 }} aria-hidden="true" />
             <ListItemText primary="관리자" />
           </ListItemButton>
         </ListItem>
@@ -136,12 +167,18 @@ export function Header() {
 
             {/* Desktop Navigation */}
             {!isMobile && (
-              <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+              <Box
+                component="nav"
+                id={navId}
+                aria-label="메인 네비게이션"
+                sx={{ display: 'flex', gap: 1, flexGrow: 1 }}
+              >
                 {navItems.map((item) => (
                   <Button
                     key={item.href}
                     component={Link}
                     href={item.href}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
                     sx={{
                       color: isActive(item.href) ? 'primary.main' : 'text.primary',
                       fontWeight: isActive(item.href) ? 600 : 400,
@@ -179,13 +216,16 @@ export function Header() {
             {/* Mobile Menu Button */}
             {isMobile && (
               <IconButton
+                ref={menuButtonRef}
                 color="inherit"
-                aria-label="open drawer"
+                aria-label={mobileOpen ? '메뉴 닫기' : '메뉴 열기'}
+                aria-expanded={mobileOpen}
+                aria-haspopup="dialog"
                 edge="end"
                 onClick={handleDrawerToggle}
                 sx={{ color: 'text.primary' }}
               >
-                <MenuIcon />
+                <MenuIcon aria-hidden="true" />
               </IconButton>
             )}
           </Toolbar>
@@ -197,9 +237,10 @@ export function Header() {
         variant="temporary"
         anchor="right"
         open={mobileOpen}
-        onClose={handleDrawerToggle}
+        onClose={handleDrawerClose}
         ModalProps={{
           keepMounted: true,
+          'aria-labelledby': 'mobile-nav-title',
         }}
         sx={{
           display: { xs: 'block', md: 'none' },

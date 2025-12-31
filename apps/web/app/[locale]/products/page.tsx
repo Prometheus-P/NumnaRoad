@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import {
   Container,
   Typography,
@@ -32,6 +32,7 @@ import PublicIcon from '@mui/icons-material/Public';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useAnnounce } from '@/lib/accessibility';
 
 interface Product {
   id: string;
@@ -89,8 +90,16 @@ function formatPrice(price: number): string {
 }
 
 function ProductCard({ product, locale }: { product: Product; locale: string }) {
+  const cardId = useId();
+  const titleId = `${cardId}-title`;
+  const descId = `${cardId}-desc`;
+
   return (
     <Card
+      component="article"
+      role="article"
+      aria-labelledby={titleId}
+      aria-describedby={descId}
       sx={{
         height: '100%',
         display: 'flex',
@@ -104,57 +113,72 @@ function ProductCard({ product, locale }: { product: Product; locale: string }) 
           boxShadow: '0 12px 24px rgba(0,0,0,0.1)',
           borderColor: 'primary.main',
         },
+        // Respect reduced motion preference
+        '@media (prefers-reduced-motion: reduce)': {
+          transition: 'none',
+          '&:hover': {
+            transform: 'none',
+          },
+        },
       }}
     >
       <CardContent sx={{ flexGrow: 1, p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
           <Box>
-            <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
+            <Typography id={titleId} variant="h6" component="h2" sx={{ fontWeight: 700 }}>
               {product.country_name}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography id={descId} variant="body2" color="text.secondary">
               {product.name}
             </Typography>
           </Box>
           {product.is_featured && (
             <Chip
-              icon={<TrendingUpIcon sx={{ fontSize: 16 }} />}
+              icon={<TrendingUpIcon sx={{ fontSize: 16 }} aria-hidden="true" />}
               label="인기"
               color="primary"
               size="small"
               sx={{ fontWeight: 600 }}
+              aria-label="인기 상품"
             />
           )}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Box
+          sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}
+          role="group"
+          aria-label="상품 정보"
+        >
           <Chip
-            icon={<DataUsageIcon sx={{ fontSize: 16 }} />}
+            icon={<DataUsageIcon sx={{ fontSize: 16 }} aria-hidden="true" />}
             label={product.data_limit}
             size="small"
             sx={{ bgcolor: 'primary.50', color: 'primary.main', fontWeight: 500 }}
+            aria-label={`데이터: ${product.data_limit}`}
           />
           <Chip
-            icon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
+            icon={<AccessTimeIcon sx={{ fontSize: 16 }} aria-hidden="true" />}
             label={`${product.duration}일`}
             size="small"
             sx={{ bgcolor: 'grey.100' }}
+            aria-label={`사용 기간: ${product.duration}일`}
           />
           {product.speed && (
             <Chip
-              icon={<SignalCellularAltIcon sx={{ fontSize: 16 }} />}
+              icon={<SignalCellularAltIcon sx={{ fontSize: 16 }} aria-hidden="true" />}
               label={product.speed}
               size="small"
               color={product.speed === '5G' ? 'success' : 'default'}
               variant={product.speed === '5G' ? 'filled' : 'outlined'}
+              aria-label={`속도: ${product.speed}`}
             />
           )}
         </Box>
 
         {product.features && product.features.length > 0 && (
-          <Box sx={{ mb: 2 }}>
+          <Box component="ul" sx={{ mb: 2, listStyle: 'none', p: 0, m: 0 }} aria-label="상품 특징">
             {product.features.slice(0, 2).map((feature, idx) => (
-              <Typography key={idx} variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              <Typography key={idx} component="li" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 • {feature}
               </Typography>
             ))}
@@ -162,7 +186,7 @@ function ProductCard({ product, locale }: { product: Product; locale: string }) 
         )}
 
         <Box sx={{ mt: 'auto' }}>
-          <Typography variant="h5" color="primary.main" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" color="primary.main" sx={{ fontWeight: 700 }} aria-label={`가격: ${formatPrice(product.retail_price)}`}>
             {formatPrice(product.retail_price)}
           </Typography>
         </Box>
@@ -176,6 +200,7 @@ function ProductCard({ product, locale }: { product: Product; locale: string }) 
           fullWidth
           size="large"
           sx={{ borderRadius: 2, fontWeight: 600 }}
+          aria-label={`${product.country_name} ${product.name} 구매하기`}
         >
           구매하기
         </Button>
@@ -209,6 +234,7 @@ function ProductCardSkeleton() {
 export default function ProductsPage() {
   const params = useParams();
   const locale = (params?.locale as string) || 'ko';
+  const announce = useAnnounce();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,6 +245,11 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  // Generate unique IDs for ARIA relationships
+  const searchId = useId();
+  const sortId = useId();
+  const filterGroupId = useId();
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -238,15 +269,19 @@ export default function ProductsPage() {
         setProducts(data.data);
         setTotalPages(data.pagination.totalPages);
         setTotalItems(data.pagination.totalItems);
+        // Announce results to screen readers
+        announce(`${data.pagination.totalItems}개의 상품을 찾았습니다.`);
       } else {
         setError('상품을 불러오는데 실패했습니다.');
+        announce('상품을 불러오는데 실패했습니다.', 'assertive');
       }
     } catch {
       setError('네트워크 오류가 발생했습니다.');
+      announce('네트워크 오류가 발생했습니다.', 'assertive');
     } finally {
       setLoading(false);
     }
-  }, [page, selectedCountry, search]);
+  }, [page, selectedCountry, search, announce]);
 
   useEffect(() => {
     fetchProducts();
@@ -290,13 +325,16 @@ export default function ProductsPage() {
         <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }}>
           <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
             <TextField
+              id={searchId}
               placeholder="국가 또는 상품명 검색"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="eSIM 상품 검색"
+              aria-describedby={`${searchId}-desc`}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon color="action" />
+                    <SearchIcon color="action" aria-hidden="true" />
                   </InputAdornment>
                 ),
               }}
@@ -309,11 +347,17 @@ export default function ProductsPage() {
                 },
               }}
             />
+            <span id={`${searchId}-desc`} style={{ display: 'none' }}>
+              국가 이름 또는 상품명으로 검색하세요
+            </span>
             <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>정렬</InputLabel>
+              <InputLabel id={`${sortId}-label`}>정렬</InputLabel>
               <Select
+                labelId={`${sortId}-label`}
+                id={sortId}
                 value="popular"
                 label="정렬"
+                aria-label="상품 정렬 순서 선택"
                 sx={{ borderRadius: 2 }}
               >
                 <MenuItem value="popular">인기순</MenuItem>
@@ -324,11 +368,21 @@ export default function ProductsPage() {
           </Box>
 
           {/* Popular Countries Quick Filter */}
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+          <Box component="fieldset" sx={{ border: 'none', p: 0, m: 0 }}>
+            <Typography
+              component="legend"
+              id={filterGroupId}
+              variant="subtitle2"
+              color="text.secondary"
+              sx={{ mb: 1.5 }}
+            >
               인기 여행지
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box
+              role="group"
+              aria-labelledby={filterGroupId}
+              sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}
+            >
               {POPULAR_COUNTRIES.map((country) => (
                 <Chip
                   key={country.code}
@@ -336,6 +390,8 @@ export default function ProductsPage() {
                   onClick={() => handleCountryClick(country.code)}
                   variant={selectedCountry === country.code ? 'filled' : 'outlined'}
                   color={selectedCountry === country.code ? 'primary' : 'default'}
+                  aria-pressed={selectedCountry === country.code}
+                  aria-label={`${country.label} 필터 ${selectedCountry === country.code ? '선택됨' : ''}`}
                   sx={{
                     fontWeight: 500,
                     '&:hover': { bgcolor: 'primary.50' },
@@ -350,6 +406,7 @@ export default function ProductsPage() {
                   color="error"
                   size="small"
                   sx={{ fontWeight: 500 }}
+                  aria-label="필터 초기화"
                 />
               )}
             </Box>
@@ -368,7 +425,12 @@ export default function ProductsPage() {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 4, borderRadius: 2 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 4, borderRadius: 2 }}
+            role="alert"
+            aria-live="assertive"
+          >
             {error}
           </Alert>
         )}
@@ -402,13 +464,31 @@ export default function ProductsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Box
+            component="nav"
+            aria-label="상품 목록 페이지 탐색"
+            sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}
+          >
             <Pagination
               count={totalPages}
               page={page}
-              onChange={(_, value) => setPage(value)}
+              onChange={(_, value) => {
+                setPage(value);
+                announce(`${value} 페이지로 이동합니다.`);
+              }}
               color="primary"
               size="large"
+              aria-label="상품 목록 페이지네이션"
+              getItemAriaLabel={(type, pageNum, selected) => {
+                if (type === 'page') {
+                  return selected ? `현재 페이지, ${pageNum}` : `${pageNum} 페이지로 이동`;
+                }
+                if (type === 'first') return '첫 페이지로 이동';
+                if (type === 'last') return '마지막 페이지로 이동';
+                if (type === 'next') return '다음 페이지로 이동';
+                if (type === 'previous') return '이전 페이지로 이동';
+                return '';
+              }}
               sx={{
                 '& .MuiPaginationItem-root': {
                   borderRadius: 2,
