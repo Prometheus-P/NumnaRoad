@@ -3,72 +3,56 @@
 /**
  * PocketBase Hook: Orders Collection
  *
- * Triggers n8n workflow on order creation.
+ * Order processing is now handled by the inline fulfillment service
+ * triggered from the Stripe webhook handler (/api/webhooks/stripe).
  *
- * Task: T024
+ * The n8n workflow trigger has been removed as part of the security fix
+ * to prevent "Free Lunch" attacks where eSIMs could be provisioned
+ * without payment verification.
+ *
+ * See: https://github.com/numna-road/numnaroad/issues/94
+ *
+ * Task: T024 (Updated)
  */
 
 /**
- * After order creation, trigger n8n order processing workflow
+ * Security: Prevent order creation without payment
  *
- * This is a backup trigger in case the webhook handler fails to call n8n.
- * The n8n workflow is idempotent, so duplicate triggers are safe.
+ * Orders should only be created by the Stripe webhook handler
+ * with payment_status = 'paid'. This hook logs any attempts
+ * to create orders with unpaid status as a security measure.
  */
 onRecordAfterCreateRequest((e) => {
   const record = e.record;
+  const paymentStatus = record.get("payment_status");
 
-  // Only trigger for pending orders (new orders)
-  if (record.get("status") !== "pending") {
-    return;
-  }
-
-  const n8nWebhookUrl = $os.getenv("N8N_WEBHOOK_URL");
-  const n8nApiKey = $os.getenv("N8N_API_KEY");
-
-  if (!n8nWebhookUrl) {
-    console.log("N8N_WEBHOOK_URL not configured, skipping n8n trigger");
-    return;
-  }
-
-  const orderId = record.id;
-  const correlationId = record.get("correlation_id");
-
-  console.log("Triggering n8n for order " + orderId + " (correlation: " + correlationId + ")");
-
-  try {
-    const res = $http.send({
-      url: n8nWebhookUrl + "/webhook/order-processing",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + n8nApiKey,
-      },
-      body: JSON.stringify({
-        orderId: orderId,
-        correlationId: correlationId,
-        source: "pocketbase_hook",
-        timestamp: new Date().toISOString(),
-      }),
-      timeout: 10,
-    });
-
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      console.log("n8n triggered successfully for order " + orderId);
-    } else {
-      console.error("n8n trigger failed with status " + res.statusCode + ": " + res.raw);
-    }
-  } catch (err) {
-    console.error("Failed to trigger n8n for order " + orderId + ":", err);
+  // Log security warning if order created without payment
+  if (paymentStatus !== "paid") {
+    console.warn(JSON.stringify({
+      level: "warn",
+      event: "unpaid_order_created",
+      orderId: record.id,
+      paymentStatus: paymentStatus,
+      message: "Order created without paid payment_status - investigate source",
+      timestamp: new Date().toISOString(),
+    }));
   }
 }, "orders");
 
 /**
  * Validate order state transitions
  *
- * Valid transitions:
- * - pending -> processing
- * - processing -> completed
- * - processing -> failed
+ * Valid transitions (Inline Fulfillment Flow):
+ * - payment_received -> fulfillment_started
+ * - fulfillment_started -> provider_confirmed, provider_failed
+ * - provider_confirmed -> email_sent
+ * - provider_failed -> fulfillment_started (retry), pending_manual_fulfillment
+ * - email_sent -> delivered
+ * - pending_manual_fulfillment -> delivered, refund_needed
+ * - refund_needed -> refunded
+ *
+ * Legacy transitions (deprecated, kept for compatibility):
+ * - pending -> payment_received
  *
  * Invalid transitions throw an error.
  */
@@ -84,12 +68,21 @@ onRecordBeforeUpdateRequest((e) => {
     return;
   }
 
-  // Define valid transitions
+  // Define valid transitions for inline fulfillment flow
   const validTransitions = {
-    pending: ["processing"],
-    processing: ["completed", "failed"],
-    completed: [],
-    failed: [],
+    // Legacy
+    pending: ["payment_received"],
+    // Inline fulfillment flow
+    payment_received: ["fulfillment_started"],
+    fulfillment_started: ["provider_confirmed", "provider_failed"],
+    provider_confirmed: ["email_sent"],
+    provider_failed: ["fulfillment_started", "pending_manual_fulfillment"],
+    email_sent: ["delivered"],
+    pending_manual_fulfillment: ["delivered", "refund_needed"],
+    refund_needed: ["refunded"],
+    // Terminal states
+    delivered: [],
+    refunded: [],
   };
 
   const allowedNextStates = validTransitions[oldStatus] || [];
@@ -101,8 +94,8 @@ onRecordBeforeUpdateRequest((e) => {
     );
   }
 
-  // Auto-set completed_at when transitioning to completed
-  if (newStatus === "completed" && !record.get("completed_at")) {
+  // Auto-set completed_at when transitioning to delivered
+  if (newStatus === "delivered" && !record.get("completed_at")) {
     record.set("completed_at", new Date().toISOString());
   }
 }, "orders");
