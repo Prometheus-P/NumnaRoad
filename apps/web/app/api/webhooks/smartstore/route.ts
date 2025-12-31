@@ -19,6 +19,7 @@ import {
 } from '@services/order-fulfillment';
 import { createAutomationLogger } from '@services/logging';
 import type { EsimProvider } from '@services/esim-providers/types';
+import { getCachedActiveProviders } from '@/lib/cache/providers';
 
 /**
  * POST /api/webhooks/smartstore
@@ -224,7 +225,7 @@ async function processNaverOrder(
     const order = await createSmartStoreOrder(pb, internalOrder, correlationId);
 
     // Get active providers
-    const providers = await getActiveProviders(pb);
+    const providers = await getCachedActiveProviders();
     if (providers.length === 0) {
       await updateOrderStatus(pb, order.id, 'provider_failed', 'No active providers');
       return {
@@ -346,37 +347,6 @@ async function createSmartStoreOrder(
     // SmartStore doesn't use Stripe, so we use a placeholder
     stripe_payment_intent: `ss_${internalOrder.externalOrderId}`,
   });
-}
-
-/**
- * Get active eSIM providers.
- */
-async function getActiveProviders(
-  pb: Awaited<ReturnType<typeof getAdminPocketBase>>
-): Promise<EsimProvider[]> {
-  try {
-    const providers = await pb.collection('esim_providers').getFullList({
-      filter: 'is_active=true',
-      sort: '-priority',
-    });
-
-    return providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      priority: p.priority,
-      apiEndpoint: p.api_endpoint,
-      apiKeyEnvVar: p.api_key_env_var,
-      timeoutMs: p.timeout_ms || 10000,
-      maxRetries: p.max_retries || 3,
-      isActive: p.is_active,
-      createdAt: p.created,
-      updatedAt: p.updated,
-    }));
-  } catch (error) {
-    console.error('Failed to fetch providers:', error);
-    return [];
-  }
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   type FulfillmentOrder,
 } from '@services/order-fulfillment';
 import type { EsimProvider } from '@services/esim-providers/types';
+import { getCachedActiveProviders } from '@/lib/cache/providers';
 
 /**
  * GET /api/cron/sync-smartstore-orders
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
     };
 
     const productMapper = createPocketBaseProductMapper(pb);
-    const providers = await getActiveProviders(pb);
+    const providers = await getCachedActiveProviders();
 
     for (const naverOrder of ordersResult.data) {
       try {
@@ -244,37 +245,6 @@ async function findExistingOrder(
       .getFirstListItem(`smartstore_product_order_id="${productOrderId}"`);
   } catch {
     return null;
-  }
-}
-
-/**
- * Get active eSIM providers.
- */
-async function getActiveProviders(
-  pb: Awaited<ReturnType<typeof getAdminPocketBase>>
-): Promise<EsimProvider[]> {
-  try {
-    const providers = await pb.collection('esim_providers').getFullList({
-      filter: 'is_active=true',
-      sort: '-priority',
-    });
-
-    return providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      priority: p.priority,
-      apiEndpoint: p.api_endpoint,
-      apiKeyEnvVar: p.api_key_env_var,
-      timeoutMs: p.timeout_ms || 10000,
-      maxRetries: p.max_retries || 3,
-      isActive: p.is_active,
-      createdAt: p.created,
-      updatedAt: p.updated,
-    }));
-  } catch (error) {
-    console.error('Failed to fetch providers:', error);
-    return [];
   }
 }
 

@@ -17,7 +17,12 @@ const nextConfig = {
   poweredByHeader: false,
   experimental: {
     // Optimize MUI and other large package imports
-    optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+    optimizePackageImports: [
+      '@mui/material',
+      '@mui/icons-material',
+      '@mui/x-data-grid',
+      'recharts',
+    ],
   },
   // Compiler optimizations
   compiler: {

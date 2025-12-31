@@ -12,6 +12,7 @@ import {
 } from '@services/order-fulfillment';
 import { createAutomationLogger } from '@services/logging';
 import type { EsimProvider } from '@services/esim-providers/types';
+import { getCachedActiveProviders } from '@/lib/cache/providers';
 
 // In-memory store for rate limiting (per IP)
 const ipStore = new Map<
@@ -178,37 +179,6 @@ async function triggerOrderProcessing(orderId: string, correlationId: string) {
 }
 
 /**
- * Get active providers from database
- */
-async function getActiveProviders(
-  pb: Awaited<ReturnType<typeof getAdminPocketBase>>
-): Promise<EsimProvider[]> {
-  try {
-    const providers = await pb.collection('esim_providers').getFullList({
-      filter: 'is_active=true',
-      sort: 'priority',
-    });
-
-    return providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      priority: p.priority,
-      apiEndpoint: p.api_endpoint,
-      apiKeyEnvVar: p.api_key_env_var,
-      timeoutMs: p.timeout_ms || 10000,
-      maxRetries: p.max_retries || 3,
-      isActive: p.is_active,
-      createdAt: p.created,
-      updatedAt: p.updated,
-    }));
-  } catch (error) {
-    console.error('Failed to fetch providers:', error);
-    return [];
-  }
-}
-
-/**
  * Get product details including provider SKU
  */
 async function getProductDetails(
@@ -278,7 +248,7 @@ async function processOrderInline(
   });
 
   // Get providers
-  const providers = await getActiveProviders(pb);
+  const providers = await getCachedActiveProviders();
   if (providers.length === 0) {
     console.error('No active providers available');
     await updateOrderWithResult(pb, order.id as string, {

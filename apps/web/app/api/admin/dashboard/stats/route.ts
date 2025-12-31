@@ -5,24 +5,19 @@ export async function GET(request: NextRequest) {
   try {
     const pb = await getAdminPocketBase();
 
-    // Fetch all orders to calculate stats
-    // Note: orders collection doesn't have 'created' field, so we use status-based filtering only
-    const allOrders = await pb.collection(Collections.ORDERS).getList(1, 1);
-
-    // Fetch pending orders
-    const pendingOrders = await pb.collection(Collections.ORDERS).getList(1, 1, {
-      filter: `status = "pending" || status = "payment_received" || status = "fulfillment_started"`,
-    });
-
-    // Fetch failed orders
-    const failedOrders = await pb.collection(Collections.ORDERS).getList(1, 1, {
-      filter: `status = "failed" || status = "provider_failed"`,
-    });
-
-    // Calculate total revenue (sum of amount for completed orders)
-    const completedOrders = await pb.collection(Collections.ORDERS).getFullList({
-      filter: `status = "completed" || status = "delivered" || status = "email_sent"`,
-    });
+    // Execute all queries in parallel for better performance
+    const [allOrders, pendingOrders, failedOrders, completedOrders] = await Promise.all([
+      pb.collection(Collections.ORDERS).getList(1, 1),
+      pb.collection(Collections.ORDERS).getList(1, 1, {
+        filter: `status = "pending" || status = "payment_received" || status = "fulfillment_started"`,
+      }),
+      pb.collection(Collections.ORDERS).getList(1, 1, {
+        filter: `status = "failed" || status = "provider_failed"`,
+      }),
+      pb.collection(Collections.ORDERS).getFullList({
+        filter: `status = "completed" || status = "delivered" || status = "email_sent"`,
+      }),
+    ]);
 
     const totalRevenue = completedOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
 
