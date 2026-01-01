@@ -14,9 +14,7 @@ import {
   purchaseWithFailover,
   retryWithBackoff,
   createProvider,
-  resetCircuitBreaker,
   type FailoverResult,
-  type CircuitBreakerConfig,
 } from '../../services/esim-providers/provider-factory';
 
 // Import providers to register them
@@ -145,11 +143,6 @@ describe('Airalo Fulfillment Integration', () => {
       ESIM_CARD_API_KEY: 'test-esimcard-key',
       MOBIMATTER_API_KEY: 'test-mobimatter-key',
     };
-
-    // Reset circuit breakers
-    resetCircuitBreaker('airalo');
-    resetCircuitBreaker('esimcard');
-    resetCircuitBreaker('mobimatter');
 
     // Mock global fetch
     mockFetch = vi.fn();
@@ -291,10 +284,6 @@ describe('Airalo Fulfillment Integration', () => {
       const providers = createTestProviders().slice(0, 2);
       const request = createTestRequest();
 
-      // Reset circuit breakers
-      resetCircuitBreaker('airalo');
-      resetCircuitBreaker('esimcard');
-
       // Mock: Airalo fails, eSIMCard succeeds
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
@@ -362,9 +351,6 @@ describe('Airalo Fulfillment Integration', () => {
       const providers = createTestProviders().filter((p) => p.slug === 'airalo');
       const request = createTestRequest();
 
-      // Reset circuit breaker
-      resetCircuitBreaker('airalo');
-
       // First provider (airalo) succeeds
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
@@ -387,74 +373,10 @@ describe('Airalo Fulfillment Integration', () => {
   });
 
   // ===========================================================================
-  // Circuit Breaker
+  // Edge Cases
   // ===========================================================================
 
-  describe('Circuit breaker opens after consecutive failures', () => {
-    it('should have circuit breaker reset functionality', async () => {
-      // This test verifies circuit breaker reset is available
-      // The "should skip provider with open circuit" test demonstrates the actual behavior
-
-      // Assert - Reset circuit breaker function works without error
-      expect(() => resetCircuitBreaker('airalo')).not.toThrow();
-      expect(() => resetCircuitBreaker('esimcard')).not.toThrow();
-      expect(() => resetCircuitBreaker('mobimatter')).not.toThrow();
-    });
-
-    it('should skip provider with open circuit', async () => {
-      // Arrange
-      const providers = createTestProviders();
-      const request = createTestRequest();
-
-      // Manually open airalo circuit
-      const circuitConfig: CircuitBreakerConfig = {
-        failureThreshold: 1,
-        resetTimeoutMs: 60000,
-      };
-
-      // First request fails to open circuit
-      mockFetch
-        .mockImplementationOnce(async () => ({
-          ok: true,
-          json: async () => ({ data: { access_token: 'token', expires_in: 3600, token_type: 'Bearer' }, meta: { message: 'success' } }),
-        }))
-        .mockImplementationOnce(async () => ({
-          ok: false,
-          status: 500,
-          json: async () => ({ error: 'Failed' }),
-        }));
-
-      await purchaseWithFailover(
-        providers.filter((p) => p.slug === 'airalo'),
-        request,
-        { circuitBreakerConfig: circuitConfig }
-      );
-
-      // Second request should skip airalo
-      mockFetch.mockClear();
-      mockFetch.mockImplementation(async () => ({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: {
-            qr_code_url: 'https://esimcard.com/qr',
-            iccid: '123',
-            order_id: 'ESC-1',
-          },
-        }),
-      }));
-
-      // Act
-      const result = await purchaseWithFailover(providers, request, {
-        circuitBreakerConfig: circuitConfig,
-      });
-
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.providerUsed).toBe('esimcard');
-      expect(result.attemptedProviders).not.toContain('airalo');
-    });
-
+  describe('Edge cases', () => {
     it('should return error when no providers available', async () => {
       // Arrange - No providers available
       const providers: EsimProvider[] = [];
@@ -632,9 +554,6 @@ describe('Airalo Fulfillment Integration', () => {
       const providers = createTestProviders().filter((p) => p.slug === 'airalo');
       const request = createTestRequest();
       let orderAttempts = 0;
-
-      // Reset circuit breaker
-      resetCircuitBreaker('airalo');
 
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes('api.airalo.com/v2/token')) {
