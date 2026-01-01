@@ -22,6 +22,8 @@ updates:
     ignore:
       - dependency-name: "stripe"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint/*"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
     commit-message:
