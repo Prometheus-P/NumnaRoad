@@ -12,6 +12,7 @@ import {
 } from '@services/order-fulfillment';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
 import { createAlimtalkSendFn } from '@services/notifications/kakao-alimtalk';
+import { sendEsimEmail } from '@/lib/resend';
 
 // =============================================================================
 // Structured Logging Helper
@@ -218,7 +219,10 @@ async function triggerOrderProcessing(orderId: string, correlationId: string) {
   );
 
   if (!response.ok) {
-    throw new Error(`n8n webhook failed: ${response.status}`);
+    // Log response body for debugging failed webhooks
+    const errorBody = await response.text().catch(() => 'Unable to read response body');
+    console.error(`n8n webhook failed: ${response.status}`, { body: errorBody });
+    throw new Error(`n8n webhook failed: ${response.status} - ${errorBody.substring(0, 200)}`);
   }
 
   return response.json();
@@ -339,7 +343,27 @@ async function processOrderInline(
     ? createAlimtalkSendFn(config.kakaoAlimtalk)
     : undefined;
 
-  // Create fulfillment service with Kakao Alimtalk support
+  // Create email send function adapter
+  const emailFn = async (params: {
+    to: string;
+    orderId: string;
+    qrCodeUrl: string;
+    iccid: string;
+    activationCode?: string;
+  }) => {
+    return sendEsimEmail(
+      params.to,
+      {
+        qrCodeUrl: params.qrCodeUrl,
+        iccid: params.iccid,
+        productName: product.providerSku, // Use SKU as product name fallback
+        activationCode: params.activationCode,
+      },
+      correlationId
+    );
+  };
+
+  // Create fulfillment service with email and Alimtalk support
   const fulfillmentService = createFulfillmentService({
     persistFn: async (id, state, metadata) => {
       await pb.collection(Collections.ORDERS).update(id, {
@@ -355,6 +379,7 @@ async function processOrderInline(
       const o = await pb.collection(Collections.ORDERS).getOne(id);
       return o.status;
     },
+    emailFn,
     alimtalkFn,
     config: {
       webhookTimeoutMs: config.fulfillment.webhookTimeoutMs,
@@ -415,8 +440,10 @@ async function processOrderInline(
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
-  let ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-  if (Array.isArray(ip)) ip = ip[0];
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  let ip = forwardedFor?.split(',')[0]?.trim() ||
+           request.headers.get('x-real-ip') ||
+           'unknown';
 
   // Cleanup old entries
   cleanupIpStore();

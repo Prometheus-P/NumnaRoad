@@ -11,7 +11,6 @@ updates:
         patterns:
           - "next"
           - "react*"
-          - "stripe"
           - "pocketbase"
       dev-dependencies:
         patterns:
@@ -20,6 +19,9 @@ updates:
           - "typescript"
           - "vitest"
           - "@testing-library/*"
+    ignore:
+      - dependency-name: "stripe"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
     commit-message:
