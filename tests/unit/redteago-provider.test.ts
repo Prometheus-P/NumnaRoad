@@ -466,7 +466,7 @@ describe('RedteaGOProvider', () => {
       });
 
       await expect(provider.getPackages()).rejects.toThrow(
-        'Failed to fetch packages: HTTP 500'
+        'RedteaGO package fetch failed'
       );
 
       errorSpy.mockRestore();
