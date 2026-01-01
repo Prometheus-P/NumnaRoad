@@ -115,15 +115,17 @@ function generateFeatures(row: CsvRow, networks: string): string[] {
 }
 
 export async function POST(request: NextRequest) {
-  // Check authorization
+  // Check authorization - fail closed if INTERNAL_API_KEY not configured
   const authHeader = request.headers.get('authorization');
   const internalApiKey = process.env.INTERNAL_API_KEY;
 
-  if (!internalApiKey || authHeader !== `Bearer ${internalApiKey}`) {
-    // Allow in development
-    if (process.env.NODE_ENV !== 'development') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!internalApiKey) {
+    console.error('[Security] INTERNAL_API_KEY not configured');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
+  if (authHeader !== `Bearer ${internalApiKey}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

@@ -1,0 +1,54 @@
+{
+  "name": "cron_locks",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "job_name",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": 100,
+        "pattern": "^[a-z0-9-]+$"
+      }
+    },
+    {
+      "name": "instance_id",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": 100
+      }
+    },
+    {
+      "name": "acquired_at",
+      "type": "date",
+      "required": true
+    },
+    {
+      "name": "expires_at",
+      "type": "date",
+      "required": true
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["active", "released", "expired"]
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_job_name ON cron_locks (job_name)",
+    "CREATE INDEX idx_expires_at ON cron_locks (expires_at)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

@@ -42,7 +42,25 @@ export interface AlimtalkConfig {
     pfId: string;
     senderKey: string;
     esimDeliveryTemplateId: string;
+    /** Template for SmartStore order received notification */
+    orderReceivedTemplateId?: string;
   };
+}
+
+/**
+ * Parameters for order received notification (SmartStore)
+ */
+export interface OrderReceivedAlimtalkParams {
+  /** Korean phone number */
+  to: string;
+  /** Order ID */
+  orderId: string;
+  /** Customer name */
+  customerName?: string;
+  /** Product name */
+  productName: string;
+  /** URL to check order status */
+  orderCheckUrl: string;
 }
 
 // =============================================================================
@@ -176,6 +194,92 @@ export async function sendEsimDeliveryAlimtalk(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Kakao Alimtalk] Send failed:', errorMessage);
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Send order received notification via Kakao Alimtalk (SmartStore flow)
+ *
+ * This is sent when a SmartStore order payment is completed.
+ * It instructs the customer to confirm their purchase ("구매확정") to receive the eSIM.
+ *
+ * @param params - Send parameters
+ * @param config - Alimtalk configuration
+ * @returns Send result with success status and message ID
+ */
+export async function sendOrderReceivedAlimtalk(
+  params: OrderReceivedAlimtalkParams,
+  config: AlimtalkConfig
+): Promise<AlimtalkSendResult> {
+  // Check configuration
+  if (!config.enabled || !config.kakao.orderReceivedTemplateId) {
+    return {
+      success: false,
+      error: 'Order received Alimtalk template is not configured',
+    };
+  }
+
+  // Validate and format phone number
+  const formattedPhone = formatKoreanPhone(params.to);
+  if (!formattedPhone) {
+    return {
+      success: false,
+      error: `Invalid Korean phone number format: ${params.to}`,
+    };
+  }
+
+  try {
+    const client = createSolapiClient(config);
+
+    // Send Alimtalk message
+    const result = await client.send({
+      to: formattedPhone,
+      from: config.kakao.senderKey,
+      kakaoOptions: {
+        pfId: config.kakao.pfId,
+        templateId: config.kakao.orderReceivedTemplateId,
+        variables: {
+          '#{orderId}': params.orderId,
+          '#{customerName}': params.customerName || '고객',
+          '#{productName}': params.productName,
+        },
+        buttons: [
+          {
+            buttonType: 'WL',
+            buttonName: '주문 확인하기',
+            linkMo: params.orderCheckUrl,
+            linkPc: params.orderCheckUrl,
+          },
+        ],
+      },
+    });
+
+    console.log(JSON.stringify({
+      level: 'info',
+      event: 'order_received_alimtalk_sent',
+      orderId: params.orderId,
+      messageId: result.groupInfo?.groupId,
+      timestamp: new Date().toISOString(),
+    }));
+
+    return {
+      success: true,
+      messageId: result.groupInfo?.groupId,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'order_received_alimtalk_failed',
+      orderId: params.orderId,
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+    }));
 
     return {
       success: false,

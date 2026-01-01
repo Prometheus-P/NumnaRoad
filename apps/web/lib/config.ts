@@ -76,6 +76,8 @@ interface Config {
       pfId: string;
       senderKey: string;
       esimDeliveryTemplateId: string;
+      /** Template for SmartStore order received notification */
+      orderReceivedTemplateId: string;
     };
   };
 }
@@ -186,6 +188,7 @@ export function getConfig(): Config {
         pfId: optionalEnv('KAKAO_CHANNEL_PF_ID', ''),
         senderKey: optionalEnv('KAKAO_ALIMTALK_SENDER_KEY', ''),
         esimDeliveryTemplateId: optionalEnv('KAKAO_ESIM_DELIVERY_TEMPLATE_ID', ''),
+        orderReceivedTemplateId: optionalEnv('KAKAO_ORDER_RECEIVED_TEMPLATE_ID', ''),
       },
     },
   };

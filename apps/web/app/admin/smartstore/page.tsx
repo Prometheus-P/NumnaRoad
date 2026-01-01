@@ -36,6 +36,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatTimeAgo } from '@/lib/utils/formatters';
 
 interface InternalProduct {
   id: string;
@@ -70,20 +71,6 @@ interface SyncLog {
   ordersProcessed?: number;
   durationMs?: number;
   errors?: unknown;
-}
-
-// Format time ago
-function formatTimeAgo(date?: string): string {
-  if (!date) return 'Never';
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  return `${diffHours}h ago`;
 }
 
 export default function SmartStorePage() {

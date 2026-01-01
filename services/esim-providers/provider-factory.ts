@@ -271,6 +271,15 @@ export interface FailoverOptions {
 // Circuit Breaker (T062, FR-011, FR-012)
 // =============================================================================
 
+import {
+  getCircuitState as getPersistedState,
+  updateCircuitState as persistState,
+  resetCircuitState,
+  resetAllCircuitStates,
+  getAllCircuitStates,
+  type CircuitBreakerState,
+} from './circuit-breaker-store';
+
 /**
  * Circuit breaker states
  */
@@ -295,26 +304,16 @@ const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 };
 
 /**
- * Circuit breaker state for a single provider
- */
-interface CircuitBreakerState {
-  state: CircuitState;
-  failureCount: number;
-  successCount: number;
-  lastFailureTime: number | null;
-  lastStateChange: number;
-}
-
-/**
- * In-memory circuit breaker state store
- * Key: provider slug
+ * In-memory circuit breaker state store for sync access
+ * Used as a fast-path cache; persistent store is source of truth
  */
 const circuitBreakers = new Map<string, CircuitBreakerState>();
 
 /**
- * Get or create circuit breaker state for a provider
+ * Get circuit breaker state (sync version for backwards compatibility)
+ * Uses local cache, async version updates from persistent store
  */
-function getCircuitState(providerSlug: string): CircuitBreakerState {
+function getCircuitStateSync(providerSlug: string): CircuitBreakerState {
   if (!circuitBreakers.has(providerSlug)) {
     circuitBreakers.set(providerSlug, {
       state: 'closed',
@@ -325,6 +324,23 @@ function getCircuitState(providerSlug: string): CircuitBreakerState {
     });
   }
   return circuitBreakers.get(providerSlug)!;
+}
+
+/**
+ * Load circuit breaker state from persistent store (async)
+ */
+async function loadCircuitState(providerSlug: string): Promise<CircuitBreakerState> {
+  const state = await getPersistedState(providerSlug);
+  circuitBreakers.set(providerSlug, state);
+  return state;
+}
+
+/**
+ * Save circuit breaker state to persistent store
+ */
+async function saveCircuitState(providerSlug: string, state: CircuitBreakerState): Promise<void> {
+  circuitBreakers.set(providerSlug, state);
+  await persistState(providerSlug, state);
 }
 
 /**
@@ -342,45 +358,45 @@ function shouldAttemptReset(
 }
 
 /**
- * Record a successful call for a provider
+ * Record a successful call for a provider (async version)
+ * Updates both local cache and persistent store
  */
-export function recordSuccess(
+export async function recordSuccessAsync(
   providerSlug: string,
   config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
-): CircuitState {
-  const state = getCircuitState(providerSlug);
+): Promise<CircuitState> {
+  const state = await loadCircuitState(providerSlug);
 
   if (state.state === 'half-open') {
     state.successCount++;
     if (state.successCount >= config.successThreshold) {
-      // Close the circuit
       state.state = 'closed';
       state.failureCount = 0;
       state.successCount = 0;
       state.lastStateChange = Date.now();
     }
   } else if (state.state === 'closed') {
-    // Reset failure count on success
     state.failureCount = 0;
   }
 
+  await saveCircuitState(providerSlug, state);
   return state.state;
 }
 
 /**
- * Record a failed call for a provider
+ * Record a failed call for a provider (async version)
+ * Updates both local cache and persistent store
  */
-export function recordFailure(
+export async function recordFailureAsync(
   providerSlug: string,
   config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
-): CircuitState {
-  const state = getCircuitState(providerSlug);
+): Promise<CircuitState> {
+  const state = await loadCircuitState(providerSlug);
 
   state.failureCount++;
   state.lastFailureTime = Date.now();
 
   if (state.state === 'half-open') {
-    // Any failure in half-open immediately opens the circuit
     state.state = 'open';
     state.successCount = 0;
     state.lastStateChange = Date.now();
@@ -391,23 +407,110 @@ export function recordFailure(
     }
   }
 
+  await saveCircuitState(providerSlug, state);
   return state.state;
 }
 
 /**
- * Check if a provider's circuit allows calls
+ * Check if a provider's circuit allows calls (async version)
+ */
+export async function isCircuitClosedAsync(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): Promise<boolean> {
+  const state = await loadCircuitState(providerSlug);
+
+  if (shouldAttemptReset(state, config)) {
+    state.state = 'half-open';
+    state.successCount = 0;
+    state.lastStateChange = Date.now();
+    await saveCircuitState(providerSlug, state);
+  }
+
+  return state.state !== 'open';
+}
+
+/**
+ * Record a successful call for a provider (sync version for backwards compatibility)
+ * @deprecated Use recordSuccessAsync for persistent state
+ */
+export function recordSuccess(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): CircuitState {
+  const state = getCircuitStateSync(providerSlug);
+
+  if (state.state === 'half-open') {
+    state.successCount++;
+    if (state.successCount >= config.successThreshold) {
+      state.state = 'closed';
+      state.failureCount = 0;
+      state.successCount = 0;
+      state.lastStateChange = Date.now();
+    }
+  } else if (state.state === 'closed') {
+    state.failureCount = 0;
+  }
+
+  // Fire-and-forget persist
+  persistState(providerSlug, state).catch((err) => {
+    console.error(`[CircuitBreaker] Failed to persist success for ${providerSlug}:`, err);
+  });
+
+  return state.state;
+}
+
+/**
+ * Record a failed call for a provider (sync version for backwards compatibility)
+ * @deprecated Use recordFailureAsync for persistent state
+ */
+export function recordFailure(
+  providerSlug: string,
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): CircuitState {
+  const state = getCircuitStateSync(providerSlug);
+
+  state.failureCount++;
+  state.lastFailureTime = Date.now();
+
+  if (state.state === 'half-open') {
+    state.state = 'open';
+    state.successCount = 0;
+    state.lastStateChange = Date.now();
+  } else if (state.state === 'closed') {
+    if (state.failureCount >= config.failureThreshold) {
+      state.state = 'open';
+      state.lastStateChange = Date.now();
+    }
+  }
+
+  // Fire-and-forget persist
+  persistState(providerSlug, state).catch((err) => {
+    console.error(`[CircuitBreaker] Failed to persist failure for ${providerSlug}:`, err);
+  });
+
+  return state.state;
+}
+
+/**
+ * Check if a provider's circuit allows calls (sync version)
+ * @deprecated Use isCircuitClosedAsync for persistent state
  */
 export function isCircuitClosed(
   providerSlug: string,
   config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
 ): boolean {
-  const state = getCircuitState(providerSlug);
+  const state = getCircuitStateSync(providerSlug);
 
-  // Check for automatic transition from open to half-open
   if (shouldAttemptReset(state, config)) {
     state.state = 'half-open';
     state.successCount = 0;
     state.lastStateChange = Date.now();
+
+    // Fire-and-forget persist
+    persistState(providerSlug, state).catch((err) => {
+      console.error(`[CircuitBreaker] Failed to persist half-open for ${providerSlug}:`, err);
+    });
   }
 
   return state.state !== 'open';
@@ -417,7 +520,7 @@ export function isCircuitClosed(
  * Get current circuit state for a provider
  */
 export function getCircuitBreakerState(providerSlug: string): CircuitState {
-  return getCircuitState(providerSlug).state;
+  return getCircuitStateSync(providerSlug).state;
 }
 
 /**
@@ -429,7 +532,7 @@ export function getCircuitBreakerInfo(providerSlug: string): {
   successCount: number;
   lastFailureTime: number | null;
 } {
-  const state = getCircuitState(providerSlug);
+  const state = getCircuitStateSync(providerSlug);
   return {
     state: state.state,
     failureCount: state.failureCount,
@@ -439,17 +542,30 @@ export function getCircuitBreakerInfo(providerSlug: string): {
 }
 
 /**
- * Reset circuit breaker for a provider (for testing)
+ * Get all circuit breaker states from persistent store (async)
  */
-export function resetCircuitBreaker(providerSlug: string): void {
-  circuitBreakers.delete(providerSlug);
+export async function getAllCircuitBreakerStates(): Promise<Record<string, CircuitBreakerState>> {
+  return getAllCircuitStates();
 }
 
 /**
- * Reset all circuit breakers (for testing)
+ * Reset circuit breaker for a provider
+ */
+export function resetCircuitBreaker(providerSlug: string): void {
+  circuitBreakers.delete(providerSlug);
+  resetCircuitState(providerSlug).catch((err) => {
+    console.error(`[CircuitBreaker] Failed to reset state for ${providerSlug}:`, err);
+  });
+}
+
+/**
+ * Reset all circuit breakers
  */
 export function resetAllCircuitBreakers(): void {
   circuitBreakers.clear();
+  resetAllCircuitStates().catch((err) => {
+    console.error('[CircuitBreaker] Failed to reset all states:', err);
+  });
 }
 
 /**
@@ -461,6 +577,23 @@ export function filterByCircuitState(
   config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
 ): EsimProvider[] {
   return providers.filter((p) => isCircuitClosed(p.slug, config));
+}
+
+/**
+ * Filter providers that have closed or half-open circuits (async version)
+ * Per FR-012: skip providers with open circuits during failover
+ */
+export async function filterByCircuitStateAsync(
+  providers: EsimProvider[],
+  config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG
+): Promise<EsimProvider[]> {
+  const results = await Promise.all(
+    providers.map(async (p) => ({
+      provider: p,
+      allowed: await isCircuitClosedAsync(p.slug, config),
+    }))
+  );
+  return results.filter((r) => r.allowed).map((r) => r.provider);
 }
 
 /**

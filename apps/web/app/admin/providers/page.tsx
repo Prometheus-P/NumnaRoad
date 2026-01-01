@@ -34,6 +34,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatTimeAgo } from '@/lib/utils/formatters';
 
 interface Provider {
   id: string;
@@ -84,22 +85,6 @@ function getStateInfo(state: string): { color: 'success' | 'warning' | 'error'; 
     default:
       return { color: 'success', label: 'Unknown', icon: '⚪' };
   }
-}
-
-// Format time ago
-function formatTimeAgo(date?: string): string {
-  if (!date) return '-';
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
 }
 
 // Mini bar chart for hourly stats

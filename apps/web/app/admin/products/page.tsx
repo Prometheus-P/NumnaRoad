@@ -25,6 +25,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminLanguage } from '@/lib/i18n';
+import { formatCurrency, formatUSD, getCountryFlag } from '@/lib/utils/formatters';
 
 interface Product {
   id: string;
@@ -49,32 +50,6 @@ interface ProductsResponse {
   perPage: number;
   totalItems: number;
   totalPages: number;
-}
-
-// Country flag emoji helper
-function getCountryFlag(countryCode: string): string {
-  const code = countryCode.toUpperCase();
-  if (code.length !== 2) return '';
-  const offset = 127397;
-  return String.fromCodePoint(
-    code.charCodeAt(0) + offset,
-    code.charCodeAt(1) + offset
-  );
-}
-
-// Format currency
-function formatCurrency(value: number, currency: string = 'KRW'): string {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency,
-  }).format(value);
-}
-
-function formatUSD(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
 }
 
 export default function ProductsPage() {

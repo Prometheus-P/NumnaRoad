@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pb from '@/lib/pocketbase';
+import { getAdminPocketBase } from '@/lib/pocketbase';
+import { verifyCronAuth } from '@/lib/admin-auth';
+import { acquireLock, releaseLock } from '@/lib/cron-lock';
 
 /**
  * Cron Job: Retry Stuck Orders
@@ -7,14 +9,21 @@ import pb from '@/lib/pocketbase';
  * Finds orders stuck in intermediate states and retries fulfillment.
  * Runs every 5 minutes via Vercel Cron.
  *
+ * Uses distributed locking to prevent duplicate execution across instances.
+ *
  * POST /api/cron/retry-stuck-orders
  */
+
+const JOB_NAME = 'retry-stuck-orders';
 
 // Stuck order states that need retry
 const STUCK_STATES = ['fulfillment_started', 'payment_received'];
 
 // Max age for stuck orders (5 minutes)
 const MAX_STUCK_AGE_MS = 5 * 60 * 1000;
+
+// Lock TTL (3 minutes - should complete well before next run)
+const LOCK_TTL_MS = 3 * 60 * 1000;
 
 interface StuckOrder {
   id: string;
@@ -25,18 +34,40 @@ interface StuckOrder {
 }
 
 export async function POST(request: NextRequest) {
-  // Verify cron secret to prevent unauthorized access
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Verify cron secret - fails closed if not configured
+  const authResult = verifyCronAuth(request);
+  if (!authResult.valid) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: authResult.error || 'Unauthorized' },
+      { status: authResult.error === 'Server misconfigured' ? 500 : 401 }
     );
   }
 
+  // Acquire distributed lock
+  const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
+
+  if (!lockResult.acquired) {
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'cron_job_skipped',
+        job: JOB_NAME,
+        reason: 'lock_held',
+        heldBy: lockResult.heldBy,
+        expiresAt: lockResult.expiresAt?.toISOString(),
+      })
+    );
+
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'Lock held by another instance',
+      heldBy: lockResult.heldBy,
+    });
+  }
+
   try {
+    const pb = await getAdminPocketBase();
     const cutoffTime = new Date(Date.now() - MAX_STUCK_AGE_MS).toISOString();
 
     // Find orders stuck in intermediate states
@@ -78,6 +109,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'cron_job_completed',
+        job: JOB_NAME,
+        results,
+      })
+    );
+
     return NextResponse.json({
       success: true,
       message: `Processed ${results.processed} stuck orders`,
@@ -92,6 +132,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    // Always release the lock
+    await releaseLock(JOB_NAME, lockResult.lockId);
   }
 }
 

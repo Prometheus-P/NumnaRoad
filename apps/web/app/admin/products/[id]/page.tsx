@@ -28,47 +28,14 @@ import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAdminLanguage, AdminLocale } from '@/lib/i18n';
-
-// 국가 목록 (인기 여행지)
-const COUNTRIES = [
-  { code: 'JP', nameKo: '일본', nameEn: 'Japan', flag: '🇯🇵' },
-  { code: 'US', nameKo: '미국', nameEn: 'United States', flag: '🇺🇸' },
-  { code: 'CN', nameKo: '중국', nameEn: 'China', flag: '🇨🇳' },
-  { code: 'TH', nameKo: '태국', nameEn: 'Thailand', flag: '🇹🇭' },
-  { code: 'VN', nameKo: '베트남', nameEn: 'Vietnam', flag: '🇻🇳' },
-  { code: 'TW', nameKo: '대만', nameEn: 'Taiwan', flag: '🇹🇼' },
-  { code: 'SG', nameKo: '싱가포르', nameEn: 'Singapore', flag: '🇸🇬' },
-  { code: 'HK', nameKo: '홍콩', nameEn: 'Hong Kong', flag: '🇭🇰' },
-  { code: 'PH', nameKo: '필리핀', nameEn: 'Philippines', flag: '🇵🇭' },
-  { code: 'MY', nameKo: '말레이시아', nameEn: 'Malaysia', flag: '🇲🇾' },
-  { code: 'ID', nameKo: '인도네시아', nameEn: 'Indonesia', flag: '🇮🇩' },
-  { code: 'AU', nameKo: '호주', nameEn: 'Australia', flag: '🇦🇺' },
-  { code: 'NZ', nameKo: '뉴질랜드', nameEn: 'New Zealand', flag: '🇳🇿' },
-  { code: 'EU', nameKo: '유럽 (다국가)', nameEn: 'Europe (Multi)', flag: '🇪🇺' },
-  { code: 'GB', nameKo: '영국', nameEn: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'FR', nameKo: '프랑스', nameEn: 'France', flag: '🇫🇷' },
-  { code: 'DE', nameKo: '독일', nameEn: 'Germany', flag: '🇩🇪' },
-  { code: 'IT', nameKo: '이탈리아', nameEn: 'Italy', flag: '🇮🇹' },
-  { code: 'ES', nameKo: '스페인', nameEn: 'Spain', flag: '🇪🇸' },
-  { code: 'CA', nameKo: '캐나다', nameEn: 'Canada', flag: '🇨🇦' },
-  { code: 'MX', nameKo: '멕시코', nameEn: 'Mexico', flag: '🇲🇽' },
-  { code: 'BR', nameKo: '브라질', nameEn: 'Brazil', flag: '🇧🇷' },
-];
-
-// Helper to get country name based on locale
-function getCountryName(country: typeof COUNTRIES[number], locale: AdminLocale) {
-  return locale === 'ko' ? country.nameKo : country.nameEn;
-}
-
-// Provider 목록
-const PROVIDER_IDS = ['redteago', 'esimcard', 'mobimatter', 'airalo', 'manual'] as const;
-
-// 데이터 용량 옵션
-const DATA_OPTIONS = ['500MB', '1GB', '2GB', '3GB', '5GB', '10GB', '15GB', '20GB'];
-
-// 속도 옵션
-const SPEED_OPTIONS = ['3G', '4G LTE', '5G'];
+import { useAdminLanguage } from '@/lib/i18n';
+import {
+  COUNTRIES,
+  getCountryName,
+  PROVIDER_IDS,
+  DATA_OPTIONS,
+  SPEED_OPTIONS,
+} from '@/lib/data/countries';
 
 interface Product {
   id: string;
@@ -97,6 +64,17 @@ export default function ProductEditPage() {
   const { t, locale } = useAdminLanguage();
   const productId = params.id as string;
   const isNew = productId === 'new';
+
+  const redirectTimeoutRef = React.useRef<NodeJS.Timeout>();
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [formData, setFormData] = React.useState<Partial<Product>>({
     name: '',
@@ -179,7 +157,10 @@ export default function ProductEditPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       setSuccessMessage(isNew ? t.products.detail.productCreated : t.products.detail.productUpdated);
-      setTimeout(() => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+      redirectTimeoutRef.current = setTimeout(() => {
         router.push('/admin/products');
       }, 1000);
     },

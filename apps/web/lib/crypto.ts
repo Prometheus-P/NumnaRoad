@@ -1,13 +1,17 @@
 /**
- * Email Encryption/Decryption Utility
+ * Sensitive Data Encryption/Decryption Utility
  *
- * Implements AES-256-GCM encryption for customer email addresses
- * at rest in PocketBase.
+ * Implements AES-256-GCM encryption for sensitive PII at rest in PocketBase.
+ *
+ * Encrypted Fields:
+ * - Customer email addresses
+ * - Customer phone numbers
+ * - eSIM activation codes
  *
  * Security Requirements:
- * - SR-001: Customer email addresses MUST be encrypted at rest using AES-256-GCM
+ * - SR-001: Sensitive data MUST be encrypted at rest using AES-256-GCM
  * - SR-002: Encryption keys MUST be stored in environment variables
- * - SR-003: Email addresses MUST be decrypted only at point of use
+ * - SR-003: Data MUST be decrypted only at point of use
  *
  * Task: T064
  */
@@ -214,4 +218,190 @@ export function getEmailForUse(emailOrEncrypted: string): string {
     return decryptEmail(emailOrEncrypted);
   }
   return emailOrEncrypted;
+}
+
+// =============================================================================
+// Phone Number Encryption
+// =============================================================================
+
+/**
+ * Encrypt a phone number
+ *
+ * @param phone - Phone number to encrypt
+ * @returns Encrypted data as a JSON string (for storage)
+ */
+export function encryptPhone(phone: string): string {
+  const encrypted = encrypt(phone);
+  return JSON.stringify(encrypted);
+}
+
+/**
+ * Decrypt a phone number
+ *
+ * @param encryptedJson - JSON string from encryptPhone()
+ * @returns Decrypted phone number
+ * @throws Error if decryption fails or data is malformed
+ */
+export function decryptPhone(encryptedJson: string): string {
+  try {
+    const encryptedData: EncryptedData = JSON.parse(encryptedJson);
+
+    if (!encryptedData.encrypted || !encryptedData.iv || !encryptedData.tag) {
+      throw new Error('Invalid encrypted phone format');
+    }
+
+    return decrypt(encryptedData);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error('Invalid encrypted phone: not valid JSON');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if a string appears to be encrypted phone data
+ *
+ * @param value - String to check
+ * @returns true if value looks like encrypted data
+ */
+export function isEncryptedPhone(value: string): boolean {
+  return isEncryptedEmail(value); // Same format check
+}
+
+/**
+ * Safely get phone for use (decrypt if encrypted, return as-is if not)
+ *
+ * @param phoneOrEncrypted - Plain phone or encrypted phone JSON
+ * @returns Decrypted phone number
+ */
+export function getPhoneForUse(phoneOrEncrypted: string): string {
+  if (isEncryptedPhone(phoneOrEncrypted)) {
+    return decryptPhone(phoneOrEncrypted);
+  }
+  return phoneOrEncrypted;
+}
+
+// =============================================================================
+// Activation Code Encryption
+// =============================================================================
+
+/**
+ * Encrypt an eSIM activation code
+ *
+ * @param activationCode - Activation code to encrypt
+ * @returns Encrypted data as a JSON string (for storage)
+ */
+export function encryptActivationCode(activationCode: string): string {
+  const encrypted = encrypt(activationCode);
+  return JSON.stringify(encrypted);
+}
+
+/**
+ * Decrypt an eSIM activation code
+ *
+ * @param encryptedJson - JSON string from encryptActivationCode()
+ * @returns Decrypted activation code
+ * @throws Error if decryption fails or data is malformed
+ */
+export function decryptActivationCode(encryptedJson: string): string {
+  try {
+    const encryptedData: EncryptedData = JSON.parse(encryptedJson);
+
+    if (!encryptedData.encrypted || !encryptedData.iv || !encryptedData.tag) {
+      throw new Error('Invalid encrypted activation code format');
+    }
+
+    return decrypt(encryptedData);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error('Invalid encrypted activation code: not valid JSON');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if a string appears to be encrypted activation code data
+ *
+ * @param value - String to check
+ * @returns true if value looks like encrypted data
+ */
+export function isEncryptedActivationCode(value: string): boolean {
+  return isEncryptedEmail(value); // Same format check
+}
+
+/**
+ * Safely get activation code for use (decrypt if encrypted, return as-is if not)
+ *
+ * @param codeOrEncrypted - Plain activation code or encrypted JSON
+ * @returns Decrypted activation code
+ */
+export function getActivationCodeForUse(codeOrEncrypted: string): string {
+  if (isEncryptedActivationCode(codeOrEncrypted)) {
+    return decryptActivationCode(codeOrEncrypted);
+  }
+  return codeOrEncrypted;
+}
+
+// =============================================================================
+// Generic Sensitive Data Helpers
+// =============================================================================
+
+/**
+ * Encrypt any sensitive string data
+ *
+ * @param data - Sensitive data to encrypt
+ * @returns Encrypted data as a JSON string
+ */
+export function encryptSensitiveData(data: string): string {
+  const encrypted = encrypt(data);
+  return JSON.stringify(encrypted);
+}
+
+/**
+ * Decrypt any sensitive string data
+ *
+ * @param encryptedJson - JSON string from encryptSensitiveData()
+ * @returns Decrypted data
+ * @throws Error if decryption fails or data is malformed
+ */
+export function decryptSensitiveData(encryptedJson: string): string {
+  try {
+    const encryptedData: EncryptedData = JSON.parse(encryptedJson);
+
+    if (!encryptedData.encrypted || !encryptedData.iv || !encryptedData.tag) {
+      throw new Error('Invalid encrypted data format');
+    }
+
+    return decrypt(encryptedData);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error('Invalid encrypted data: not valid JSON');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if a string appears to be encrypted data
+ *
+ * @param value - String to check
+ * @returns true if value looks like encrypted data
+ */
+export function isEncryptedData(value: string): boolean {
+  return isEncryptedEmail(value); // Same format check
+}
+
+/**
+ * Safely get sensitive data (decrypt if encrypted, return as-is if not)
+ *
+ * @param dataOrEncrypted - Plain data or encrypted JSON
+ * @returns Decrypted data
+ */
+export function getSensitiveDataForUse(dataOrEncrypted: string): string {
+  if (isEncryptedData(dataOrEncrypted)) {
+    return decryptSensitiveData(dataOrEncrypted);
+  }
+  return dataOrEncrypted;
 }

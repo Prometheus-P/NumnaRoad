@@ -1,0 +1,60 @@
+{
+  "name": "circuit_breaker_states",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "provider_slug",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": 50,
+        "pattern": "^[a-z0-9-]+$"
+      }
+    },
+    {
+      "name": "state",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["closed", "open", "half-open"]
+      }
+    },
+    {
+      "name": "failure_count",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0
+      }
+    },
+    {
+      "name": "success_count",
+      "type": "number",
+      "required": true,
+      "options": {
+        "min": 0
+      }
+    },
+    {
+      "name": "last_failure_time",
+      "type": "date",
+      "required": false
+    },
+    {
+      "name": "last_state_change",
+      "type": "date",
+      "required": true
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_provider_slug ON circuit_breaker_states (provider_slug)"
+  ],
+  "listRule": "@request.auth.role = 'admin'",
+  "viewRule": "@request.auth.role = 'admin'",
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

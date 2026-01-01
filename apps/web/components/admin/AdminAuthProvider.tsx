@@ -34,6 +34,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const isLoginPage = pathname === '/admin/login';
 
   React.useEffect(() => {
+    const controller = new AbortController();
+
     const verifyAuth = async () => {
       const token = localStorage.getItem('admin_token');
 
@@ -50,6 +52,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
+          signal: controller.signal,
         });
 
         const data = await res.json();
@@ -66,17 +69,29 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (error) {
+        // Ignore abort errors - component unmounted
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
         console.error('Auth verification failed:', error);
         localStorage.removeItem('admin_token');
         if (!isLoginPage) {
           router.push('/admin/login');
         }
       } finally {
-        setIsLoading(false);
+        // Only update state if not aborted
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     verifyAuth();
+
+    // Cleanup: abort fetch on unmount
+    return () => {
+      controller.abort();
+    };
   }, [router, isLoginPage]);
 
   const logout = () => {

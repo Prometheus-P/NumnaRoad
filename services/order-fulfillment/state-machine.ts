@@ -287,6 +287,7 @@ export function getStateDescription(state: OrderState): string {
     pending: 'Order created, awaiting payment',
     processing: 'Order is being processed',
     payment_received: 'Payment confirmed, ready for fulfillment',
+    awaiting_confirmation: 'Waiting for customer purchase confirmation',
     fulfillment_started: 'eSIM purchase in progress',
     provider_confirmed: 'eSIM received from provider',
     email_sent: 'Confirmation email sent to customer',

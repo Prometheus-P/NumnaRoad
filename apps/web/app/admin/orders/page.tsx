@@ -24,11 +24,12 @@ import {
 import { DataGrid, GridColDef, GridRenderCellParams, GridRowId, GridRowSelectionModel } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CheckIcon from '@mui/icons-material/Check';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminLanguage } from '@/lib/i18n';
+import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { StatusBadge, CopyableText } from '@/components/admin';
+import { isRetryableOrder } from '@/hooks/admin';
 
 interface Order {
   id: string;
@@ -49,113 +50,6 @@ interface OrdersResponse {
   totalItems: number;
   totalPages: number;
 }
-
-// Status Badge with translations
-function StatusBadge({ status, statusLabels }: { status: string; statusLabels: Record<string, string> }) {
-  const getColor = (): 'success' | 'warning' | 'info' | 'error' | 'default' => {
-    switch (status) {
-      case 'completed':
-      case 'delivered':
-      case 'email_sent':
-        return 'success';
-      case 'pending':
-      case 'payment_received':
-        return 'warning';
-      case 'processing':
-      case 'fulfillment_started':
-      case 'provider_confirmed':
-        return 'info';
-      case 'failed':
-      case 'provider_failed':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const label = statusLabels[status] || status.replace(/_/g, ' ');
-
-  return (
-    <Chip
-      label={label}
-      color={getColor()}
-      size="small"
-    />
-  );
-}
-
-// Format currency
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-  }).format(value);
-}
-
-// Format date
-function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date));
-}
-
-// Copyable Order ID component with translations
-function CopyableOrderId({ orderId, copyLabel, copiedLabel }: { orderId: string; copyLabel: string; copiedLabel: string }) {
-  const [copied, setCopied] = React.useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row click
-    navigator.clipboard.writeText(orderId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Box display="flex" alignItems="center" gap={0.5}>
-      <Tooltip title={orderId} placement="top">
-        <Typography
-          variant="body2"
-          fontWeight={500}
-          sx={{
-            fontFamily: 'monospace',
-            fontSize: '0.8rem',
-            maxWidth: 100,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {orderId}
-        </Typography>
-      </Tooltip>
-      <Tooltip title={copied ? copiedLabel : copyLabel}>
-        <IconButton
-          size="small"
-          onClick={handleCopy}
-          sx={{
-            p: 0.25,
-            '& .MuiSvgIcon-root': { fontSize: '0.9rem' },
-          }}
-        >
-          {copied ? <CheckIcon color="success" /> : <ContentCopyIcon />}
-        </IconButton>
-      </Tooltip>
-    </Box>
-  );
-}
-
-// Retryable order states
-const RETRYABLE_STATES = [
-  'failed',
-  'provider_failed',
-  'pending_manual_fulfillment',
-  'fulfillment_started',
-  'payment_received',
-];
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -255,7 +149,7 @@ export default function OrdersPage() {
   const retryableSelectedOrders = React.useMemo(() => {
     if (!data?.items || selectedRowIds.length === 0) return [];
     return data.items.filter(
-      (order) => selectedRowIds.includes(order.id) && RETRYABLE_STATES.includes(order.status)
+      (order) => selectedRowIds.includes(order.id) && isRetryableOrder(order.status)
     );
   }, [data?.items, selectedRowIds]);
 
@@ -270,8 +164,8 @@ export default function OrdersPage() {
       headerName: t.orders.orderNumber,
       width: 150,
       renderCell: (params: GridRenderCellParams) => (
-        <CopyableOrderId
-          orderId={params.value || params.row.id}
+        <CopyableText
+          text={params.value || params.row.id}
           copyLabel={locale === 'ko' ? '주문번호 복사' : 'Copy order number'}
           copiedLabel={t.common.copied}
         />

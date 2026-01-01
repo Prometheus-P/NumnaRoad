@@ -1,0 +1,73 @@
+{
+  "id": "cs_reply_templates",
+  "name": "cs_reply_templates",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "id": "title",
+      "name": "title",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": null,
+        "max": 100,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "category",
+      "name": "category",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["delivery", "installation", "refund", "product", "general"]
+      }
+    },
+    {
+      "id": "content",
+      "name": "content",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": null,
+        "max": 2000,
+        "pattern": ""
+      }
+    },
+    {
+      "id": "variables",
+      "name": "variables",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "is_active",
+      "name": "is_active",
+      "type": "bool",
+      "required": false,
+      "options": {}
+    },
+    {
+      "id": "sort_order",
+      "name": "sort_order",
+      "type": "number",
+      "required": false,
+      "options": {
+        "min": 0,
+        "max": null
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_category ON cs_reply_templates (category)",
+    "CREATE INDEX idx_is_active ON cs_reply_templates (is_active)"
+  ],
+  "listRule": "@request.auth.id != ''",
+  "viewRule": "@request.auth.id != ''",
+  "createRule": "@request.auth.role = 'admin'",
+  "updateRule": "@request.auth.role = 'admin'",
+  "deleteRule": "@request.auth.role = 'admin'"
+}

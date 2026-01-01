@@ -16,13 +16,15 @@ import type { ErrorType, EsimPurchaseResult } from '../esim-providers/types';
  * Extended order states for the fulfillment workflow
  *
  * State transitions:
- * payment_received -> fulfillment_started -> provider_confirmed -> email_sent -> delivered
- *                  \-> provider_failed -> refund_needed
+ * Stripe direct: payment_received -> fulfillment_started -> provider_confirmed -> email_sent -> delivered
+ * SmartStore: payment_received -> awaiting_confirmation -> fulfillment_started -> provider_confirmed -> delivered
+ *            \-> provider_failed -> refund_needed
  */
 export type OrderState =
   | 'pending'            // Initial state (legacy)
   | 'processing'         // Legacy state
   | 'payment_received'   // Payment confirmed via Stripe webhook
+  | 'awaiting_confirmation' // SmartStore: Waiting for customer purchase confirmation (구매확정)
   | 'fulfillment_started' // Provider call initiated
   | 'provider_confirmed' // eSIM received from provider
   | 'email_sent'         // Confirmation email sent
@@ -40,7 +42,8 @@ export type OrderState =
 export const STATE_TRANSITIONS: Record<OrderState, OrderState[]> = {
   pending: ['payment_received', 'processing', 'failed'],
   processing: ['fulfillment_started', 'completed', 'failed'],
-  payment_received: ['fulfillment_started', 'failed'],
+  payment_received: ['fulfillment_started', 'awaiting_confirmation', 'failed'], // Can go to awaiting_confirmation for SmartStore
+  awaiting_confirmation: ['fulfillment_started', 'refund_needed'], // SmartStore: customer confirms purchase -> start fulfillment
   fulfillment_started: ['provider_confirmed', 'provider_failed', 'pending_manual_fulfillment'],
   provider_confirmed: ['email_sent', 'delivered'],
   email_sent: ['delivered'],

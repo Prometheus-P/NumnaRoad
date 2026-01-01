@@ -54,11 +54,24 @@ function PasswordField({
 }) {
   const [showPassword, setShowPassword] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout>();
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   // Mask the value for display
@@ -92,6 +105,16 @@ function PasswordField({
 
 export default function SettingsPage() {
   const [saved, setSaved] = React.useState(false);
+  const savedTimeoutRef = React.useRef<NodeJS.Timeout>();
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Settings data - in production, would be fetched from API
   const settings: SettingsSection[] = [
@@ -230,7 +253,10 @@ export default function SettingsPage() {
   const handleSave = () => {
     // In production, would save to API
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    if (savedTimeoutRef.current) {
+      clearTimeout(savedTimeoutRef.current);
+    }
+    savedTimeoutRef.current = setTimeout(() => setSaved(false), 3000);
   };
 
   return (

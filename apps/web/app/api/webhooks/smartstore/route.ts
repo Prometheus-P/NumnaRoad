@@ -20,6 +20,12 @@ import {
 import { createAutomationLogger } from '@services/logging';
 import type { EsimProvider } from '@services/esim-providers/types';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
+import {
+  sendOrderReceivedAlimtalk,
+  sendEsimDeliveryAlimtalk,
+  type AlimtalkConfig,
+} from '@services/notifications/kakao-alimtalk';
+import { notifyCustom, isDiscordConfigured } from '@services/notifications/discord-notifier';
 
 /**
  * POST /api/webhooks/smartstore
@@ -77,7 +83,12 @@ export async function POST(request: NextRequest) {
     // Handle different event types
     switch (payload.type) {
       case 'ORDER_PAYMENT_COMPLETE':
+        // New flow: Send guidance alimtalk, dispatch order, set status to awaiting_confirmation
         return handlePaymentComplete(payload, correlationId, config, startTime);
+
+      case 'ORDER_PURCHASE_DECIDED':
+        // Customer confirmed purchase on Naver - trigger eSIM fulfillment
+        return handlePurchaseDecided(payload, correlationId, config, startTime);
 
       case 'ORDER_CLAIM_REQUESTED':
         return handleClaimRequest(payload, correlationId);
@@ -170,7 +181,13 @@ async function handlePaymentComplete(
 }
 
 /**
- * Process a single Naver order.
+ * Process a single Naver order (payment complete event).
+ *
+ * NEW FLOW (Deferred Fulfillment):
+ * 1. Create order with 'awaiting_confirmation' status
+ * 2. Send order received alimtalk (instructing customer to confirm purchase)
+ * 3. Dispatch order on SmartStore (activates "구매확정" button)
+ * 4. Wait for ORDER_PURCHASE_DECIDED event to trigger actual fulfillment
  */
 async function processNaverOrder(
   naverOrder: NaverProductOrder,
@@ -221,40 +238,102 @@ async function processNaverOrder(
 
     const internalOrder = normalizeResult.data;
 
-    // Create the order in PocketBase
-    const order = await createSmartStoreOrder(pb, internalOrder, correlationId);
+    // Create the order in PocketBase with awaiting_confirmation status
+    const order = await createSmartStoreOrder(pb, internalOrder, correlationId, 'awaiting_confirmation');
 
-    // Get active providers
-    const providers = await getCachedActiveProviders();
-    if (providers.length === 0) {
-      await updateOrderStatus(pb, order.id, 'provider_failed', 'No active providers');
-      return {
-        productOrderId,
-        status: 'failed',
-        orderId: order.id,
-        error: 'No active providers',
+    // Get product details for alimtalk
+    const product = await getProductDetails(pb, order.product as string);
+    const productName = product?.name || internalOrder.productId;
+
+    // Send order received alimtalk (guidance message)
+    if (config.kakaoAlimtalk.enabled && internalOrder.customerPhone) {
+      const alimtalkConfig: AlimtalkConfig = {
+        enabled: true,
+        solapi: config.kakaoAlimtalk.solapi,
+        kakao: {
+          pfId: config.kakaoAlimtalk.kakao.pfId,
+          senderKey: config.kakaoAlimtalk.kakao.senderKey,
+          esimDeliveryTemplateId: config.kakaoAlimtalk.kakao.esimDeliveryTemplateId,
+          orderReceivedTemplateId: config.kakaoAlimtalk.kakao.orderReceivedTemplateId,
+        },
       };
+
+      const alimtalkResult = await sendOrderReceivedAlimtalk(
+        {
+          to: internalOrder.customerPhone,
+          orderId: order.order_id as string,
+          customerName: internalOrder.customerName,
+          productName,
+          orderCheckUrl: `${config.app.url}/orders/${order.order_id}`,
+        },
+        alimtalkConfig
+      );
+
+      if (!alimtalkResult.success) {
+        console.error(JSON.stringify({
+          level: 'warn',
+          event: 'order_received_alimtalk_failed',
+          orderId: order.id,
+          productOrderId,
+          error: alimtalkResult.error,
+          timestamp: new Date().toISOString(),
+        }));
+
+        // Send Discord notification for alimtalk failure
+        await notifyCustom(
+          '알림톡 발송 실패 (주문 접수)',
+          `알림톡 발송 실패: ${alimtalkResult.error}\n\n주문번호: ${order.order_id}\n고객명: ${internalOrder.customerName}\n전화번호: ${internalOrder.customerPhone}\n상품: ${productName}`,
+          'error'
+        );
+      }
+    } else if (config.kakaoAlimtalk.enabled && !internalOrder.customerPhone) {
+      // Notify admin if phone number is missing
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'customer_phone_missing',
+        orderId: order.id,
+        productOrderId,
+        timestamp: new Date().toISOString(),
+      }));
+
+      await notifyCustom(
+        '전화번호 누락',
+        `주문에 전화번호가 없어 알림톡을 발송할 수 없습니다.\n\n주문번호: ${order.order_id}\n고객명: ${internalOrder.customerName}\n이메일: ${internalOrder.customerEmail}`,
+        'warning'
+      );
     }
 
-    // Process fulfillment
-    const fulfillmentResult = await processFulfillment(
-      pb,
-      order,
-      providers,
-      correlationId,
-      config
-    );
-
-    // If successful, dispatch the order in SmartStore
-    if (fulfillmentResult.success) {
+    // Dispatch order on SmartStore (marks as shipped, activates purchase confirm button)
+    try {
       await client.dispatchOrder(productOrderId);
+      console.log(JSON.stringify({
+        level: 'info',
+        event: 'smartstore_order_dispatched',
+        orderId: order.id,
+        productOrderId,
+        timestamp: new Date().toISOString(),
+      }));
+    } catch (dispatchError) {
+      console.error(JSON.stringify({
+        level: 'error',
+        event: 'smartstore_dispatch_failed',
+        orderId: order.id,
+        productOrderId,
+        error: dispatchError instanceof Error ? dispatchError.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      }));
+
+      await notifyCustom(
+        'SmartStore 발송처리 실패',
+        `주문 발송처리에 실패했습니다. 수동 처리가 필요합니다.\n\n주문번호: ${order.order_id}`,
+        'error'
+      );
     }
 
     return {
       productOrderId,
-      status: fulfillmentResult.success ? 'success' : 'failed',
-      orderId: order.id,
-      error: fulfillmentResult.error?.message,
+      status: 'success',
+      orderId: order.id as string,
     };
   } catch (error) {
     console.error(`Error processing order ${productOrderId}:`, error);
@@ -293,6 +372,211 @@ async function handleClaimRequest(
 }
 
 /**
+ * Handle purchase decided event - customer confirmed purchase on Naver.
+ * This triggers actual eSIM fulfillment.
+ */
+async function handlePurchaseDecided(
+  payload: NaverWebhookPayload,
+  correlationId: string,
+  config: ReturnType<typeof getConfig>,
+  startTime: number
+): Promise<NextResponse> {
+  const { productOrderIds } = payload;
+
+  if (!productOrderIds?.length) {
+    return NextResponse.json(
+      { error: 'No product order IDs provided' },
+      { status: 400 }
+    );
+  }
+
+  const pb = await getAdminPocketBase();
+
+  const results: Array<{
+    productOrderId: string;
+    status: 'success' | 'skipped' | 'failed';
+    orderId?: string;
+    error?: string;
+  }> = [];
+
+  // Process each order
+  for (const productOrderId of productOrderIds) {
+    const result = await processPurchaseConfirmation(
+      productOrderId,
+      pb,
+      correlationId,
+      config
+    );
+    results.push(result);
+  }
+
+  return NextResponse.json({
+    received: true,
+    handled: true,
+    type: 'ORDER_PURCHASE_DECIDED',
+    correlationId,
+    results,
+    durationMs: Date.now() - startTime,
+  });
+}
+
+/**
+ * Process purchase confirmation for a single order.
+ * Triggers eSIM fulfillment and sends delivery notification.
+ */
+async function processPurchaseConfirmation(
+  productOrderId: string,
+  pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
+  correlationId: string,
+  config: ReturnType<typeof getConfig>
+): Promise<{
+  productOrderId: string;
+  status: 'success' | 'skipped' | 'failed';
+  orderId?: string;
+  error?: string;
+}> {
+  try {
+    // Find the order by SmartStore product order ID
+    const order = await findExistingSmartStoreOrder(pb, productOrderId);
+    if (!order) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'purchase_decided_order_not_found',
+        productOrderId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      }));
+      return {
+        productOrderId,
+        status: 'failed',
+        error: 'Order not found',
+      };
+    }
+
+    // Check if order is in awaiting_confirmation status
+    const orderStatus = order.status as string;
+    if (orderStatus !== 'awaiting_confirmation') {
+      console.log(JSON.stringify({
+        level: 'info',
+        event: 'purchase_decided_invalid_status',
+        productOrderId,
+        orderId: order.id,
+        currentStatus: orderStatus,
+        timestamp: new Date().toISOString(),
+      }));
+
+      // If already delivered, skip
+      if (['delivered', 'completed'].includes(orderStatus)) {
+        return {
+          productOrderId,
+          status: 'skipped',
+          orderId: order.id as string,
+          error: 'Order already fulfilled',
+        };
+      }
+
+      // If not in awaiting_confirmation, still try to fulfill if it's a valid pre-fulfillment state
+      if (!['awaiting_confirmation', 'payment_received'].includes(orderStatus)) {
+        return {
+          productOrderId,
+          status: 'skipped',
+          orderId: order.id as string,
+          error: `Invalid order status: ${orderStatus}`,
+        };
+      }
+    }
+
+    console.log(JSON.stringify({
+      level: 'info',
+      event: 'purchase_decided_processing',
+      productOrderId,
+      orderId: order.id,
+      timestamp: new Date().toISOString(),
+    }));
+
+    // Get active providers
+    const providers = await getCachedActiveProviders();
+    if (providers.length === 0) {
+      await updateOrderStatus(pb, order.id as string, 'provider_failed', 'No active providers');
+      return {
+        productOrderId,
+        status: 'failed',
+        orderId: order.id as string,
+        error: 'No active providers',
+      };
+    }
+
+    // Process fulfillment
+    const fulfillmentResult = await processFulfillment(
+      pb,
+      order,
+      providers,
+      correlationId,
+      config
+    );
+
+    // If successful, send eSIM delivery alimtalk
+    if (fulfillmentResult.success && config.kakaoAlimtalk.enabled) {
+      const customerPhone = order.customer_phone as string | undefined;
+      if (customerPhone) {
+        const alimtalkConfig: AlimtalkConfig = {
+          enabled: true,
+          solapi: config.kakaoAlimtalk.solapi,
+          kakao: {
+            pfId: config.kakaoAlimtalk.kakao.pfId,
+            senderKey: config.kakaoAlimtalk.kakao.senderKey,
+            esimDeliveryTemplateId: config.kakaoAlimtalk.kakao.esimDeliveryTemplateId,
+            orderReceivedTemplateId: config.kakaoAlimtalk.kakao.orderReceivedTemplateId,
+          },
+        };
+
+        const alimtalkResult = await sendEsimDeliveryAlimtalk(
+          {
+            to: customerPhone,
+            orderId: order.order_id as string,
+            orderDetailUrl: `${config.app.url}/orders/${order.order_id}`,
+            customerName: order.customer_name as string,
+          },
+          alimtalkConfig
+        );
+
+        if (!alimtalkResult.success) {
+          console.error(JSON.stringify({
+            level: 'warn',
+            event: 'esim_delivery_alimtalk_failed',
+            orderId: order.id,
+            productOrderId,
+            error: alimtalkResult.error,
+            timestamp: new Date().toISOString(),
+          }));
+
+          // Send Discord notification for alimtalk failure
+          await notifyCustom(
+            '알림톡 발송 실패 (eSIM 발급)',
+            `알림톡 발송 실패: ${alimtalkResult.error}. 이메일은 정상 발송됨.\n\n주문번호: ${order.order_id}`,
+            'warning'
+          );
+        }
+      }
+    }
+
+    return {
+      productOrderId,
+      status: fulfillmentResult.success ? 'success' : 'failed',
+      orderId: order.id as string,
+      error: fulfillmentResult.error?.message,
+    };
+  } catch (error) {
+    console.error(`Error processing purchase confirmation ${productOrderId}:`, error);
+    return {
+      productOrderId,
+      status: 'failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Find existing order by SmartStore product order ID.
  */
 async function findExistingSmartStoreOrder(
@@ -324,7 +608,8 @@ async function createSmartStoreOrder(
     amount: number;
     currency: string;
   },
-  correlationId: string
+  correlationId: string,
+  status: 'payment_received' | 'awaiting_confirmation' = 'payment_received'
 ) {
   const orderId = `SS-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
@@ -339,9 +624,9 @@ async function createSmartStoreOrder(
     correlation_id: correlationId,
     amount: internalOrder.amount,
     currency: internalOrder.currency,
-    status: 'payment_received',
+    status,
     payment_status: 'paid',
-    payment_method: 'smartstore', // Will need to add this to payment_method enum
+    payment_method: 'smartstore',
     dispatch_method: 'provider_api',
     retry_count: 0,
     // SmartStore doesn't use Stripe, so we use a placeholder
@@ -438,11 +723,12 @@ async function processFulfillment(
 async function getProductDetails(
   pb: Awaited<ReturnType<typeof getAdminPocketBase>>,
   productId: string
-): Promise<{ providerSku: string } | null> {
+): Promise<{ providerSku: string; name: string } | null> {
   try {
     const product = await pb.collection('esim_products').getOne(productId);
     return {
       providerSku: product.provider_sku || product.id,
+      name: product.name || product.country_name || productId,
     };
   } catch {
     return null;

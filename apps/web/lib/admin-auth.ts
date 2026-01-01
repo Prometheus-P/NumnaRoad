@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
+import { cookies } from 'next/headers';
+
+const ADMIN_SESSION_COOKIE = 'pb_admin_auth';
 
 /**
  * Verify admin token from request headers
@@ -50,8 +53,50 @@ export function unauthorizedResponse(message = 'Unauthorized'): NextResponse {
 }
 
 /**
+ * Verify admin session from cookie
+ * Returns the authenticated PocketBase instance if valid
+ */
+async function verifyAdminSession(): Promise<{
+  valid: boolean;
+  pb?: PocketBase;
+  error?: string;
+}> {
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(ADMIN_SESSION_COOKIE);
+
+    if (!sessionCookie?.value) {
+      return { valid: false, error: 'No session cookie' };
+    }
+
+    const pb = new PocketBase(
+      process.env.POCKETBASE_URL || process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090'
+    );
+
+    // Load the token from cookie
+    pb.authStore.save(sessionCookie.value, null);
+
+    if (!pb.authStore.isValid) {
+      return { valid: false, error: 'Invalid session' };
+    }
+
+    // Verify with server
+    await pb.collection('_superusers').authRefresh();
+
+    return { valid: true, pb };
+  } catch {
+    return { valid: false, error: 'Session expired or invalid' };
+  }
+}
+
+/**
  * Wrapper for admin API routes that require authentication
- * Falls back to server-side admin auth for internal calls (e.g., from dashboard)
+ *
+ * SECURITY: Requires valid authentication - no anonymous fallback
+ *
+ * Authentication methods (in order of priority):
+ * 1. Bearer token in Authorization header
+ * 2. Session cookie (pb_admin_auth)
  */
 export async function withAdminAuth(
   request: NextRequest,
@@ -68,25 +113,47 @@ export async function withAdminAuth(
     return unauthorizedResponse(result.error);
   }
 
-  // For requests without auth header (e.g., from browser with cookies),
-  // use server-side admin credentials
-  // This allows the dashboard to work without passing tokens in every request
-  try {
-    const pb = new PocketBase(
-      process.env.POCKETBASE_URL || process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090'
-    );
-
-    const email = process.env.POCKETBASE_ADMIN_EMAIL;
-    const password = process.env.POCKETBASE_ADMIN_PASSWORD;
-
-    if (email && password) {
-      await pb.collection('_superusers').authWithPassword(email, password);
-      return handler(pb);
-    }
-
-    return unauthorizedResponse('Admin credentials not configured');
-  } catch (error) {
-    console.error('Admin auth failed:', error);
-    return unauthorizedResponse('Authentication failed');
+  // Try cookie-based session auth
+  const sessionResult = await verifyAdminSession();
+  if (sessionResult.valid && sessionResult.pb) {
+    return handler(sessionResult.pb);
   }
+
+  // No valid authentication found
+  return unauthorizedResponse('Authentication required');
+}
+
+/**
+ * Escape special characters in PocketBase filter values
+ * Prevents filter injection attacks
+ */
+export function escapeFilterValue(value: string): string {
+  if (!value) return '';
+  // Escape double quotes and backslashes
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Verify cron job authorization
+ * SECURITY: Fails closed - if CRON_SECRET is not set, all requests are rejected
+ */
+export function verifyCronAuth(request: NextRequest): { valid: boolean; error?: string } {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+
+  // Fail closed: if CRON_SECRET is not configured, reject all requests
+  if (!cronSecret) {
+    console.error('[Security] CRON_SECRET not configured - rejecting cron request');
+    return { valid: false, error: 'Server misconfigured' };
+  }
+
+  if (!authHeader) {
+    return { valid: false, error: 'Missing authorization header' };
+  }
+
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return { valid: false, error: 'Invalid cron secret' };
+  }
+
+  return { valid: true };
 }

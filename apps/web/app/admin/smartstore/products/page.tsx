@@ -40,6 +40,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { formatTimeAgo, formatCurrency } from '@/lib/utils/formatters';
 
 // ============================================================================
 // Types
@@ -94,28 +95,6 @@ interface SyncResult {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function formatTimeAgo(date?: string | null): string {
-  if (!date) return '-';
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-  }).format(price);
-}
 
 function getSyncStatusChip(status: string) {
   switch (status) {
@@ -464,7 +443,7 @@ export default function SmartStoreProductsPage() {
                     <TableCell>
                       {product.dataLimit} / {product.durationDays}d
                     </TableCell>
-                    <TableCell>{formatPrice(product.price)}</TableCell>
+                    <TableCell>{formatCurrency(product.price)}</TableCell>
                     <TableCell>
                       <Chip label={product.provider} size="small" />
                     </TableCell>

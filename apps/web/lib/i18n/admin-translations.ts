@@ -40,6 +40,9 @@ export interface AdminTranslations {
     products: string;
     providers: string;
     smartstore: string;
+    smartstoreIntegration: string;
+    smartstoreProducts: string;
+    smartstoreInquiries: string;
     settings: string;
     guide: string;
   };
@@ -415,6 +418,9 @@ export const translations: Record<AdminLocale, AdminTranslations> = {
       products: '상품 관리',
       providers: '프로바이더',
       smartstore: '스마트스토어',
+      smartstoreIntegration: '연동 설정',
+      smartstoreProducts: '상품 매핑',
+      smartstoreInquiries: '고객 문의',
       settings: '설정',
       guide: '가이드',
     },
@@ -783,6 +789,9 @@ export const translations: Record<AdminLocale, AdminTranslations> = {
       products: 'Products',
       providers: 'Providers',
       smartstore: 'SmartStore',
+      smartstoreIntegration: 'Integration',
+      smartstoreProducts: 'Product Mapping',
+      smartstoreInquiries: 'Customer Inquiries',
       settings: 'Settings',
       guide: 'Guide',
     },

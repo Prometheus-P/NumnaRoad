@@ -224,13 +224,15 @@ export class RedteaGOProvider extends BaseProvider {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch packages: HTTP ${response.status}`);
+        const statusError = new Error(`Failed to fetch packages: HTTP ${response.status}`);
+        throw statusError;
       }
 
       return response.json();
     } catch (error) {
       console.error('Error fetching RedteaGO packages:', error);
-      throw error;
+      // Preserve error cause chain for debugging
+      throw new Error('RedteaGO package fetch failed', { cause: error });
     }
   }
 
@@ -289,8 +291,9 @@ export class RedteaGOProvider extends BaseProvider {
     try {
       const body = await response.json() as { msg?: string; code?: number };
       errorMessage = body.msg || errorMessage;
-    } catch {
-      // Ignore JSON parse errors
+    } catch (parseError) {
+      // Log JSON parse failure but continue with HTTP status message
+      console.warn('Failed to parse error response body:', parseError);
     }
 
     return {

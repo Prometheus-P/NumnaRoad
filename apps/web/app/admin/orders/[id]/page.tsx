@@ -34,6 +34,8 @@ import TextField from '@mui/material/TextField';
 import Snackbar from '@mui/material/Snackbar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminLanguage } from '@/lib/i18n';
+import { formatCurrency, formatDateTime } from '@/lib/utils/formatters';
+import { StatusBadge, InfoRow } from '@/components/admin';
 
 interface OrderLog {
   id: string;
@@ -69,94 +71,6 @@ interface OrderDetail {
   created: string;
   updated: string;
   logs: OrderLog[];
-}
-
-// Status Badge
-function StatusBadge({ status, statusLabels }: { status: string; statusLabels: Record<string, string> }) {
-  const getColor = (): 'success' | 'warning' | 'info' | 'error' | 'default' => {
-    switch (status) {
-      case 'completed':
-      case 'delivered':
-      case 'email_sent':
-        return 'success';
-      case 'pending':
-      case 'payment_received':
-        return 'warning';
-      case 'processing':
-      case 'fulfillment_started':
-      case 'provider_confirmed':
-        return 'info';
-      case 'failed':
-      case 'provider_failed':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const label = statusLabels[status] || status.replace(/_/g, ' ');
-
-  return (
-    <Chip
-      label={label}
-      color={getColor()}
-    />
-  );
-}
-
-// Format currency
-function formatCurrency(value: number, currency: string = 'KRW'): string {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency,
-  }).format(value);
-}
-
-// Format date
-function formatDateTime(date: string): string {
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(date));
-}
-
-// Info Row Component
-function InfoRow({ label, value, copyable }: { label: string; value?: string | number; copyable?: boolean }) {
-  const [copied, setCopied] = React.useState(false);
-
-  const handleCopy = () => {
-    if (value) {
-      navigator.clipboard.writeText(String(value));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  return (
-    <Box display="flex" justifyContent="space-between" alignItems="center" py={1}>
-      <Typography variant="body2" color="text.secondary">
-        {label}
-      </Typography>
-      <Box display="flex" alignItems="center" gap={1}>
-        <Typography variant="body2" fontWeight={500}>
-          {value || '-'}
-        </Typography>
-        {copyable && value && (
-          <Button
-            size="small"
-            onClick={handleCopy}
-            sx={{ minWidth: 'auto', p: 0.5 }}
-          >
-            {copied ? <CheckCircleIcon fontSize="small" color="success" /> : <ContentCopyIcon fontSize="small" />}
-          </Button>
-        )}
-      </Box>
-    </Box>
-  );
 }
 
 export default function OrderDetailPage() {

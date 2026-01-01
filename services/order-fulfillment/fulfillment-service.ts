@@ -52,6 +52,7 @@ export type EmailSendFn = (params: {
   to: string;
   orderId: string;
   qrCodeUrl: string;
+  iccid: string;
   activationCode?: string;
   directAppleInstallationUrl?: string;
 }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
@@ -303,6 +304,7 @@ export class FulfillmentService {
           to: order.customerEmail,
           orderId: order.orderId,
           qrCodeUrl: result.qrCodeUrl ?? '',
+          iccid: result.iccid ?? '',
           activationCode: result.activationCode,
           directAppleInstallationUrl: result.directAppleInstallationUrl,
         })

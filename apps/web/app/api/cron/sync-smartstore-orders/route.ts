@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 export const dynamic = 'force-dynamic';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { getConfig } from '@/lib/config';
+import { verifyCronAuth } from '@/lib/admin-auth';
+import { acquireLock, releaseLock } from '@/lib/cron-lock';
 import {
   getSmartStoreClient,
   createPocketBaseProductMapper,
@@ -21,11 +23,16 @@ import {
 import type { EsimProvider } from '@services/esim-providers/types';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
 
+const JOB_NAME = 'sync-smartstore-orders';
+const LOCK_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * GET /api/cron/sync-smartstore-orders
  *
  * Polling cron job to sync SmartStore orders.
  * This is a fallback mechanism since Naver webhooks don't retry on failure.
+ *
+ * Uses distributed locking to prevent duplicate execution across instances.
  *
  * Should be called every 5 minutes via Vercel Cron.
  *
@@ -43,16 +50,13 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
 
-  // Verify cron secret (if configured)
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  // Verify cron secret - fails closed if not configured
+  const authResult = verifyCronAuth(request);
+  if (!authResult.valid) {
+    return NextResponse.json(
+      { error: authResult.error || 'Unauthorized' },
+      { status: authResult.error === 'Server misconfigured' ? 500 : 401 }
+    );
   }
 
   // Check if SmartStore integration is enabled
@@ -62,6 +66,29 @@ export async function GET(request: NextRequest) {
       success: true,
       message: 'SmartStore integration disabled',
       synced: 0,
+    });
+  }
+
+  // Acquire distributed lock
+  const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
+
+  if (!lockResult.acquired) {
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'cron_job_skipped',
+        job: JOB_NAME,
+        correlationId,
+        reason: 'lock_held',
+        heldBy: lockResult.heldBy,
+      })
+    );
+
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'Lock held by another instance',
+      heldBy: lockResult.heldBy,
     });
   }
 
@@ -177,6 +204,9 @@ export async function GET(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     );
+  } finally {
+    // Always release the lock
+    await releaseLock(JOB_NAME, lockResult.lockId);
   }
 }
 

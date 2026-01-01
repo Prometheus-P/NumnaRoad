@@ -43,7 +43,9 @@ onRecordAfterCreateRequest((e) => {
  * Validate order state transitions
  *
  * Valid transitions (Inline Fulfillment Flow):
- * - payment_received -> fulfillment_started
+ * - payment_received -> fulfillment_started (Stripe direct)
+ * - payment_received -> awaiting_confirmation (SmartStore deferred)
+ * - awaiting_confirmation -> fulfillment_started (customer confirms purchase)
  * - fulfillment_started -> provider_confirmed, provider_failed
  * - provider_confirmed -> email_sent
  * - provider_failed -> fulfillment_started (retry), pending_manual_fulfillment
@@ -72,8 +74,10 @@ onRecordBeforeUpdateRequest((e) => {
   const validTransitions = {
     // Legacy
     pending: ["payment_received"],
-    // Inline fulfillment flow
-    payment_received: ["fulfillment_started"],
+    // Inline fulfillment flow (Stripe direct or after SmartStore confirmation)
+    payment_received: ["fulfillment_started", "awaiting_confirmation"],
+    // SmartStore deferred fulfillment: wait for customer purchase confirmation
+    awaiting_confirmation: ["fulfillment_started", "refund_needed"],
     fulfillment_started: ["provider_confirmed", "provider_failed"],
     provider_confirmed: ["email_sent"],
     provider_failed: ["fulfillment_started", "pending_manual_fulfillment"],

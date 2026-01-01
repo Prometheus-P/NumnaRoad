@@ -146,6 +146,7 @@ export type NaverWebhookEventType =
   | 'ORDER_PLACED' // 주문 접수
   | 'ORDER_DELIVERING' // 배송 시작
   | 'ORDER_DELIVERED' // 배송 완료
+  | 'ORDER_PURCHASE_DECIDED' // 구매 확정 (customer confirmed purchase)
   | 'ORDER_CLAIM_REQUESTED' // 클레임 요청
   | 'ORDER_CLAIM_PROCESSED'; // 클레임 처리 완료
 

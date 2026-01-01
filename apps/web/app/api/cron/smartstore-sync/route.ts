@@ -15,33 +15,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
+import { verifyCronAuth } from '@/lib/admin-auth';
+import { acquireLock, releaseLock } from '@/lib/cron-lock';
 import { createProductSyncService } from '@services/sales-channels/smartstore/product-sync';
 
-/**
- * Verify cron secret for security.
- */
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  // In development, allow without secret
-  if (process.env.NODE_ENV === 'development' && !cronSecret) {
-    return true;
-  }
-
-  // Vercel cron jobs include this header
-  const vercelCronHeader = request.headers.get('x-vercel-cron');
-  if (vercelCronHeader) {
-    return true;
-  }
-
-  // Manual trigger with secret
-  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
-    return true;
-  }
-
-  return false;
-}
+const JOB_NAME = 'smartstore-product-sync';
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes for product sync
 
 /**
  * Log sync result to automation_logs.
@@ -77,14 +56,38 @@ async function logSyncResult(
  * GET /api/cron/smartstore-sync
  *
  * Trigger product sync for all auto-sync enabled products.
+ * Uses distributed locking to prevent duplicate execution across instances.
  */
 export async function GET(request: NextRequest) {
-  // Verify authorization
-  if (!verifyCronSecret(request)) {
+  // Verify cron secret - fails closed if not configured
+  const authResult = verifyCronAuth(request);
+  if (!authResult.valid) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: authResult.error || 'Unauthorized' },
+      { status: authResult.error === 'Server misconfigured' ? 500 : 401 }
     );
+  }
+
+  // Acquire distributed lock
+  const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
+
+  if (!lockResult.acquired) {
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'cron_job_skipped',
+        job: JOB_NAME,
+        reason: 'lock_held',
+        heldBy: lockResult.heldBy,
+      })
+    );
+
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'Lock held by another instance',
+      heldBy: lockResult.heldBy,
+    });
   }
 
   const startTime = Date.now();
@@ -148,6 +151,9 @@ export async function GET(request: NextRequest) {
       { error: 'Sync failed', message: errorMessage },
       { status: 500 }
     );
+  } finally {
+    // Always release the lock
+    await releaseLock(JOB_NAME, lockResult.lockId);
   }
 }
 
