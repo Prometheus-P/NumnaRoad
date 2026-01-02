@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Admin login failed:', error);
+    logger.warn('admin_login_failed', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: 'Invalid email or password' },
       { status: 401 }

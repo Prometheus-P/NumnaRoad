@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth, escapeFilterValue } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 // ICCID format: 18-22 digit numeric string
 const ICCID_REGEX = /^\d{18,22}$/;
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         logs,
       });
     } catch (error) {
-      console.error('Failed to fetch order:', error);
+      logger.error('admin_order_fetch_failed', error, { orderId: id });
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
@@ -160,7 +161,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           });
         } catch {
           // 로그 기록 실패해도 주문 업데이트는 성공
-          console.warn('Failed to create automation log for manual fulfillment');
+          logger.warn('automation_log_create_failed', { orderId: id, stepName: 'manual_fulfillment' });
         }
 
         return NextResponse.json({
@@ -194,7 +195,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         order,
       });
     } catch (error) {
-      console.error('Failed to update order:', error);
+      logger.error('admin_order_update_failed', error, { orderId: id });
       return NextResponse.json(
         { error: 'Failed to update order' },
         { status: 500 }

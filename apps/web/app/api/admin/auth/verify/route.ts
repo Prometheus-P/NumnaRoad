@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Token verification failed:', error);
+    logger.error('admin_token_verification_failed', error);
     return NextResponse.json(
       { valid: false, error: 'Verification failed' },
       { status: 500 }

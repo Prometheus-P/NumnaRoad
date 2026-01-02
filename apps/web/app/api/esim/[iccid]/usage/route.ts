@@ -12,6 +12,7 @@ import { AiraloProvider } from '@services/esim-providers/airalo';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import type { EsimProvider } from '@services/esim-providers/types';
+import { logger } from '@/lib/logger';
 
 // Cache for usage data (15 minutes)
 const usageCache = new Map<string, { data: unknown; timestamp: number }>();
@@ -122,7 +123,7 @@ export async function GET(
         );
       }
     } catch (dbError) {
-      console.warn('[Usage API] Database check failed, proceeding with API call:', dbError);
+      logger.warn('esim_usage_db_check_failed', { iccid, error: dbError instanceof Error ? dbError.message : 'Unknown' });
     }
 
     // Fetch usage from Airalo
@@ -139,7 +140,7 @@ export async function GET(
       rateLimitRemaining: simRateLimitResult.remaining,
     });
   } catch (error) {
-    console.error('[Usage API] Error fetching usage:', error);
+    logger.error('esim_usage_fetch_failed', error, { iccid });
 
     return NextResponse.json(
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/inquiries/metrics
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
         data: metrics,
       });
     } catch (error) {
-      console.error('[Inquiry Metrics API] GET error:', error);
+      logger.error('admin_inquiry_metrics_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch metrics' },
         { status: 500 }

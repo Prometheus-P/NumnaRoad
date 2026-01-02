@@ -22,6 +22,7 @@ import {
 } from '@services/order-fulfillment';
 import type { EsimProvider } from '@services/esim-providers/types';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
+import { logger } from '@/lib/logger';
 
 const JOB_NAME = 'sync-smartstore-orders';
 const LOCK_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -73,16 +74,7 @@ export async function GET(request: NextRequest) {
   const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
 
   if (!lockResult.acquired) {
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_job_skipped',
-        job: JOB_NAME,
-        correlationId,
-        reason: 'lock_held',
-        heldBy: lockResult.heldBy,
-      })
-    );
+    logger.info('cron_job_skipped', { job: JOB_NAME, correlationId, reason: 'lock_held', heldBy: lockResult.heldBy });
 
     return NextResponse.json({
       success: true,
@@ -107,7 +99,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!changesResult.success || !changesResult.data) {
-      console.error('Failed to fetch status changes:', changesResult.errorMessage);
+      logger.error('sync_smartstore_orders_fetch_changes_failed', undefined, { error: changesResult.errorMessage });
       return NextResponse.json(
         { error: 'Failed to fetch status changes' },
         { status: 502 }
@@ -115,7 +107,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { changes, hasMore } = changesResult.data;
-    console.log(`Found ${changes.length} order status changes (hasMore: ${hasMore})`);
+    logger.info('sync_smartstore_orders_changes_found', { count: changes.length, hasMore });
 
     // Filter for orders we haven't processed yet
     const unprocessedOrderIds: string[] = [];
@@ -126,7 +118,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`${unprocessedOrderIds.length} orders need processing`);
+    logger.info('sync_smartstore_orders_to_process', { count: unprocessedOrderIds.length });
 
     if (unprocessedOrderIds.length === 0) {
       await updateLastSyncTime(pb, now);
@@ -141,7 +133,7 @@ export async function GET(request: NextRequest) {
     // Fetch full order details
     const ordersResult = await client.getProductOrders(unprocessedOrderIds);
     if (!ordersResult.success || !ordersResult.data) {
-      console.error('Failed to fetch order details:', ordersResult.errorMessage);
+      logger.error('sync_smartstore_orders_fetch_details_failed', undefined, { error: ordersResult.errorMessage });
       return NextResponse.json(
         { error: 'Failed to fetch order details' },
         { status: 502 }
@@ -199,7 +191,7 @@ export async function GET(request: NextRequest) {
       durationMs: Date.now() - startTime,
     });
   } catch (error) {
-    console.error('SmartStore sync error:', error);
+    logger.error('sync_smartstore_orders_error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -258,7 +250,7 @@ async function updateLastSyncTime(
       });
     }
   } catch (error) {
-    console.error('Failed to update last sync time:', error);
+    logger.error('sync_smartstore_orders_update_sync_time_failed', error);
   }
 }
 

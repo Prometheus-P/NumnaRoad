@@ -5,6 +5,7 @@ import {
   parseKakaoWebhook,
   type KakaoWebhookPayload,
 } from '@services/customer-inquiry/adapters/kakao-adapter';
+import { logger } from '@/lib/logger';
 
 /**
  * Verify Kakao webhook signature
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature if secret is configured
     if (webhookSecret && signature) {
       if (!verifyKakaoSignature(body, signature, webhookSecret)) {
-        console.error('[Kakao Webhook] Invalid signature');
+        logger.error('kakao_webhook_invalid_signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
         status: 'new', // Reset to new for agent attention
       });
 
-      console.log('[Kakao Webhook] Added message to existing inquiry:', existingInquiry.items[0].id);
+      logger.info('kakao_webhook_message_added', { inquiryId: existingInquiry.items[0].id });
     } else {
       // Create new inquiry
       const newInquiry = await pb.collection('inquiries').create({
@@ -101,12 +102,12 @@ export async function POST(request: NextRequest) {
         external_message_id: inquiry.externalId,
       });
 
-      console.log('[Kakao Webhook] Created new inquiry:', newInquiry.id);
+      logger.info('kakao_webhook_inquiry_created', { inquiryId: newInquiry.id });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Kakao Webhook] Error:', error);
+    logger.error('kakao_webhook_error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

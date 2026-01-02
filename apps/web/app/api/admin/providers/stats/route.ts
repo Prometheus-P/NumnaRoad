@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 /**
  * Provider Health Statistics API
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
         }));
       } catch {
         // Collection might not exist or be empty
-        console.log('Could not fetch automation logs');
+        logger.debug('automation_logs_not_available');
       }
 
       // Aggregate stats by provider
@@ -169,7 +170,7 @@ export async function GET(request: NextRequest) {
         providers: result,
       });
     } catch (error) {
-      console.error('Failed to fetch provider stats:', error);
+      logger.error('admin_provider_stats_fetch_failed', error);
       return NextResponse.json(
         { error: 'Failed to fetch provider stats' },
         { status: 500 }

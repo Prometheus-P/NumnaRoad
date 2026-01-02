@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import { acquireLock, releaseLock } from '@/lib/cron-lock';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
+import { logger } from '@/lib/logger';
 
 const LOCK_NAME = 'inquiry-sync';
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   // Acquire lock to prevent concurrent execution
   const lockResult = await acquireLock(LOCK_NAME);
   if (!lockResult.acquired) {
-    console.log('[Inquiry Sync] Another sync is already running, skipping...');
+    logger.info('inquiry_sync_skipped_lock_held');
     return NextResponse.json({
       success: true,
       skipped: true,
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('[Inquiry Sync] Starting sync from all channels...');
+    logger.info('inquiry_sync_started');
 
     const pb = await getAdminPocketBase();
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    console.log(`[Inquiry Sync] Completed. Synced: ${result.synced}, Errors: ${result.errors.length}, Duration: ${duration}ms`);
+    logger.info('inquiry_sync_completed', { synced: result.synced, errors: result.errors.length, durationMs: duration });
 
     return NextResponse.json({
       success: result.errors.length === 0,
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       duration,
     });
   } catch (error) {
-    console.error('[Inquiry Sync] Fatal error:', error);
+    logger.error('inquiry_sync_fatal_error', error);
     return NextResponse.json(
       {
         success: false,
@@ -119,7 +120,7 @@ async function notifyNewInquiries(pb: Awaited<ReturnType<typeof getAdminPocketBa
       }),
     });
   } catch (error) {
-    console.error('[Inquiry Sync] Failed to send Telegram notification:', error);
+    logger.error('inquiry_sync_telegram_notification_failed', error);
   }
 }
 

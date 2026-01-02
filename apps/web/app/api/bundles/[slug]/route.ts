@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/bundles/[slug]
@@ -67,7 +68,7 @@ export async function GET(
       data: responseData,
     });
   } catch (error) {
-    console.error('Bundle detail API error:', error);
+    logger.error('bundle_detail_fetch_failed', error);
 
     // 404 처리
     if (error && typeof error === 'object' && 'status' in error && error.status === 404) {

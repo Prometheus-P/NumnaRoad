@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 export async function GET(_request: NextRequest) {
   try {
@@ -40,7 +41,7 @@ export async function GET(_request: NextRequest) {
       activeMappings,
     });
   } catch (error) {
-    console.error('Failed to fetch SmartStore status:', error);
+    logger.error('smartstore_status_fetch_failed', error);
     return NextResponse.json(
       { error: 'Failed to fetch status' },
       { status: 500 }

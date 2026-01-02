@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     // Collection might not exist yet, return empty array
-    console.warn('Failed to fetch sync logs:', error);
+    logger.warn('smartstore_sync_logs_fetch_failed', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json([]);
   }
 }
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       log,
     });
   } catch (error) {
-    console.error('Failed to create sync log:', error);
+    logger.error('smartstore_sync_log_create_failed', error);
     return NextResponse.json(
       { error: 'Failed to create sync log' },
       { status: 500 }

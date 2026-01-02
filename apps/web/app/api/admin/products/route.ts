@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth, escapeFilterValue } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 // Allowed sort fields (whitelist)
 const ALLOWED_SORT_FIELDS = ['created', 'name', 'country', 'retail_price', 'sort_order'];
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
         totalPages: products.totalPages,
       });
     } catch (error) {
-      console.error('Failed to fetch products:', error);
+      logger.error('admin_products_fetch_failed', error);
       return NextResponse.json(
         { error: 'Failed to fetch products' },
         { status: 500 }
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
         product,
       });
     } catch (error) {
-      console.error('Failed to create product:', error);
+      logger.error('admin_product_create_failed', error);
       return NextResponse.json(
         { error: 'Failed to create product' },
         { status: 500 }

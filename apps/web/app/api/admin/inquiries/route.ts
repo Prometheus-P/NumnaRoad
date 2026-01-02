@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
 import type { InquiryChannel, InquiryStatus, InquiryPriority } from '@services/customer-inquiry/adapters/types';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/inquiries
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
         perPage: result.perPage,
       });
     } catch (error) {
-      console.error('[Inquiries API] GET error:', error);
+      logger.error('admin_inquiries_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch inquiries' },
         { status: 500 }
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (error) {
-      console.error('[Inquiries API] POST error:', error);
+      logger.error('admin_inquiries_sync_failed', error);
       return NextResponse.json(
         { success: false, error: 'Sync failed' },
         { status: 500 }

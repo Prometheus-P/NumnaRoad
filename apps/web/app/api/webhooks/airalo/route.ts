@@ -12,6 +12,7 @@ import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { verifyAiraloWebhook } from '@/lib/webhook-verification';
 import { checkRateLimit, getClientIP, RateLimitPresets } from '@/lib/rate-limit';
 import type { AiraloWebhookPayload } from '@services/esim-providers/types';
+import { logger } from '@/lib/logger';
 
 interface PendingAsyncOrder {
   id: string;
@@ -49,21 +50,21 @@ export async function POST(request: NextRequest) {
     if (webhookSecret) {
       const isValid = verifyAiraloWebhook(rawBody, signature, webhookSecret);
       if (!isValid) {
-        console.error('[Airalo Webhook] Invalid signature');
+        logger.error('airalo_webhook_invalid_signature');
         return NextResponse.json(
           { error: 'Invalid signature' },
           { status: 401 }
         );
       }
     } else {
-      console.warn('[Airalo Webhook] AIRALO_WEBHOOK_SECRET not configured - skipping signature verification');
+      logger.warn('airalo_webhook_secret_not_configured');
     }
 
     // Parse payload
     const payload: AiraloWebhookPayload = JSON.parse(rawBody);
     const { request_id, status, data, error } = payload;
 
-    console.log(`[Airalo Webhook] Received callback for request_id: ${request_id}, status: ${status}`);
+    logger.info('airalo_webhook_received', { requestId: request_id, status });
 
     // Get admin PocketBase instance
     const pb = await getAdminPocketBase();
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (records.items.length === 0) {
-        console.error(`[Airalo Webhook] No pending order found for request_id: ${request_id}`);
+        logger.error('airalo_webhook_pending_order_not_found', undefined, { requestId: request_id });
         return NextResponse.json(
           { error: 'Order not found' },
           { status: 404 }
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       pendingOrder = records.items[0];
     } catch {
       // If collection doesn't exist, try to find by correlationId pattern
-      console.warn('[Airalo Webhook] pending_async_orders collection may not exist, attempting order lookup by correlation');
+      logger.warn('airalo_webhook_pending_collection_fallback', { requestId: request_id });
 
       try {
         const orders = await pb.collection(Collections.ORDERS).getList(1, 1, {
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
       const esim = data.sims?.[0];
 
       if (!esim) {
-        console.error(`[Airalo Webhook] No SIM data in completed order for request_id: ${request_id}`);
+        logger.error('airalo_webhook_no_sim_data', undefined, { requestId: request_id });
         return NextResponse.json(
           { error: 'No SIM data in response' },
           { status: 400 }
@@ -160,10 +161,10 @@ export async function POST(request: NextRequest) {
           responsePayload: { request_id, esim_iccid: esim.iccid },
         });
       } catch {
-        console.warn('[Airalo Webhook] Failed to create automation log');
+        logger.warn('airalo_webhook_automation_log_failed', { orderId: pendingOrder.orderId });
       }
 
-      console.log(`[Airalo Webhook] Order ${pendingOrder.orderId} completed successfully`);
+      logger.info('airalo_webhook_order_completed', { orderId: pendingOrder.orderId });
 
       return NextResponse.json({
         success: true,
@@ -200,10 +201,10 @@ export async function POST(request: NextRequest) {
           errorType: 'provider_error',
         });
       } catch {
-        console.warn('[Airalo Webhook] Failed to create automation log');
+        logger.warn('airalo_webhook_automation_log_failed', { orderId: pendingOrder.orderId });
       }
 
-      console.error(`[Airalo Webhook] Order ${pendingOrder.orderId} failed: ${error?.message}`);
+      logger.error('airalo_webhook_order_failed', undefined, { orderId: pendingOrder.orderId, error: error?.message });
 
       return NextResponse.json({
         success: false,
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
       message: 'Webhook received',
     });
   } catch (err) {
-    console.error('[Airalo Webhook] Error processing webhook:', err);
+    logger.error('airalo_webhook_error', err);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

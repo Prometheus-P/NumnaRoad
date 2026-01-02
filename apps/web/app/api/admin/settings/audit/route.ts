@@ -4,6 +4,7 @@ import {
   getSettingsAuditLogs,
   type SettingCategory,
 } from '@/lib/services/settings-service';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/settings/audit
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
         totalItems: result.totalItems,
       });
     } catch (error) {
-      console.error('[Settings Audit API] GET error:', error);
+      logger.error('admin_settings_audit_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch audit logs' },
         { status: 500 }

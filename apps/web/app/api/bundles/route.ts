@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/bundles
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Bundles API error:', error);
+    logger.error('bundles_list_fetch_failed', error);
     return NextResponse.json(
       {
         success: false,

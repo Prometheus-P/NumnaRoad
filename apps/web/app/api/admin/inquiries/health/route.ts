@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/inquiries/health
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
         data: health,
       });
     } catch (error) {
-      console.error('[Inquiry Health API] GET error:', error);
+      logger.error('admin_inquiry_health_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch health status' },
         { status: 500 }

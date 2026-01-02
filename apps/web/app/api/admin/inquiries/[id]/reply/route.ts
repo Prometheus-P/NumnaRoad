@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/admin/inquiries/[id]/reply
@@ -48,7 +49,7 @@ export async function POST(
         message: 'Reply sent successfully',
       });
     } catch (error) {
-      console.error('[Inquiry Reply API] POST error:', error);
+      logger.error('admin_inquiry_reply_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to send reply' },
         { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import { verifyCronAuth } from '@/lib/admin-auth';
 import { acquireLock, releaseLock } from '@/lib/cron-lock';
+import { logger } from '@/lib/logger';
 
 /**
  * Cron Job: Retry Stuck Orders
@@ -48,16 +49,12 @@ export async function POST(request: NextRequest) {
   const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
 
   if (!lockResult.acquired) {
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_job_skipped',
-        job: JOB_NAME,
-        reason: 'lock_held',
-        heldBy: lockResult.heldBy,
-        expiresAt: lockResult.expiresAt?.toISOString(),
-      })
-    );
+    logger.info('cron_job_skipped', {
+      job: JOB_NAME,
+      reason: 'lock_held',
+      heldBy: lockResult.heldBy,
+      expiresAt: lockResult.expiresAt?.toISOString(),
+    });
 
     return NextResponse.json({
       success: true,
@@ -110,14 +107,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_job_completed',
-        job: JOB_NAME,
-        results,
-      })
-    );
+    logger.info('cron_job_completed', { job: JOB_NAME, results });
 
     return NextResponse.json({
       success: true,
@@ -125,7 +115,7 @@ export async function POST(request: NextRequest) {
       ...results,
     });
   } catch (error) {
-    console.error('Cron job error:', error);
+    logger.error('cron_job_error', error, { job: JOB_NAME });
     return NextResponse.json(
       {
         success: false,

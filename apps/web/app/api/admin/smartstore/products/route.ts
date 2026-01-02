@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { createProductSyncService } from '@services/sales-channels/smartstore/product-sync';
 import type { ProductSyncRecord, EsimProduct } from '@services/sales-channels/smartstore/product-types';
+import { logger } from '@/lib/logger';
 
 interface ProductWithSyncStatus {
   id: string;
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
       totalPages: products.totalPages,
     });
   } catch (error) {
-    console.error('Failed to fetch products:', error);
+    logger.error('smartstore_products_fetch_failed', error);
     return NextResponse.json(
       { error: 'Failed to fetch products' },
       { status: 500 }
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       errorMessage: result.errorMessage,
     });
   } catch (error) {
-    console.error('Failed to register product:', error);
+    logger.error('smartstore_product_register_failed', error);
     return NextResponse.json(
       { error: 'Failed to register product' },
       { status: 500 }
@@ -184,7 +185,7 @@ export async function PATCH(request: NextRequest) {
       success: true,
     });
   } catch (error) {
-    console.error('Failed to update product settings:', error);
+    logger.error('smartstore_product_settings_update_failed', error);
     return NextResponse.json(
       { error: 'Failed to update settings' },
       { status: 500 }
@@ -219,7 +220,7 @@ export async function DELETE(request: NextRequest) {
       errorMessage: result.errorMessage,
     });
   } catch (error) {
-    console.error('Failed to remove product:', error);
+    logger.error('smartstore_product_remove_failed', error);
     return NextResponse.json(
       { error: 'Failed to remove product' },
       { status: 500 }

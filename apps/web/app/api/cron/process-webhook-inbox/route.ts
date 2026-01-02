@@ -8,6 +8,7 @@ import {
 } from '@/lib/webhook-inbox';
 import { processWebhookFromInbox } from '@/app/api/webhooks/smartstore/route';
 import { notifyCustom } from '@services/notifications/discord-notifier';
+import { logger } from '@/lib/logger';
 
 /**
  * Cron Job: Process Webhook Inbox
@@ -46,15 +47,12 @@ export async function POST(request: NextRequest) {
   const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
 
   if (!lockResult.acquired) {
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'cron_job_skipped',
+    logger.info('cron_job_skipped', {
       job: JOB_NAME,
       reason: 'lock_held',
       heldBy: lockResult.heldBy,
       expiresAt: lockResult.expiresAt?.toISOString(),
-      timestamp: new Date().toISOString(),
-    }));
+    });
 
     return NextResponse.json({
       success: true,
@@ -91,13 +89,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'processing_inbox_entries',
-      job: JOB_NAME,
-      count: pendingEntries.length,
-      timestamp: new Date().toISOString(),
-    }));
+    logger.info('processing_inbox_entries', { job: JOB_NAME, count: pendingEntries.length });
 
     const results = {
       processed: 0,
@@ -123,30 +115,23 @@ export async function POST(request: NextRequest) {
         await processWebhookFromInbox(entry);
         results.succeeded++;
 
-        console.log(JSON.stringify({
-          level: 'info',
-          event: 'inbox_entry_processed',
+        logger.info('inbox_entry_processed', {
           entryId: entry.id,
           eventType: entry.event_type,
           correlationId: entry.correlation_id,
           retryCount: entry.retry_count,
-          timestamp: new Date().toISOString(),
-        }));
+        });
       } catch (error) {
         results.failed++;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results.errors.push(`Entry ${entry.id}: ${errorMessage}`);
 
-        console.error(JSON.stringify({
-          level: 'error',
-          event: 'inbox_entry_failed',
+        logger.error('inbox_entry_failed', error, {
           entryId: entry.id,
           eventType: entry.event_type,
           correlationId: entry.correlation_id,
           retryCount: entry.retry_count,
-          error: errorMessage,
-          timestamp: new Date().toISOString(),
-        }));
+        });
 
         // Alert if this was a significant failure
         if (entry.retry_count >= 3) {
@@ -162,13 +147,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'cron_job_completed',
-      job: JOB_NAME,
-      results,
-      timestamp: new Date().toISOString(),
-    }));
+    logger.info('cron_job_completed', { job: JOB_NAME, results });
 
     return NextResponse.json({
       success: true,
@@ -177,13 +156,7 @@ export async function POST(request: NextRequest) {
       failedEntriesCount: failedEntries.length,
     });
   } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'cron_job_error',
-      job: JOB_NAME,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    }));
+    logger.error('cron_job_error', error, { job: JOB_NAME });
 
     return NextResponse.json(
       {

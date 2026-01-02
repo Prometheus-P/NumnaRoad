@@ -13,39 +13,24 @@ import {
 import { getCachedActiveProviders } from '@/lib/cache/providers';
 import { createAlimtalkSendFn } from '@services/notifications/kakao-alimtalk';
 import { sendEsimEmail } from '@/lib/resend';
+import { createLogger, type LogContext } from '@/lib/logger';
 
-// =============================================================================
-// Structured Logging Helper
-// =============================================================================
-
-interface LogContext {
-  correlationId?: string;
-  orderId?: string;
-  paymentIntentId?: string;
-  [key: string]: unknown;
-}
-
+// Helper to maintain backward compatibility with structuredLog calls
 function structuredLog(
   level: 'info' | 'warn' | 'error',
   event: string,
   context: LogContext = {}
 ) {
-  const logEntry = JSON.stringify({
-    level,
-    event,
-    ...context,
-    timestamp: new Date().toISOString(),
-  });
-
+  const log = createLogger(context.correlationId as string | undefined);
   switch (level) {
     case 'error':
-      console.error(logEntry);
+      log.error(event, undefined, context);
       break;
     case 'warn':
-      console.warn(logEntry);
+      log.warn(event, context);
       break;
     default:
-      console.log(logEntry);
+      log.info(event, context);
   }
 }
 
@@ -221,7 +206,7 @@ async function triggerOrderProcessing(orderId: string, correlationId: string) {
   if (!response.ok) {
     // Log response body for debugging failed webhooks
     const errorBody = await response.text().catch(() => 'Unable to read response body');
-    console.error(`n8n webhook failed: ${response.status}`, { body: errorBody });
+    structuredLog('error', 'n8n_webhook_failed', { status: response.status, body: errorBody });
     throw new Error(`n8n webhook failed: ${response.status} - ${errorBody.substring(0, 200)}`);
   }
 
@@ -241,7 +226,7 @@ async function getProductDetails(
       providerSku: product.provider_sku || product.id,
     };
   } catch (error) {
-    console.error('Failed to fetch product:', error);
+    structuredLog('error', 'product_fetch_failed', { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }

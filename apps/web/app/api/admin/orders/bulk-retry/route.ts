@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { isRetryableOrder } from '@/hooks/admin';
+import { logger } from '@/lib/logger';
 
 // PocketBase ID format validation
 const ID_REGEX = /^[a-zA-Z0-9]{15}$/;
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
         ...results,
       });
     } catch (error) {
-      console.error('Bulk retry error:', error);
+      logger.error('admin_orders_bulk_retry_failed', error);
       return NextResponse.json(
         { error: 'Failed to process bulk retry' },
         { status: 500 }

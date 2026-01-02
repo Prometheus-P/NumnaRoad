@@ -3,6 +3,7 @@ import { getAdminPocketBase } from '@/lib/pocketbase';
 import { verifyCronAuth } from '@/lib/admin-auth';
 import { acquireLock, releaseLock } from '@/lib/cron-lock';
 import { notifyCustom } from '@services/notifications/discord-notifier';
+import { logger } from '@/lib/logger';
 
 const JOB_NAME = 'smartstore-confirmation-check';
 const LOCK_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -46,15 +47,7 @@ export async function POST(request: NextRequest) {
   const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
 
   if (!lockResult.acquired) {
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_job_skipped',
-        job: JOB_NAME,
-        reason: 'lock_held',
-        heldBy: lockResult.heldBy,
-      })
-    );
+    logger.info('cron_job_skipped', { job: JOB_NAME, reason: 'lock_held', heldBy: lockResult.heldBy });
 
     return NextResponse.json({
       success: true,
@@ -106,15 +99,10 @@ export async function POST(request: NextRequest) {
       'warning'
     );
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'smartstore_confirmation_timeout_check',
-        count: stuckOrders.items.length,
-        orderIds: stuckOrders.items.map((o) => o.order_id),
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.info('smartstore_confirmation_timeout_check', {
+      count: stuckOrders.items.length,
+      orderIds: stuckOrders.items.map((o) => o.order_id),
+    });
 
     return NextResponse.json({
       success: true,
@@ -129,7 +117,7 @@ export async function POST(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Cron job error:', error);
+    logger.error('cron_job_error', error, { job: JOB_NAME });
     return NextResponse.json(
       {
         success: false,

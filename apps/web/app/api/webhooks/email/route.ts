@@ -4,6 +4,7 @@ import {
   parseInboundEmail,
   type ResendInboundEmail,
 } from '@services/customer-inquiry/adapters/email-adapter';
+import { logger } from '@/lib/logger';
 
 // TODO: Enable when implementing Resend webhook signature verification
 // import { createHmac } from 'crypto';
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (webhookSecret && signature) {
       // Resend uses Svix for webhooks
       // For now, we'll do a basic check; production should use svix library
-      console.log('[Email Webhook] Signature present, verifying...');
+      logger.debug('email_webhook_signature_verifying');
     }
 
     const payload = JSON.parse(body);
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
         subject: inquiry.subject, // Update subject to latest email
       });
 
-      console.log('[Email Webhook] Added message to existing inquiry:', existingInquiry.items[0].id);
+      logger.info('email_webhook_message_added', { inquiryId: existingInquiry.items[0].id });
     } else {
       // Create new inquiry
       const newInquiry = await pb.collection('inquiries').create({
@@ -97,12 +98,12 @@ export async function POST(request: NextRequest) {
         external_message_id: (inquiry.metadata as Record<string, unknown>)?.messageId,
       });
 
-      console.log('[Email Webhook] Created new inquiry:', newInquiry.id);
+      logger.info('email_webhook_inquiry_created', { inquiryId: newInquiry.id });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Email Webhook] Error:', error);
+    logger.error('email_webhook_error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

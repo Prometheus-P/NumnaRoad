@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 // =============================================================================
 // Types
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       data: templates,
     });
   } catch (error) {
-    console.error('[Templates API] GET error:', error);
+    logger.error('smartstore_templates_fetch_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch templates' },
       { status: 500 }
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
       data: template,
     });
   } catch (error) {
-    console.error('[Templates API] POST error:', error);
+    logger.error('smartstore_template_create_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create template' },
       { status: 500 }
@@ -175,7 +176,7 @@ export async function PUT(request: NextRequest) {
       data: template,
     });
   } catch (error) {
-    console.error('[Templates API] PUT error:', error);
+    logger.error('smartstore_template_update_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update template' },
       { status: 500 }
@@ -207,7 +208,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Template deleted',
     });
   } catch (error) {
-    console.error('[Templates API] DELETE error:', error);
+    logger.error('smartstore_template_delete_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete template' },
       { status: 500 }

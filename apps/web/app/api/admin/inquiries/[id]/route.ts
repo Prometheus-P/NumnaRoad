@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { createInquiryService } from '@services/customer-inquiry/inquiry-service';
 import type { InquiryStatus, InquiryPriority } from '@services/customer-inquiry/adapters/types';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/inquiries/[id]
@@ -34,7 +35,7 @@ export async function GET(
         },
       });
     } catch (error) {
-      console.error('[Inquiry Detail API] GET error:', error);
+      logger.error('admin_inquiry_detail_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch inquiry' },
         { status: 500 }
@@ -77,7 +78,7 @@ export async function PATCH(
         data: updated,
       });
     } catch (error) {
-      console.error('[Inquiry Detail API] PATCH error:', error);
+      logger.error('admin_inquiry_update_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to update inquiry' },
         { status: 500 }

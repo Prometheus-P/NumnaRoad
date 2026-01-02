@@ -5,6 +5,7 @@ import {
   verifyTalkTalkSignature,
   type TalkTalkWebhookPayload,
 } from '@services/customer-inquiry/adapters/talktalk-adapter';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/webhooks/talktalk
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature if secret is configured
     if (webhookSecret) {
       if (!verifyTalkTalkSignature(body, signature, webhookSecret)) {
-        console.error('[TalkTalk Webhook] Invalid signature');
+        logger.error('talktalk_webhook_invalid_signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
         status: 'new', // Reset to new for agent attention
       });
 
-      console.log('[TalkTalk Webhook] Added message to existing inquiry:', existingInquiry.items[0].id);
+      logger.info('talktalk_webhook_message_added', { inquiryId: existingInquiry.items[0].id });
     } else {
       // Create new inquiry
       const newInquiry = await pb.collection('inquiries').create({
@@ -87,12 +88,12 @@ export async function POST(request: NextRequest) {
         external_message_id: inquiry.externalId,
       });
 
-      console.log('[TalkTalk Webhook] Created new inquiry:', newInquiry.id);
+      logger.info('talktalk_webhook_inquiry_created', { inquiryId: newInquiry.id });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[TalkTalk Webhook] Error:', error);
+    logger.error('talktalk_webhook_error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

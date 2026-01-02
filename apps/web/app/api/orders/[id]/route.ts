@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/orders/[id]
@@ -25,7 +26,7 @@ export async function GET(
       data: order,
     });
   } catch (error) {
-    console.error('Order detail API error:', error);
+    logger.error('order_detail_fetch_failed', error);
 
     // 404 처리
     if (error && typeof error === 'object' && 'status' in error && error.status === 404) {

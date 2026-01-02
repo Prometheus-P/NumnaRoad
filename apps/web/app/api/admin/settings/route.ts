@@ -5,6 +5,7 @@ import {
   updateSettings,
   type SettingCategory,
 } from '@/lib/services/settings-service';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/settings
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
         data: settings,
       });
     } catch (error) {
-      console.error('[Settings API] GET error:', error);
+      logger.error('admin_settings_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch settings' },
         { status: 500 }
@@ -72,7 +73,7 @@ export async function PUT(request: NextRequest) {
         data: results,
       });
     } catch (error) {
-      console.error('[Settings API] PUT error:', error);
+      logger.error('admin_settings_update_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to update settings' },
         { status: 500 }

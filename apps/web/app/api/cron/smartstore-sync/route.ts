@@ -18,6 +18,7 @@ import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { verifyCronAuth } from '@/lib/admin-auth';
 import { acquireLock, releaseLock } from '@/lib/cron-lock';
 import { createProductSyncService } from '@services/sales-channels/smartstore/product-sync';
+import { logger } from '@/lib/logger';
 
 const JOB_NAME = 'smartstore-product-sync';
 const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes for product sync
@@ -48,7 +49,7 @@ async function logSyncResult(
       },
     });
   } catch (logError) {
-    console.error('Failed to log sync result:', logError);
+    logger.error('smartstore_sync_log_failed', logError);
   }
 }
 
@@ -72,15 +73,7 @@ export async function GET(request: NextRequest) {
   const lockResult = await acquireLock(JOB_NAME, { ttlMs: LOCK_TTL_MS });
 
   if (!lockResult.acquired) {
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_job_skipped',
-        job: JOB_NAME,
-        reason: 'lock_held',
-        heldBy: lockResult.heldBy,
-      })
-    );
+    logger.info('cron_job_skipped', { job: JOB_NAME, reason: 'lock_held', heldBy: lockResult.heldBy });
 
     return NextResponse.json({
       success: true,
@@ -109,9 +102,13 @@ export async function GET(request: NextRequest) {
       durationMs: result.durationMs,
     });
 
-    console.log(
-      `[Cron] SmartStore sync completed: ${result.created} created, ${result.updated} updated, ${result.failed} failed, ${result.skipped} skipped in ${result.durationMs}ms`
-    );
+    logger.info('smartstore_sync_completed', {
+      created: result.created,
+      updated: result.updated,
+      failed: result.failed,
+      skipped: result.skipped,
+      durationMs: result.durationMs,
+    });
 
     return NextResponse.json({
       success: true,
@@ -127,7 +124,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Cron] SmartStore sync failed:', errorMessage);
+    logger.error('smartstore_sync_failed', error);
 
     try {
       const pb = await getAdminPocketBase();

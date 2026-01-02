@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 export async function GET(_request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Failed to fetch mappings:', error);
+    logger.error('smartstore_mappings_fetch_failed', error);
     return NextResponse.json([], { status: 200 });
   }
 }
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       mapping,
     });
   } catch (error) {
-    console.error('Failed to create mapping:', error);
+    logger.error('smartstore_mapping_create_failed', error);
     return NextResponse.json(
       { error: 'Failed to create mapping' },
       { status: 500 }
@@ -83,7 +84,7 @@ export async function PATCH(request: NextRequest) {
       mapping,
     });
   } catch (error) {
-    console.error('Failed to update mapping:', error);
+    logger.error('smartstore_mapping_update_failed', error);
     return NextResponse.json(
       { error: 'Failed to update mapping' },
       { status: 500 }
@@ -110,7 +111,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
     });
   } catch (error) {
-    console.error('Failed to delete mapping:', error);
+    logger.error('smartstore_mapping_delete_failed', error);
     return NextResponse.json(
       { error: 'Failed to delete mapping' },
       { status: 500 }

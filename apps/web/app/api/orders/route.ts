@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
 import { verifyAuth, unauthorizedResponse } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/orders
@@ -12,13 +13,7 @@ import { verifyAuth, unauthorizedResponse } from '@/lib/auth';
  * enabling potential "Free Lunch" attacks where eSIMs could be provisioned without payment.
  */
 export async function POST() {
-  console.warn(JSON.stringify({
-    level: 'warn',
-    event: 'deprecated_endpoint_called',
-    endpoint: '/api/orders',
-    message: 'Attempted to use deprecated orders endpoint',
-    timestamp: new Date().toISOString(),
-  }));
+  logger.warn('deprecated_endpoint_called', { endpoint: '/api/orders', message: 'Attempted to use deprecated orders endpoint' });
 
   return NextResponse.json(
     {
@@ -62,7 +57,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Get orders API error:', error);
+    logger.error('orders_list_fetch_failed', error);
     return NextResponse.json(
       {
         success: false,

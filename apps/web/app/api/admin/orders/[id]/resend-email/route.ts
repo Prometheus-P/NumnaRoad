@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { sendEsimEmail } from '@/lib/resend';
+import { logger } from '@/lib/logger';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           },
         });
       } catch {
-        console.warn('Failed to create automation log for email resend');
+        logger.warn('automation_log_create_failed', { orderId: id, stepName: 'email_resend' });
       }
 
       if (!result.success) {
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         message: 'Email sent successfully',
       });
     } catch (error) {
-      console.error('Failed to resend email:', error);
+      logger.error('admin_order_resend_email_failed', error, { orderId: id });
       return NextResponse.json(
         { error: 'Failed to resend email' },
         { status: 500 }

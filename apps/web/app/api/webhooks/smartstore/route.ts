@@ -35,6 +35,7 @@ import {
   parseInboxPayload,
   type WebhookInboxEntry,
 } from '@/lib/webhook-inbox';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/webhooks/smartstore
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     const config = getConfig();
     if (!config.smartStore?.enabled) {
       // Still return 200, but indicate disabled
-      console.log('SmartStore webhook received but integration disabled');
+      logger.info('smartstore_webhook_integration_disabled');
       return createResponse({ handled: false, reason: 'integration_disabled' });
     }
 
@@ -78,12 +79,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     const auth = getSmartStoreAuth();
     if (!auth.verifyWebhookSignature(body, signature)) {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'webhook_signature_invalid',
-        correlationId,
-        timestamp: new Date().toISOString(),
-      }));
+      logger.error('smartstore_webhook_signature_invalid', undefined, { correlationId });
       // Return 200 but log for security review
       return createResponse({ handled: false, reason: 'invalid_signature' });
     }
@@ -93,20 +89,14 @@ export async function POST(request: NextRequest) {
     try {
       payload = JSON.parse(body) as NaverWebhookPayload;
     } catch (parseError) {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'webhook_parse_error',
-        correlationId,
-        error: parseError instanceof Error ? parseError.message : 'Unknown',
-        timestamp: new Date().toISOString(),
-      }));
+      logger.error('smartstore_webhook_parse_error', parseError, { correlationId });
       return createResponse({ handled: false, reason: 'invalid_json' });
     }
 
-    console.log(
-      `SmartStore webhook received: ${payload.type}`,
-      `productOrderIds: ${payload.productOrderIds?.join(', ')}`
-    );
+    logger.info('smartstore_webhook_received', {
+      type: payload.type,
+      productOrderIds: payload.productOrderIds,
+    });
 
     // For non-critical events, just acknowledge
     if (['ORDER_DELIVERING', 'ORDER_DELIVERED'].includes(payload.type)) {
@@ -119,13 +109,7 @@ export async function POST(request: NextRequest) {
       payload.productOrderIds || []
     );
     if (existingEntry) {
-      console.log(JSON.stringify({
-        level: 'info',
-        event: 'webhook_duplicate_detected',
-        correlationId,
-        existingEntryId: existingEntry.id,
-        timestamp: new Date().toISOString(),
-      }));
+      logger.info('smartstore_webhook_duplicate_detected', { correlationId, existingEntryId: existingEntry.id });
       return createResponse({ handled: false, reason: 'duplicate', existingEntryId: existingEntry.id });
     }
 
@@ -135,14 +119,10 @@ export async function POST(request: NextRequest) {
       inboxId = await persistToInbox(payload, correlationId);
     } catch (persistError) {
       // This is critical - we couldn't save the webhook
-      console.error(JSON.stringify({
-        level: 'critical',
-        event: 'webhook_inbox_persist_failed',
+      logger.error('smartstore_webhook_inbox_persist_failed', persistError, {
         correlationId,
-        error: persistError instanceof Error ? persistError.message : 'Unknown',
-        payload: JSON.stringify(payload).substring(0, 500),
-        timestamp: new Date().toISOString(),
-      }));
+        payloadPreview: JSON.stringify(payload).substring(0, 500),
+      });
 
       // Try to alert via Discord
       await notifyCustom(
@@ -157,14 +137,7 @@ export async function POST(request: NextRequest) {
 
     // Process webhook asynchronously (fire-and-forget)
     processWebhookAsync(payload, correlationId, inboxId, config, startTime).catch((error) => {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'webhook_async_processing_failed',
-        correlationId,
-        inboxId,
-        error: error instanceof Error ? error.message : 'Unknown',
-        timestamp: new Date().toISOString(),
-      }));
+      logger.error('smartstore_webhook_async_processing_failed', error, { correlationId, inboxId });
       // Cron job will retry from inbox
     });
 
@@ -173,14 +146,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     // Catastrophic error - still return 200 but log everything
-    console.error(JSON.stringify({
-      level: 'critical',
-      event: 'webhook_catastrophic_failure',
-      correlationId,
-      error: error instanceof Error ? error.message : 'Unknown',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-    }));
+    logger.error('smartstore_webhook_catastrophic_failure', error, { correlationId });
 
     // Emergency Discord notification
     await notifyCustom(
@@ -220,7 +186,7 @@ async function processWebhookAsync(
         break;
 
       default:
-        console.log(`Unhandled SmartStore event type: ${payload.type}`);
+        logger.info('smartstore_webhook_unhandled_event', { type: payload.type });
         break;
     }
 
@@ -314,7 +280,7 @@ async function processNaverOrder(
     // Check idempotency - does order already exist?
     const existingOrder = await findExistingSmartStoreOrder(pb, productOrderId);
     if (existingOrder) {
-      console.log(`Order already exists for SmartStore order ${productOrderId}`);
+      logger.info('smartstore_order_already_exists', { productOrderId });
       return {
         productOrderId,
         status: 'skipped',
@@ -324,7 +290,7 @@ async function processNaverOrder(
 
     // Check if order is eligible for fulfillment
     if (!isEligibleForFulfillment(naverOrder)) {
-      console.log(`Order ${productOrderId} not eligible for fulfillment`);
+      logger.info('smartstore_order_not_eligible', { productOrderId });
       return {
         productOrderId,
         status: 'skipped',
@@ -376,14 +342,11 @@ async function processNaverOrder(
       );
 
       if (!alimtalkResult.success) {
-        console.error(JSON.stringify({
-          level: 'warn',
-          event: 'order_received_alimtalk_failed',
+        logger.warn('smartstore_order_received_alimtalk_failed', {
           orderId: order.id,
           productOrderId,
           error: alimtalkResult.error,
-          timestamp: new Date().toISOString(),
-        }));
+        });
 
         // Send Discord notification for alimtalk failure
         await notifyCustom(
@@ -394,13 +357,7 @@ async function processNaverOrder(
       }
     } else if (config.kakaoAlimtalk.enabled && !internalOrder.customerPhone) {
       // Notify admin if phone number is missing
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'customer_phone_missing',
-        orderId: order.id,
-        productOrderId,
-        timestamp: new Date().toISOString(),
-      }));
+      logger.warn('smartstore_customer_phone_missing', { orderId: order.id, productOrderId });
 
       await notifyCustom(
         '전화번호 누락',
@@ -412,22 +369,9 @@ async function processNaverOrder(
     // Dispatch order on SmartStore (marks as shipped, activates purchase confirm button)
     try {
       await client.dispatchOrder(productOrderId);
-      console.log(JSON.stringify({
-        level: 'info',
-        event: 'smartstore_order_dispatched',
-        orderId: order.id,
-        productOrderId,
-        timestamp: new Date().toISOString(),
-      }));
+      logger.info('smartstore_order_dispatched', { orderId: order.id, productOrderId });
     } catch (dispatchError) {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'smartstore_dispatch_failed',
-        orderId: order.id,
-        productOrderId,
-        error: dispatchError instanceof Error ? dispatchError.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-      }));
+      logger.error('smartstore_dispatch_failed', dispatchError, { orderId: order.id, productOrderId });
 
       await notifyCustom(
         'SmartStore 발송처리 실패',
@@ -442,7 +386,7 @@ async function processNaverOrder(
       orderId: order.id as string,
     };
   } catch (error) {
-    console.error(`Error processing order ${productOrderId}:`, error);
+    logger.error('smartstore_order_processing_error', error, { productOrderId });
     return {
       productOrderId,
       status: 'failed',
@@ -460,14 +404,11 @@ async function handleClaimRequest(
 ): Promise<void> {
   const { productOrderIds } = payload;
 
-  console.log(JSON.stringify({
-    level: 'info',
-    event: 'claim_request_received',
+  logger.info('smartstore_claim_request_received', {
     productOrderIds,
     correlationId,
     message: 'Claim request acknowledged, manual review required',
-    timestamp: new Date().toISOString(),
-  }));
+  });
 
   // Notify admin about claim request
   await notifyCustom(
@@ -525,13 +466,7 @@ async function processPurchaseConfirmation(
     // Find the order by SmartStore product order ID
     const order = await findExistingSmartStoreOrder(pb, productOrderId);
     if (!order) {
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'purchase_decided_order_not_found',
-        productOrderId,
-        correlationId,
-        timestamp: new Date().toISOString(),
-      }));
+      logger.warn('smartstore_purchase_decided_order_not_found', { productOrderId, correlationId });
       return {
         productOrderId,
         status: 'failed',
@@ -542,14 +477,11 @@ async function processPurchaseConfirmation(
     // Check if order is in awaiting_confirmation status
     const orderStatus = order.status as string;
     if (orderStatus !== 'awaiting_confirmation') {
-      console.log(JSON.stringify({
-        level: 'info',
-        event: 'purchase_decided_invalid_status',
+      logger.info('smartstore_purchase_decided_invalid_status', {
         productOrderId,
         orderId: order.id,
         currentStatus: orderStatus,
-        timestamp: new Date().toISOString(),
-      }));
+      });
 
       // If already delivered, skip
       if (['delivered', 'completed'].includes(orderStatus)) {
@@ -572,13 +504,7 @@ async function processPurchaseConfirmation(
       }
     }
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'purchase_decided_processing',
-      productOrderId,
-      orderId: order.id,
-      timestamp: new Date().toISOString(),
-    }));
+    logger.info('smartstore_purchase_decided_processing', { productOrderId, orderId: order.id });
 
     // Get active providers
     const providers = await getCachedActiveProviders();
@@ -627,14 +553,11 @@ async function processPurchaseConfirmation(
         );
 
         if (!alimtalkResult.success) {
-          console.error(JSON.stringify({
-            level: 'warn',
-            event: 'esim_delivery_alimtalk_failed',
+          logger.warn('smartstore_esim_delivery_alimtalk_failed', {
             orderId: order.id,
             productOrderId,
             error: alimtalkResult.error,
-            timestamp: new Date().toISOString(),
-          }));
+          });
 
           // Send Discord notification for alimtalk failure
           await notifyCustom(
@@ -653,7 +576,7 @@ async function processPurchaseConfirmation(
       error: fulfillmentResult.error?.message,
     };
   } catch (error) {
-    console.error(`Error processing purchase confirmation ${productOrderId}:`, error);
+    logger.error('smartstore_purchase_confirmation_error', error, { productOrderId });
     return {
       productOrderId,
       status: 'failed',
@@ -791,7 +714,7 @@ async function processFulfillment(
   );
 
   if (isTimeoutResult(result)) {
-    console.log(`Order ${order.id} fulfillment timed out, will retry via cron`);
+    logger.info('smartstore_fulfillment_timeout', { orderId: order.id });
     return { success: true }; // Will be picked up by cron
   }
 

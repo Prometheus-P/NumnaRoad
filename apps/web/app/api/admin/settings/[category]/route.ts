@@ -5,6 +5,7 @@ import {
   updateSetting,
   type SettingCategory,
 } from '@/lib/services/settings-service';
+import { logger } from '@/lib/logger';
 
 const VALID_CATEGORIES: SettingCategory[] = [
   'general',
@@ -40,7 +41,7 @@ export async function GET(
         data: categorySettings,
       });
     } catch (error) {
-      console.error('[Settings API] GET category error:', error);
+      logger.error('admin_settings_category_fetch_failed', error);
       return NextResponse.json(
         { success: false, error: 'Failed to fetch category settings' },
         { status: 500 }
@@ -92,7 +93,7 @@ export async function PATCH(
         data: result,
       });
     } catch (error) {
-      console.error('[Settings API] PATCH error:', error);
+      logger.error('admin_settings_category_update_failed', error);
 
       if (error instanceof Error && error.message.includes('Unknown setting')) {
         return NextResponse.json(

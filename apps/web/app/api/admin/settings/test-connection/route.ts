@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-auth';
 import { getSettingValue } from '@/lib/services/settings-service';
+import { logger } from '@/lib/logger';
 
 type TestType = 'telegram' | 'email' | 'redteago' | 'airalo' | 'smartstore';
 
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
           );
       }
     } catch (error) {
-      console.error('[Settings Test Connection API] error:', error);
+      logger.error('admin_settings_test_connection_failed', error);
       return NextResponse.json(
         { success: false, error: 'Connection test failed' },
         { status: 500 }

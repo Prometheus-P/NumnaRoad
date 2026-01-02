@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import { createProductSyncService } from '@services/sales-channels/smartstore/product-sync';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/smartstore/products/sync
@@ -23,7 +24,7 @@ export async function GET() {
 
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('Failed to get sync status:', error);
+    logger.error('smartstore_sync_status_fetch_failed', error);
     return NextResponse.json(
       { error: 'Failed to get sync status' },
       { status: 500 }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
       details: result.total <= 50 ? result.results : undefined,
     });
   } catch (error) {
-    console.error('Failed to sync products:', error);
+    logger.error('smartstore_products_sync_failed', error);
     return NextResponse.json(
       { error: 'Failed to sync products' },
       { status: 500 }

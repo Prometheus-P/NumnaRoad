@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   return withAdminAuth(request, async (pb) => {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         todayRevenueChange: 0,
       });
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
+      logger.error('admin_dashboard_stats_fetch_failed', error);
       return NextResponse.json(
         { error: 'Failed to fetch dashboard stats' },
         { status: 500 }

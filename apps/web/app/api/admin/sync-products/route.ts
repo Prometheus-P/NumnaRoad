@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 // 국가명 -> 국가코드 매핑
 const countryCodeMap: Record<string, string> = {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
   const internalApiKey = process.env.INTERNAL_API_KEY;
 
   if (!internalApiKey) {
-    console.error('[Security] INTERNAL_API_KEY not configured');
+    logger.error('internal_api_key_not_configured');
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
 

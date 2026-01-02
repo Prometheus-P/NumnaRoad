@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth, escapeFilterValue } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 // Allowed status values (whitelist)
 const ALLOWED_STATUSES = ['pending', 'payment_received', 'fulfillment_started', 'completed', 'failed', 'provider_failed'];
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         totalPages: orders.totalPages,
       });
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      logger.error('admin_orders_fetch_failed', error);
       return NextResponse.json(
         { error: 'Failed to fetch orders' },
         { status: 500 }

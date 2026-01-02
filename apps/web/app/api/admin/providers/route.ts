@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Collections } from '@/lib/pocketbase';
 import { withAdminAuth } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 // Default providers configuration (used when esim_providers collection doesn't exist)
 const DEFAULT_PROVIDERS = [
@@ -46,11 +47,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(result);
       } catch {
         // Collection doesn't exist, return default providers
-        console.log('esim_providers collection not found, using defaults');
+        logger.info('esim_providers_collection_not_found');
         return NextResponse.json(DEFAULT_PROVIDERS);
       }
     } catch (error) {
-      console.error('Failed to fetch providers:', error);
+      logger.error('admin_providers_fetch_failed', error);
       return NextResponse.json(
         { error: 'Failed to fetch providers' },
         { status: 500 }

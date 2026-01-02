@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getStripe } from '@/lib/stripe';
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import { getConfig } from '@/lib/config';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/checkout/create-session
@@ -102,12 +103,7 @@ export async function POST(request: NextRequest) {
       url: session.url,
     });
   } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'checkout_session_creation_failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    }));
+    logger.error('checkout_session_creation_failed', error);
 
     return NextResponse.json(
       {

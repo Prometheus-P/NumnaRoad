@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSmartStoreClient } from '@services/sales-channels/smartstore';
 import { getAdminPocketBase } from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 // =============================================================================
 // Types
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Inquiries API] GET error:', error);
+    logger.error('smartstore_inquiries_fetch_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch inquiries' },
       { status: 500 }
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
       message: 'Reply sent successfully',
     });
   } catch (error) {
-    console.error('[Inquiries API] POST error:', error);
+    logger.error('smartstore_inquiry_reply_failed', error);
     return NextResponse.json(
       { success: false, error: 'Failed to send reply' },
       { status: 500 }
