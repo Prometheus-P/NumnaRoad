@@ -10,11 +10,11 @@ export const dynamic = 'force-static';
 export const revalidate = 3600; // Revalidate every hour
 
 interface PageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
-export default function Home({ params }: PageProps) {
-  const locale = params.locale || 'ko';
+export default async function Home({ params }: PageProps) {
+  const { locale } = await params;
 
-  return <HeroSection locale={locale} />;
+  return <HeroSection locale={locale || 'ko'} />;
 }

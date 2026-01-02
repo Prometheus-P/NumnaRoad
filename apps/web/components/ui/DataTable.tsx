@@ -77,7 +77,7 @@ export function DataTable<T extends { id: string | number }>({
 
   const handleRowClick: GridEventListener<'rowClick'> = React.useCallback(
     (params) => {
-      onRowClick && onRowClick(params.row);
+      onRowClick?.(params.row);
     },
     [onRowClick]
   );

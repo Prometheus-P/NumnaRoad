@@ -7,10 +7,10 @@ import pb from '@/lib/pocketbase';
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
 
     // slug로 상품 조회
     const product = await pb.collection('esim_products').getFirstListItem(

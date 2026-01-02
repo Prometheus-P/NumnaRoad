@@ -441,9 +441,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
   const forwardedFor = request.headers.get('x-forwarded-for');
-  let ip = forwardedFor?.split(',')[0]?.trim() ||
-           request.headers.get('x-real-ip') ||
-           'unknown';
+  const ip = forwardedFor?.split(',')[0]?.trim() ||
+             request.headers.get('x-real-ip') ||
+             'unknown';
 
   // Cleanup old entries
   cleanupIpStore();

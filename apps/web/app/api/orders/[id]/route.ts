@@ -7,10 +7,10 @@ import pb from '@/lib/pocketbase';
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // order_id로 조회
     const order = await pb.collection('orders').getFirstListItem(
