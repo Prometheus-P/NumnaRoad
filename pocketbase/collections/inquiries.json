@@ -1,0 +1,129 @@
+{
+  "name": "inquiries",
+  "type": "base",
+  "schema": [
+    {
+      "name": "external_id",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": 200
+      }
+    },
+    {
+      "name": "channel",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["smartstore", "kakao", "email", "talktalk"]
+      }
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["new", "in_progress", "resolved", "closed"]
+      }
+    },
+    {
+      "name": "priority",
+      "type": "select",
+      "required": false,
+      "options": {
+        "values": ["low", "normal", "high", "urgent"]
+      }
+    },
+    {
+      "name": "subject",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 500
+      }
+    },
+    {
+      "name": "content",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 10000
+      }
+    },
+    {
+      "name": "customer_name",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "customer_email",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 255
+      }
+    },
+    {
+      "name": "customer_phone",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "inquiry_type",
+      "type": "select",
+      "required": false,
+      "options": {
+        "values": ["product", "delivery", "refund", "installation", "general"]
+      }
+    },
+    {
+      "name": "linked_order_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "assigned_to",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "first_response_at",
+      "type": "date",
+      "required": false
+    },
+    {
+      "name": "resolved_at",
+      "type": "date",
+      "required": false
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_inquiry_external ON inquiries (channel, external_id)",
+    "CREATE INDEX idx_inquiry_status ON inquiries (status)",
+    "CREATE INDEX idx_inquiry_channel ON inquiries (channel)",
+    "CREATE INDEX idx_inquiry_created ON inquiries (created)"
+  ],
+  "listRule": "@request.auth.id != ''",
+  "viewRule": "@request.auth.id != ''",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": "@request.auth.id != ''",
+  "deleteRule": "@request.auth.id != ''"
+}

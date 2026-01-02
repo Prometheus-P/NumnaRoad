@@ -1,0 +1,67 @@
+{
+  "name": "settings_audit_logs",
+  "type": "base",
+  "schema": [
+    {
+      "name": "setting_id",
+      "type": "relation",
+      "required": true,
+      "options": {
+        "collectionId": "app_settings",
+        "cascadeDelete": false
+      }
+    },
+    {
+      "name": "category",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["general", "esim_providers", "notifications", "integrations"]
+      }
+    },
+    {
+      "name": "key",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "old_value",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 10000
+      }
+    },
+    {
+      "name": "new_value",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 10000
+      }
+    },
+    {
+      "name": "changed_by",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "action",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["create", "update", "delete"]
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_audit_setting ON settings_audit_logs (setting_id)",
+    "CREATE INDEX idx_audit_category ON settings_audit_logs (category)",
+    "CREATE INDEX idx_audit_created ON settings_audit_logs (created)"
+  ],
+  "listRule": "@request.auth.id != ''",
+  "viewRule": "@request.auth.id != ''",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": null,
+  "deleteRule": null
+}

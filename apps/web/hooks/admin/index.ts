@@ -76,3 +76,49 @@ export {
   type InquiriesResponse,
   type MappingFormData,
 } from './useSmartStore';
+
+// Settings hooks
+export {
+  useAdminSettings,
+  useAdminSettingsByCategory,
+  useUpdateSetting,
+  useUpdateSettings,
+  useSettingsAuditLogs,
+  useTestConnection,
+  settingsKeys,
+  getCategoryLabel,
+  getCategoryDescription,
+  groupSettingsByStatus,
+  type ParsedSetting,
+  type SettingsByCategoryMap,
+  type SettingCategory,
+  type SettingValueType,
+  type AuditLogEntry,
+  type TestConnectionResult,
+} from './useAdminSettings';
+
+// Inquiry hooks
+export {
+  useInquiries,
+  useInquiryDetail,
+  useUpdateInquiry,
+  useSendInquiryReply,
+  useSyncInquiries,
+  useInquiryMetrics,
+  useChannelHealth,
+  inquiryKeys,
+  getChannelInfo,
+  getStatusInfo,
+  getPriorityInfo,
+  formatResponseTime,
+  type Inquiry as InquiryItem,
+  type InquiryDetail,
+  type InquiryMessage,
+  type InquiryMetrics,
+  type ChannelHealth,
+  type InquiryChannel,
+  type InquiryStatus,
+  type InquiryPriority,
+  type InquiryType,
+  type InquiryListOptions,
+} from './useInquiries';

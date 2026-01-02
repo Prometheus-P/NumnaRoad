@@ -1,0 +1,68 @@
+{
+  "name": "app_settings",
+  "type": "base",
+  "schema": [
+    {
+      "name": "category",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["general", "esim_providers", "notifications", "integrations"]
+      }
+    },
+    {
+      "name": "key",
+      "type": "text",
+      "required": true,
+      "options": {
+        "min": 1,
+        "max": 100
+      }
+    },
+    {
+      "name": "value",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 10000
+      }
+    },
+    {
+      "name": "is_encrypted",
+      "type": "bool",
+      "required": false
+    },
+    {
+      "name": "value_type",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["string", "number", "boolean", "json"]
+      }
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 500
+      }
+    },
+    {
+      "name": "updated_by",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_settings_category_key ON app_settings (category, key)"
+  ],
+  "listRule": "@request.auth.id != ''",
+  "viewRule": "@request.auth.id != ''",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": "@request.auth.id != ''",
+  "deleteRule": "@request.auth.id != ''"
+}

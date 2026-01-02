@@ -31,6 +31,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import CategoryIcon from '@mui/icons-material/Category';
+import InboxIcon from '@mui/icons-material/Inbox';
 import { useAdminLanguage } from '@/lib/i18n';
 
 export const DRAWER_WIDTH = 260;
@@ -68,6 +69,11 @@ const navItemsConfig: NavItem[] = [
     id: 'providers',
     path: '/admin/providers',
     icon: <CloudIcon />,
+  },
+  {
+    id: 'inquiries',
+    path: '/admin/inquiries',
+    icon: <InboxIcon />,
   },
   {
     id: 'smartstore',
@@ -124,6 +130,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
       smartstoreIntegration: t.sidebar.smartstoreIntegration,
       smartstoreProducts: t.sidebar.smartstoreProducts,
       smartstoreInquiries: t.sidebar.smartstoreInquiries,
+      inquiries: t.sidebar.inquiries || 'Inquiries',
       settings: t.sidebar.settings,
       guide: t.sidebar.guide,
     };

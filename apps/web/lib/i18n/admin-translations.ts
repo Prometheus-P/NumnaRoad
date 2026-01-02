@@ -43,6 +43,7 @@ export interface AdminTranslations {
     smartstoreIntegration: string;
     smartstoreProducts: string;
     smartstoreInquiries: string;
+    inquiries: string;
     settings: string;
     guide: string;
   };
@@ -421,6 +422,7 @@ export const translations: Record<AdminLocale, AdminTranslations> = {
       smartstoreIntegration: '연동 설정',
       smartstoreProducts: '상품 매핑',
       smartstoreInquiries: '고객 문의',
+      inquiries: '통합 문의',
       settings: '설정',
       guide: '가이드',
     },
@@ -792,6 +794,7 @@ export const translations: Record<AdminLocale, AdminTranslations> = {
       smartstoreIntegration: 'Integration',
       smartstoreProducts: 'Product Mapping',
       smartstoreInquiries: 'Customer Inquiries',
+      inquiries: 'Inquiries',
       settings: 'Settings',
       guide: 'Guide',
     },

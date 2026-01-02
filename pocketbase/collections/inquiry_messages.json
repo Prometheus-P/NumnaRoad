@@ -1,0 +1,84 @@
+{
+  "name": "inquiry_messages",
+  "type": "base",
+  "schema": [
+    {
+      "name": "inquiry_id",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "direction",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["inbound", "outbound"]
+      }
+    },
+    {
+      "name": "content",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 20000
+      }
+    },
+    {
+      "name": "sender_type",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["customer", "agent", "system"]
+      }
+    },
+    {
+      "name": "sender_name",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "template_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "delivery_status",
+      "type": "select",
+      "required": false,
+      "options": {
+        "values": ["pending", "sent", "delivered", "failed"]
+      }
+    },
+    {
+      "name": "external_message_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 200
+      }
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_message_inquiry ON inquiry_messages (inquiry_id)",
+    "CREATE INDEX idx_message_created ON inquiry_messages (created)"
+  ],
+  "listRule": "@request.auth.id != ''",
+  "viewRule": "@request.auth.id != ''",
+  "createRule": "@request.auth.id != ''",
+  "updateRule": "@request.auth.id != ''",
+  "deleteRule": null
+}
