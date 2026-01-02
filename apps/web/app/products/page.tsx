@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -183,7 +183,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -204,24 +204,16 @@ export default function ProductsPage() {
       } else {
         setError('상품을 불러오는데 실패했습니다.');
       }
-    } catch (err) {
+    } catch {
       setError('네트워크 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, country, search]);
 
   useEffect(() => {
     fetchProducts();
-  }, [page, country]);
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      setPage(1);
-      fetchProducts();
-    }, 300);
-    return () => clearTimeout(debounce);
-  }, [search]);
+  }, [fetchProducts]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       }
 
       pendingOrder = records.items[0];
-    } catch (err) {
+    } catch {
       // If collection doesn't exist, try to find by correlationId pattern
       console.warn('[Airalo Webhook] pending_async_orders collection may not exist, attempting order lookup by correlation');
 

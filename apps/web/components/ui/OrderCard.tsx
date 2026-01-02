@@ -51,7 +51,8 @@ export function OrderCard({ order, labels = {} }: OrderCardProps) {
   const {
     orderId = 'Order ID',
     orderDate = 'Order Date',
-    product: _product = 'Product',
+    // product label reserved for future use
+    // product: productLabel = 'Product',
     data = 'Data',
     validity = 'Validity',
     days = 'days',

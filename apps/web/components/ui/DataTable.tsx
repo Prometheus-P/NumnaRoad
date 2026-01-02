@@ -6,21 +6,23 @@ import {
   GridColDef,
   GridSortModel,
   GridEventListener,
+  GridRenderCellParams,
+  GridValidRowModel,
 } from '@mui/x-data-grid';
 import { Box, Typography, LinearProgress } from '@mui/material';
 
 // Types for DataTable component (from tests/unit/components/DataTable.test.tsx)
-export interface Column<T> {
+export interface Column<T extends GridValidRowModel> {
   field: keyof T;
   headerName: string;
   width?: number;
   flex?: number;
   sortable?: boolean;
   filterable?: boolean; // Note: DataGrid has built-in filtering, this is for custom filter UIs
-  renderCell?: (params: any) => React.ReactNode; // Using any for DataGrid's params type
+  renderCell?: (params: GridRenderCellParams<T>) => React.ReactNode;
 }
 
-export interface DataTableProps<T extends { id: string | number }> {
+export interface DataTableProps<T extends GridValidRowModel & { id: string | number }> {
   columns: Column<T>[];
   rows: T[];
   loading?: boolean;
@@ -35,14 +37,14 @@ export interface DataTableProps<T extends { id: string | number }> {
   rowCount?: number; // For server-side pagination
   getRowId?: (row: T) => string | number;
   noRowsMessage?: string;
-  initialState?: any; // For DataGrid initial state
+  initialState?: Record<string, unknown>;
 }
 
 /**
  * M3 DataTable Component
  * Displays data in a sortable, filterable, and paginatable table using MUI DataGrid.
  */
-export function DataTable<T extends { id: string | number }>({
+export function DataTable<T extends GridValidRowModel & { id: string | number }>({
   columns: customColumns,
   rows,
   loading = false,

@@ -240,7 +240,8 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
-  const [_selectedRegion, _setSelectedRegion] = useState('all');
+  // Reserved for future region filter feature
+  // const [selectedRegion, setSelectedRegion] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
