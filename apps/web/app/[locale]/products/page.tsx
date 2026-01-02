@@ -21,8 +21,6 @@ import {
   Pagination,
   Alert,
   Paper,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
@@ -60,14 +58,15 @@ interface ProductsResponse {
   };
 }
 
-// Region categories
-const REGIONS = [
-  { id: 'all', label: '전체', icon: <PublicIcon /> },
-  { id: 'asia', label: '아시아', countries: ['JP', 'CN', 'TH', 'VN', 'SG', 'TW', 'HK', 'PH', 'MY', 'ID'] },
-  { id: 'europe', label: '유럽', countries: ['EU', 'GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'CH'] },
-  { id: 'americas', label: '미주', countries: ['US', 'CA', 'MX', 'BR'] },
-  { id: 'oceania', label: '오세아니아', countries: ['AU', 'NZ'] },
-];
+// Region categories (reserved for future region filter feature)
+// TODO: Enable when implementing region-based filtering
+// const REGIONS = [
+//   { id: 'all', label: '전체', icon: <PublicIcon /> },
+//   { id: 'asia', label: '아시아', countries: ['JP', 'CN', 'TH', 'VN', 'SG', 'TW', 'HK', 'PH', 'MY', 'ID'] },
+//   { id: 'europe', label: '유럽', countries: ['EU', 'GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'CH'] },
+//   { id: 'americas', label: '미주', countries: ['US', 'CA', 'MX', 'BR'] },
+//   { id: 'oceania', label: '오세아니아', countries: ['AU', 'NZ'] },
+// ];
 
 // Popular countries for quick filter
 const POPULAR_COUNTRIES = [
@@ -241,7 +240,7 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('all');
+  const [_selectedRegion, _setSelectedRegion] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);

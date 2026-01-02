@@ -9,7 +9,7 @@
  * - NAVER_COMMERCE_APP_SECRET: Application Secret
  */
 
-import type { NaverAccessToken, NaverAuthConfig, SmartStoreResult } from './types';
+import type { NaverAccessToken, NaverAuthConfig } from './types';
 import bcrypt from 'bcryptjs';
 
 const NAVER_AUTH_URL = 'https://api.commerce.naver.com/external/v1/oauth2/token';

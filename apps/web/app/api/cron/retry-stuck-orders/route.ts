@@ -16,8 +16,9 @@ import { acquireLock, releaseLock } from '@/lib/cron-lock';
 
 const JOB_NAME = 'retry-stuck-orders';
 
-// Stuck order states that need retry
-const STUCK_STATES = ['fulfillment_started', 'payment_received'];
+// Stuck order states that need retry (reserved for future filtering)
+// TODO: Use for state-based filtering when implementing selective retry
+// const STUCK_STATES = ['fulfillment_started', 'payment_received'];
 
 // Max age for stuck orders (5 minutes)
 const MAX_STUCK_AGE_MS = 5 * 60 * 1000;

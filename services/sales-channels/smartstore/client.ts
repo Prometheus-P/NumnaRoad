@@ -11,7 +11,6 @@ import { SmartStoreAuth, getSmartStoreAuth } from './auth';
 import type {
   NaverProductOrder,
   NaverStatusChange,
-  NaverSettlement,
   NaverDailySettlement,
   NaverInquiry,
   NaverDispatchRequest,

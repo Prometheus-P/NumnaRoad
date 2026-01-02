@@ -1,25 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
-import { createHmac } from 'crypto';
 import {
   parseInboundEmail,
   type ResendInboundEmail,
 } from '@services/customer-inquiry/adapters/email-adapter';
 
-/**
- * Verify Resend webhook signature
- * NOTE: Resend uses Svix for webhooks. Consider using @svix/svix library for production.
- */
-function _verifyResendSignature(
-  body: string,
-  signature: string,
-  secret: string
-): boolean {
-  const hmac = createHmac('sha256', secret);
-  hmac.update(body);
-  const expectedSignature = hmac.digest('hex');
-  return signature === expectedSignature;
-}
+// TODO: Enable when implementing Resend webhook signature verification
+// import { createHmac } from 'crypto';
+// function verifyResendSignature(body: string, signature: string, secret: string): boolean {
+//   const hmac = createHmac('sha256', secret);
+//   hmac.update(body);
+//   const expectedSignature = hmac.digest('hex');
+//   return signature === expectedSignature;
+// }
 
 /**
  * POST /api/webhooks/email

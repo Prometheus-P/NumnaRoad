@@ -4,11 +4,10 @@ import * as React from 'react';
 import {
   DataGrid,
   GridColDef,
-  GridRowsProp,
   GridSortModel,
   GridEventListener,
 } from '@mui/x-data-grid';
-import { Box, CircularProgress, Typography, LinearProgress } from '@mui/material';
+import { Box, Typography, LinearProgress } from '@mui/material';
 
 // Types for DataTable component (from tests/unit/components/DataTable.test.tsx)
 export interface Column<T> {
@@ -50,7 +49,7 @@ export function DataTable<T extends { id: string | number }>({
   onRowClick,
   sortModel,
   onSortModelChange,
-  filterValue, // To be implemented with custom filtering if needed
+  filterValue: _filterValue, // Reserved for custom filtering if needed
   page,
   onPageChange,
   paginationMode = 'client',

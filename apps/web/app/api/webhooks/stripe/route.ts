@@ -365,7 +365,7 @@ async function processOrderInline(
 
   // Create fulfillment service with email and Alimtalk support
   const fulfillmentService = createFulfillmentService({
-    persistFn: async (id, state, metadata) => {
+    persistFn: async (id: string, state: string, metadata?: { providerName?: string; errorMessage?: string }) => {
       await pb.collection(Collections.ORDERS).update(id, {
         status: state,
         ...(metadata?.providerName && { provider_used: metadata.providerName }),
@@ -375,7 +375,7 @@ async function processOrderInline(
         }),
       });
     },
-    loadFn: async (id) => {
+    loadFn: async (id: string) => {
       const o = await pb.collection(Collections.ORDERS).getOne(id);
       return o.status;
     },

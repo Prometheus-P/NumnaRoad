@@ -21,7 +21,6 @@ import type {
   ProductSyncResult,
   BatchSyncResult,
   SyncOptions,
-  ProductSyncStatus,
 } from './product-types';
 import type { SmartStoreResult } from './types';
 
@@ -63,8 +62,6 @@ export class SmartStoreProductSyncService {
     productId: string,
     options?: { forceUpdate?: boolean; categoryId?: string }
   ): Promise<ProductSyncResult> {
-    const startTime = Date.now();
-
     try {
       // 1. Get the internal product
       const product = await this.getEsimProduct(productId);
@@ -250,8 +247,6 @@ export class SmartStoreProductSyncService {
    * Sync all products with auto-sync enabled.
    */
   async syncAutoEnabledProducts(options?: SyncOptions): Promise<BatchSyncResult> {
-    const startTime = Date.now();
-
     // Get all sync records with auto-sync enabled
     const syncRecords = await this.pb
       .collection(COLLECTION_SMARTSTORE_PRODUCTS)
@@ -267,8 +262,6 @@ export class SmartStoreProductSyncService {
    * Sync all active products.
    */
   async syncAllActiveProducts(options?: SyncOptions): Promise<BatchSyncResult> {
-    const startTime = Date.now();
-
     // Get all active eSIM products
     const products = await this.pb
       .collection(COLLECTION_ESIM_PRODUCTS)

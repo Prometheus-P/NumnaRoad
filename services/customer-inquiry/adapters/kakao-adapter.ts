@@ -23,16 +23,17 @@ const KAKAO_API_BASE = 'https://api.bizppurio.com';
 // Types
 // =============================================================================
 
-interface KakaoMessage {
-  messageId: string;
-  userId: string;
-  userName?: string;
-  userPhone?: string;
-  content: string;
-  type: 'text' | 'image' | 'file';
-  timestamp: string;
-  channelId: string;
-}
+// TODO: Enable when implementing full Kakao message handling
+// interface KakaoMessage {
+//   messageId: string;
+//   userId: string;
+//   userName?: string;
+//   userPhone?: string;
+//   content: string;
+//   type: 'text' | 'image' | 'file';
+//   timestamp: string;
+//   channelId: string;
+// }
 
 interface KakaoApiResponse<T = unknown> {
   success: boolean;

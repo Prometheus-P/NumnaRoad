@@ -67,7 +67,8 @@ export interface OrderReceivedAlimtalkParams {
 // Constants
 // =============================================================================
 
-const DEFAULT_TIMEOUT_MS = 10000;
+// Reserved for future timeout configuration
+// const DEFAULT_TIMEOUT_MS = 10000;
 
 // =============================================================================
 // Helper Functions

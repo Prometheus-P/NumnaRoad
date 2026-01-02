@@ -361,14 +361,14 @@ async function processOrder(
 
   // Create fulfillment service
   const fulfillmentService = createFulfillmentService({
-    persistFn: async (id, state, metadata) => {
+    persistFn: async (id: string, state: string, metadata?: { providerName?: string; errorMessage?: string }) => {
       await pb.collection(Collections.ORDERS).update(id, {
         status: state,
         ...(metadata?.providerName && { provider_used: metadata.providerName }),
         ...(metadata?.errorMessage && { error_message: metadata.errorMessage }),
       });
     },
-    loadFn: async (id) => {
+    loadFn: async (id: string) => {
       const o = await pb.collection(Collections.ORDERS).getOne(id);
       return o.status;
     },

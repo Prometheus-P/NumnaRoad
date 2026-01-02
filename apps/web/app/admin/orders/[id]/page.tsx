@@ -8,7 +8,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  Chip,
   Button,
   Skeleton,
   Alert,
@@ -24,7 +23,6 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -77,7 +75,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { t, locale } = useAdminLanguage();
+  const { t } = useAdminLanguage();
   const orderId = params.id as string;
 
   const [retryDialogOpen, setRetryDialogOpen] = React.useState(false);

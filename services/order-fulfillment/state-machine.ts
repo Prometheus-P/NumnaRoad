@@ -19,7 +19,6 @@ import {
   notifyCustom,
   isDiscordConfigured,
 } from '../notifications';
-import type { ErrorType } from '../esim-providers/types';
 
 // =============================================================================
 // Types

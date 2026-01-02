@@ -6,7 +6,7 @@
  * Tasks: Part 1 - Task 1.2, 1.3
  */
 
-import type { ErrorType, EsimPurchaseResult } from '../esim-providers/types';
+import type { ErrorType } from '../esim-providers/types';
 
 // =============================================================================
 // Order State Types

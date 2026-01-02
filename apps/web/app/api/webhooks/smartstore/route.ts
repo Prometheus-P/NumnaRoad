@@ -17,7 +17,8 @@ import {
   isTimeoutResult,
   type FulfillmentOrder,
 } from '@services/order-fulfillment';
-import { createAutomationLogger } from '@services/logging';
+// TODO: Enable when implementing automation logging
+// import { createAutomationLogger } from '@services/logging';
 import type { EsimProvider } from '@services/esim-providers/types';
 import { getCachedActiveProviders } from '@/lib/cache/providers';
 import {
@@ -729,10 +730,11 @@ async function processFulfillment(
   correlationId: string,
   config: ReturnType<typeof getConfig>
 ): Promise<{ success: boolean; error?: { message: string } }> {
-  const logger = createAutomationLogger({
-    orderId: order.id as string,
-    correlationId,
-  });
+  // Logger for future automation logging enhancements
+  // const logger = createAutomationLogger({
+  //   orderId: order.id as string,
+  //   correlationId,
+  // });
 
   // Get product details
   const product = await getProductDetails(pb, order.product as string);
@@ -757,7 +759,7 @@ async function processFulfillment(
 
   // Create fulfillment service
   const fulfillmentService = createFulfillmentService({
-    persistFn: async (orderId, state, metadata) => {
+    persistFn: async (orderId: string, state: string, metadata?: { providerName?: string; errorMessage?: string }) => {
       await pb.collection(Collections.ORDERS).update(orderId, {
         status: state,
         ...(metadata?.providerName && { provider_used: metadata.providerName }),
@@ -767,7 +769,7 @@ async function processFulfillment(
         }),
       });
     },
-    loadFn: async (orderId) => {
+    loadFn: async (orderId: string) => {
       const o = await pb.collection(Collections.ORDERS).getOne(orderId);
       return o.status;
     },

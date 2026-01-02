@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
+import { getAdminPocketBase } from '@/lib/pocketbase';
 
 // 국가명 -> 국가코드 매핑
 const countryCodeMap: Record<string, string> = {

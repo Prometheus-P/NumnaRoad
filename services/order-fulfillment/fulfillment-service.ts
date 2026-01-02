@@ -15,14 +15,12 @@ import type {
   FulfillmentResult,
   FulfillmentConfig,
   ProviderAttempt,
-  OrderState,
 } from './types';
 import { DEFAULT_FULFILLMENT_CONFIG } from './types';
 import { OrderStateMachine, createOrderStateMachine } from './state-machine';
 import type { StatePersistFn, StateLoadFn } from './state-machine';
 import {
   purchaseWithFailover,
-  type FailoverResult,
   type SuccessfulFailoverResult,
   type FailedFailoverResult,
   type EsimProvider,
@@ -31,7 +29,6 @@ import {
   isManualFulfillmentPending,
   isSuccessfulResult,
   isFailedResult,
-  createProvider,
   ManualProvider,
   type ManualPurchaseRequest,
 } from '../esim-providers';
