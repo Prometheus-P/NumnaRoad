@@ -45,6 +45,7 @@ import {
   type InquiryChannel,
   type InquiryStatus,
   type InquiryItem,
+  type ChannelHealth,
 } from '@/hooks/admin';
 
 // =============================================================================
@@ -102,7 +103,7 @@ function ChannelHealthBar() {
 
   return (
     <Box display="flex" gap={1} mb={2}>
-      {health.map((ch) => {
+      {health.map((ch: ChannelHealth) => {
         const info = getChannelInfo(ch.channel);
         return (
           <Tooltip
@@ -366,7 +367,7 @@ export default function InquiriesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data.items.map((inquiry) => (
+                data.items.map((inquiry: InquiryItem) => (
                   <InquiryRow
                     key={inquiry.id}
                     inquiry={inquiry}

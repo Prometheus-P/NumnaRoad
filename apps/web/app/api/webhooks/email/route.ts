@@ -8,8 +8,9 @@ import {
 
 /**
  * Verify Resend webhook signature
+ * NOTE: Resend uses Svix for webhooks. Consider using @svix/svix library for production.
  */
-function verifyResendSignature(
+function _verifyResendSignature(
   body: string,
   signature: string,
   secret: string

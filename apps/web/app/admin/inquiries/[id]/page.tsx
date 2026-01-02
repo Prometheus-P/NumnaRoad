@@ -188,7 +188,7 @@ export default function InquiryDetailPage({
               severity: 'success',
             });
           },
-          onError: (err) => {
+          onError: (err: Error) => {
             setSnackbar({
               open: true,
               message: err.message,
@@ -213,7 +213,7 @@ export default function InquiryDetailPage({
               severity: 'success',
             });
           },
-          onError: (err) => {
+          onError: (err: Error) => {
             setSnackbar({
               open: true,
               message: err.message,
@@ -240,7 +240,7 @@ export default function InquiryDetailPage({
             severity: 'success',
           });
         },
-        onError: (err) => {
+        onError: (err: Error) => {
           setSnackbar({
             open: true,
             message: err.message,
@@ -310,7 +310,7 @@ export default function InquiryDetailPage({
                 No messages yet
               </Typography>
             ) : (
-              inquiry.messages.map((msg) => (
+              inquiry.messages.map((msg: InquiryMessage) => (
                 <MessageBubble key={msg.id} message={msg} />
               ))
             )}

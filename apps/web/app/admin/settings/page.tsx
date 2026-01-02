@@ -46,6 +46,7 @@ import {
   getCategoryDescription,
   type SettingCategory,
   type ParsedSetting,
+  type AuditLogEntry,
 } from '@/hooks/admin';
 
 // =============================================================================
@@ -322,7 +323,7 @@ function AuditLogTab() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.items.map((log) => (
+          {data.items.map((log: AuditLogEntry) => (
             <TableRow key={log.id}>
               <TableCell>
                 {new Date(log.createdAt).toLocaleString('ko-KR')}
@@ -427,7 +428,7 @@ export default function SettingsPage() {
         });
         refetch();
       },
-      onError: (err) => {
+      onError: (err: Error) => {
         setSnackbar({
           open: true,
           message: err.message || 'Failed to save settings',
