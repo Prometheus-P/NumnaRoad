@@ -19,10 +19,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./*"],
-      "@/components/*": ["./apps/web/components/*"],
-      "@/lib/*": ["./apps/web/lib/*"],
-      "@/services/*": ["./services/*"]
+      "@/*": ["./apps/web/*"],
+      "@services/*": ["./services/*"]
     }
   },
   "include": [
