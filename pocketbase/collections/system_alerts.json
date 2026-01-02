@@ -1,0 +1,68 @@
+{
+  "name": "system_alerts",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "level",
+      "type": "select",
+      "required": true,
+      "options": {
+        "maxSelect": 1,
+        "values": ["info", "warning", "error", "critical"]
+      }
+    },
+    {
+      "name": "title",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 200
+      }
+    },
+    {
+      "name": "message",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 5000
+      }
+    },
+    {
+      "name": "order_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "correlation_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "acknowledged",
+      "type": "bool",
+      "required": false
+    },
+    {
+      "name": "acknowledged_at",
+      "type": "date",
+      "required": false
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_system_alerts_level ON system_alerts (level)",
+    "CREATE INDEX idx_system_alerts_created ON system_alerts (created)",
+    "CREATE INDEX idx_system_alerts_acknowledged ON system_alerts (acknowledged)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

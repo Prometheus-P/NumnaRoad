@@ -1,41 +1,79 @@
+# Dependabot Configuration for NumnaRoad
+# Automated security updates and dependency management
+
 version: 2
+
+registries:
+  npm-npmjs:
+    type: npm-registry
+    url: https://registry.npmjs.org
+    replaces-base: true
+
 updates:
+  # npm dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
     open-pull-requests-limit: 10
+    registries:
+      - npm-npmjs
     groups:
-      production-dependencies:
+      # Group minor/patch updates to reduce PR noise
+      production-deps:
         patterns:
-          - "next"
-          - "react*"
-          - "pocketbase"
-      dev-dependencies:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier*"
+          - "vitest*"
+          - "typescript*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
         patterns:
           - "@types/*"
           - "eslint*"
-          - "typescript"
-          - "vitest"
-          - "@testing-library/*"
-    ignore:
-      - dependency-name: "stripe"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@typescript-eslint/*"
-        update-types: ["version-update:semver-major"]
+          - "prettier*"
+          - "vitest*"
+          - "typescript*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Security updates always create immediate PRs
     labels:
       - "dependencies"
+      - "automated"
     commit-message:
-      prefix: "chore(deps):"
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for these (manual review needed)
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"
+      - "automated"
     commit-message:
-      prefix: "chore(ci):"
+      prefix: "chore(ci)"

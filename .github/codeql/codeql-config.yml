@@ -1,0 +1,48 @@
+# CodeQL Custom Configuration for NumnaRoad
+# Enhanced security scanning for e-commerce eSIM platform
+
+name: "NumnaRoad Security Config"
+
+# Use security-extended query suite for comprehensive coverage
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+# Additional query packs for JavaScript/TypeScript
+packs:
+  javascript:
+    - codeql/javascript-queries:Security/CWE-020
+    - codeql/javascript-queries:Security/CWE-022
+    - codeql/javascript-queries:Security/CWE-079
+    - codeql/javascript-queries:Security/CWE-089
+    - codeql/javascript-queries:Security/CWE-094
+    - codeql/javascript-queries:Security/CWE-116
+    - codeql/javascript-queries:Security/CWE-117
+    - codeql/javascript-queries:Security/CWE-200
+    - codeql/javascript-queries:Security/CWE-295
+    - codeql/javascript-queries:Security/CWE-312
+    - codeql/javascript-queries:Security/CWE-327
+    - codeql/javascript-queries:Security/CWE-346
+    - codeql/javascript-queries:Security/CWE-352
+    - codeql/javascript-queries:Security/CWE-400
+    - codeql/javascript-queries:Security/CWE-502
+    - codeql/javascript-queries:Security/CWE-601
+    - codeql/javascript-queries:Security/CWE-611
+    - codeql/javascript-queries:Security/CWE-614
+    - codeql/javascript-queries:Security/CWE-643
+    - codeql/javascript-queries:Security/CWE-776
+    - codeql/javascript-queries:Security/CWE-798
+    - codeql/javascript-queries:Security/CWE-829
+    - codeql/javascript-queries:Security/CWE-912
+    - codeql/javascript-queries:Security/CWE-918
+
+# Paths to exclude from scanning (dependencies, generated code)
+paths-ignore:
+  - node_modules
+  - .next
+  - dist
+  - coverage
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/__tests__/**"
+  - "**/test/**"

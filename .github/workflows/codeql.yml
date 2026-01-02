@@ -1,4 +1,4 @@
-name: CodeQL
+name: CodeQL Security Analysis
 
 on:
   push:
@@ -10,11 +10,12 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Security Analysis
     runs-on: ubuntu-latest
     permissions:
       security-events: write
       contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
@@ -24,14 +25,34 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          config-file: .github/codeql/codeql-config.yml
+          # Enable additional security queries
+          queries: +security-extended,+security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v3
         with:
           category: '/language:${{ matrix.language }}'
+          # Upload SARIF for GitHub Security tab
+          upload: always
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+          allow-ghsas: false

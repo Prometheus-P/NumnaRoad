@@ -1,12 +1,12 @@
 /**
- * Discord Notification Service
+ * Telegram Notification Service
  *
- * Sends operational alerts to Discord for:
+ * Sends operational alerts to Telegram for:
  * - Order fulfillment failures
  * - Provider health issues
- * - Circuit breaker state changes
+ * - System alerts
  *
- * Tasks: Part 1 - Task 1.1
+ * Note: File kept as discord-notifier.ts for backward compatibility
  */
 
 import type { ErrorType } from '../esim-providers/types';
@@ -56,19 +56,14 @@ export interface ManualFulfillmentNotification {
   timestamp: string;
 }
 
+// Keep Discord types for backward compatibility (unused)
 export interface DiscordEmbed {
   title: string;
   description?: string;
   color: number;
-  fields?: Array<{
-    name: string;
-    value: string;
-    inline?: boolean;
-  }>;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
   timestamp: string;
-  footer?: {
-    text: string;
-  };
+  footer?: { text: string };
 }
 
 export interface DiscordWebhookPayload {
@@ -82,45 +77,29 @@ export interface DiscordWebhookPayload {
 // Constants
 // =============================================================================
 
-const DISCORD_COLORS = {
-  error: 0xff0000, // Red
-  warning: 0xffa500, // Orange
-  success: 0x00ff00, // Green
-  info: 0x0099ff, // Blue
-};
-
-const DEFAULT_USERNAME = 'NumnaRoad Ops';
 const DEFAULT_TIMEOUT_MS = 10000;
 
 // =============================================================================
 // Helper Functions
 // =============================================================================
 
-/**
- * Get Discord webhook URL from environment
- */
-function getWebhookUrl(): string {
-  const url = process.env.DISCORD_WEBHOOK_URL;
-  if (!url) {
-    throw new Error('DISCORD_WEBHOOK_URL environment variable is not set');
+function getTelegramConfig(): { botToken: string; chatId: string } {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+
+  if (!botToken || !chatId) {
+    throw new Error('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set');
   }
-  return url;
+
+  return { botToken, chatId };
 }
 
-/**
- * Mask email for privacy (show first 2 chars + domain)
- */
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
-  if (!domain || local.length < 2) {
-    return '***@***';
-  }
+  if (!domain || local.length < 2) return '***@***';
   return `${local.substring(0, 2)}***@${domain}`;
 }
 
-/**
- * Format error type for display
- */
 function formatErrorType(errorType: ErrorType): string {
   const labels: Record<ErrorType, string> = {
     timeout: 'Timeout',
@@ -135,31 +114,46 @@ function formatErrorType(errorType: ErrorType): string {
   return labels[errorType] || errorType;
 }
 
-/**
- * Send webhook request to Discord
- */
-async function sendWebhook(payload: DiscordWebhookPayload): Promise<void> {
-  const webhookUrl = getWebhookUrl();
+function escapeMarkdown(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+}
+
+async function sendTelegram(message: string): Promise<void> {
+  const { botToken, chatId } = getTelegramConfig();
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...payload,
-        username: payload.username || DEFAULT_USERNAME,
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
       }),
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
+      // Retry without markdown if parsing fails
+      const retryResponse = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message.replace(/[\\*_`\[\]]/g, ''),
+          disable_web_page_preview: true,
+        }),
+      });
+
+      if (!retryResponse.ok) {
+        const errorText = await retryResponse.text().catch(() => 'Unknown');
+        throw new Error(`Telegram API failed: ${retryResponse.status} - ${errorText}`);
+      }
     }
   } finally {
     clearTimeout(timeoutId);
@@ -170,321 +164,128 @@ async function sendWebhook(payload: DiscordWebhookPayload): Promise<void> {
 // Notification Functions
 // =============================================================================
 
-/**
- * Send notification when order fulfillment fails
- *
- * @param notification - Order failure details
- */
 export async function notifyOrderFailure(
   notification: OrderFailureNotification
 ): Promise<void> {
-  const embed: DiscordEmbed = {
-    title: '🚨 Order Fulfillment Failed',
-    description: `Order **${notification.orderId}** could not be fulfilled after trying all available providers.`,
-    color: DISCORD_COLORS.error,
-    fields: [
-      {
-        name: 'Order ID',
-        value: `\`${notification.orderId}\``,
-        inline: true,
-      },
-      {
-        name: 'Correlation ID',
-        value: `\`${notification.correlationId}\``,
-        inline: true,
-      },
-      {
-        name: 'Customer',
-        value: maskEmail(notification.customerEmail),
-        inline: true,
-      },
-      {
-        name: 'Product ID',
-        value: `\`${notification.productId}\``,
-        inline: true,
-      },
-      {
-        name: 'Error Type',
-        value: formatErrorType(notification.errorType),
-        inline: true,
-      },
-      {
-        name: 'Total Retries',
-        value: notification.totalRetries.toString(),
-        inline: true,
-      },
-      {
-        name: 'Attempted Providers',
-        value: notification.attemptedProviders.length > 0
-          ? notification.attemptedProviders.map(p => `• ${p}`).join('\n')
-          : 'None',
-        inline: false,
-      },
-      {
-        name: 'Error Message',
-        value: `\`\`\`${notification.errorMessage.substring(0, 500)}\`\`\``,
-        inline: false,
-      },
-    ],
-    timestamp: notification.timestamp,
-    footer: {
-      text: 'Manual intervention may be required',
-    },
-  };
+  const providers = notification.attemptedProviders.length > 0
+    ? notification.attemptedProviders.join(', ')
+    : 'None';
 
-  await sendWebhook({ embeds: [embed] });
+  const message = `
+🚨 *주문 처리 실패*
+
+*Order ID:* \`${escapeMarkdown(notification.orderId)}\`
+*Correlation:* \`${escapeMarkdown(notification.correlationId)}\`
+*Customer:* ${escapeMarkdown(maskEmail(notification.customerEmail))}
+*Product:* \`${escapeMarkdown(notification.productId)}\`
+
+*Error:* ${escapeMarkdown(formatErrorType(notification.errorType))}
+*Retries:* ${notification.totalRetries}
+*Providers:* ${escapeMarkdown(providers)}
+
+\`\`\`
+${escapeMarkdown(notification.errorMessage.substring(0, 300))}
+\`\`\`
+
+⚠️ 수동 처리가 필요할 수 있습니다
+`.trim();
+
+  await sendTelegram(message);
 }
 
-/**
- * Send notification when provider health changes
- *
- * @param notification - Provider health details
- */
 export async function notifyProviderHealth(
   notification: ProviderHealthNotification
 ): Promise<void> {
-  const statusEmoji: Record<string, string> = {
-    degraded: '⚠️',
-    down: '🔴',
-    recovered: '✅',
-  };
+  const emoji = { degraded: '⚠️', down: '🔴', recovered: '✅' }[notification.status];
 
-  const statusColor: Record<string, number> = {
-    degraded: DISCORD_COLORS.warning,
-    down: DISCORD_COLORS.error,
-    recovered: DISCORD_COLORS.success,
-  };
+  const message = `
+${emoji} *Provider ${notification.status.toUpperCase()}*
 
-  const embed: DiscordEmbed = {
-    title: `${statusEmoji[notification.status]} Provider ${notification.status.charAt(0).toUpperCase() + notification.status.slice(1)}: ${notification.providerName}`,
-    description: notification.message,
-    color: statusColor[notification.status],
-    fields: [
-      {
-        name: 'Provider',
-        value: notification.providerName,
-        inline: true,
-      },
-      {
-        name: 'Status',
-        value: notification.status.toUpperCase(),
-        inline: true,
-      },
-      {
-        name: 'Success Rate',
-        value: `${(notification.successRate * 100).toFixed(1)}%`,
-        inline: true,
-      },
-    ],
-    timestamp: notification.timestamp,
-  };
+*Provider:* ${escapeMarkdown(notification.providerName)}
+*Status:* ${escapeMarkdown(notification.status)}
+*Success Rate:* ${(notification.successRate * 100).toFixed(1)}%
 
-  await sendWebhook({ embeds: [embed] });
+${escapeMarkdown(notification.message)}
+`.trim();
+
+  await sendTelegram(message);
 }
 
-/**
- * Send notification when circuit breaker state changes
- *
- * @param notification - Circuit breaker state details
- */
 export async function notifyCircuitBreakerStateChange(
   notification: CircuitBreakerNotification
 ): Promise<void> {
-  const stateEmoji: Record<string, string> = {
-    open: '🔓',
-    'half-open': '🔄',
-    closed: '🔒',
-  };
+  const emoji = { open: '🔓', 'half-open': '🔄', closed: '🔒' }[notification.state];
 
-  const stateColor: Record<string, number> = {
-    open: DISCORD_COLORS.error,
-    'half-open': DISCORD_COLORS.warning,
-    closed: DISCORD_COLORS.success,
-  };
+  const message = `
+${emoji} *Circuit Breaker: ${escapeMarkdown(notification.providerName)}*
 
-  const stateDescription: Record<string, string> = {
-    open: 'Circuit is OPEN - requests are being rejected',
-    'half-open': 'Circuit is HALF-OPEN - testing recovery',
-    closed: 'Circuit is CLOSED - normal operation resumed',
-  };
+*State:* ${escapeMarkdown(notification.state.toUpperCase())}
+*Failures:* ${notification.failureCount}
+${notification.lastFailure ? `*Last Failure:* ${escapeMarkdown(notification.lastFailure)}` : ''}
+`.trim();
 
-  const embed: DiscordEmbed = {
-    title: `${stateEmoji[notification.state]} Circuit Breaker: ${notification.providerName}`,
-    description: stateDescription[notification.state],
-    color: stateColor[notification.state],
-    fields: [
-      {
-        name: 'Provider',
-        value: notification.providerName,
-        inline: true,
-      },
-      {
-        name: 'State',
-        value: notification.state.toUpperCase(),
-        inline: true,
-      },
-      {
-        name: 'Failure Count',
-        value: notification.failureCount.toString(),
-        inline: true,
-      },
-    ],
-    timestamp: notification.timestamp,
-  };
-
-  if (notification.lastFailure) {
-    embed.fields?.push({
-      name: 'Last Failure',
-      value: notification.lastFailure,
-      inline: false,
-    });
-  }
-
-  await sendWebhook({ embeds: [embed] });
+  await sendTelegram(message);
 }
 
-/**
- * Send a custom notification
- *
- * @param title - Notification title
- * @param message - Notification message
- * @param level - Severity level
- */
 export async function notifyCustom(
   title: string,
   message: string,
   level: 'error' | 'warning' | 'success' | 'info' = 'info'
 ): Promise<void> {
-  const embed: DiscordEmbed = {
-    title,
-    description: message,
-    color: DISCORD_COLORS[level],
-    timestamp: new Date().toISOString(),
-  };
+  const emoji = { error: '🚨', warning: '⚠️', success: '✅', info: 'ℹ️' }[level];
 
-  await sendWebhook({ embeds: [embed] });
+  const text = `
+${emoji} *${escapeMarkdown(title)}*
+
+${escapeMarkdown(message)}
+`.trim();
+
+  await sendTelegram(text);
 }
 
 // =============================================================================
 // Utility Functions
 // =============================================================================
 
-/**
- * Check if Discord notifications are configured
- */
 export function isDiscordConfigured(): boolean {
-  return Boolean(process.env.DISCORD_WEBHOOK_URL);
+  return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 }
 
-/**
- * Test Discord webhook connection
- */
 export async function testWebhookConnection(): Promise<boolean> {
   try {
-    await notifyCustom(
-      '🔔 Test Notification',
-      'Discord webhook is configured correctly.',
-      'info'
-    );
+    await notifyCustom('🔔 Test', 'Telegram 알림이 정상 작동합니다.', 'info');
     return true;
   } catch (error) {
-    console.error('Discord webhook test failed:', error);
+    console.error('Telegram test failed:', error);
     return false;
   }
 }
 
-/**
- * Send notification requesting manual fulfillment
- *
- * @param notification - Manual fulfillment request details
- */
 export async function notifyManualFulfillmentRequired(
   notification: ManualFulfillmentNotification
 ): Promise<void> {
-  const embed: DiscordEmbed = {
-    title: '🔧 Manual Fulfillment Required',
-    description: `Order **${notification.orderId}** requires manual processing. All automated providers have been exhausted.`,
-    color: DISCORD_COLORS.warning,
-    fields: [
-      {
-        name: 'Order ID',
-        value: `\`${notification.orderId}\``,
-        inline: true,
-      },
-      {
-        name: 'Correlation ID',
-        value: `\`${notification.correlationId}\``,
-        inline: true,
-      },
-      {
-        name: 'Customer',
-        value: maskEmail(notification.customerEmail),
-        inline: true,
-      },
-      {
-        name: 'Product ID',
-        value: `\`${notification.productId}\``,
-        inline: true,
-      },
-    ],
-    timestamp: notification.timestamp,
-    footer: {
-      text: 'Please fulfill this order manually via provider dashboard',
-    },
-  };
+  const providers = notification.attemptedProviders.length > 0
+    ? notification.attemptedProviders.join(', ')
+    : 'None';
 
-  // Add product details if available
-  if (notification.productName) {
-    embed.fields?.push({
-      name: 'Product',
-      value: notification.productName,
-      inline: true,
-    });
-  }
+  const message = `
+🔧 *수동 처리 필요*
 
-  if (notification.country) {
-    embed.fields?.push({
-      name: 'Country',
-      value: notification.country,
-      inline: true,
-    });
-  }
+*Order ID:* \`${escapeMarkdown(notification.orderId)}\`
+*Customer:* ${escapeMarkdown(maskEmail(notification.customerEmail))}
+*Product:* \`${escapeMarkdown(notification.productId)}\`
+${notification.productName ? `*상품명:* ${escapeMarkdown(notification.productName)}` : ''}
+${notification.country ? `*국가:* ${escapeMarkdown(notification.country)}` : ''}
 
-  if (notification.dataAmount) {
-    embed.fields?.push({
-      name: 'Data',
-      value: notification.dataAmount,
-      inline: true,
-    });
-  }
+*시도한 Provider:* ${escapeMarkdown(providers)}
+*사유:* ${escapeMarkdown(notification.reason)}
 
-  // Add attempted providers
-  embed.fields?.push({
-    name: 'Attempted Providers',
-    value: notification.attemptedProviders.length > 0
-      ? notification.attemptedProviders.map(p => `• ${p} (failed)`).join('\n')
-      : 'None (direct manual)',
-    inline: false,
-  });
+📋 *조치 사항:*
+1\\. Provider 대시보드 로그인
+2\\. eSIM 수동 구매
+3\\. QR코드/ICCID로 주문 업데이트
+4\\. 주문 완료 처리
+`.trim();
 
-  // Add reason
-  embed.fields?.push({
-    name: 'Reason',
-    value: notification.reason,
-    inline: false,
-  });
-
-  // Add action items
-  embed.fields?.push({
-    name: '📋 Action Required',
-    value: [
-      '1. Log into provider dashboard',
-      '2. Purchase eSIM manually',
-      '3. Update order with QR code/ICCID',
-      '4. Mark order as completed',
-    ].join('\n'),
-    inline: false,
-  });
-
-  await sendWebhook({ embeds: [embed] });
+  await sendTelegram(message);
 }

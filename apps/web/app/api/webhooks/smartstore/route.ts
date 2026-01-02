@@ -25,7 +25,15 @@ import {
   sendEsimDeliveryAlimtalk,
   type AlimtalkConfig,
 } from '@services/notifications/kakao-alimtalk';
-import { notifyCustom, isDiscordConfigured } from '@services/notifications/discord-notifier';
+import { notifyCustom } from '@services/notifications/discord-notifier';
+import {
+  persistToInbox,
+  markInboxCompleted,
+  markInboxFailed,
+  findExistingInboxEntry,
+  parseInboxPayload,
+  type WebhookInboxEntry,
+} from '@/lib/webhook-inbox';
 
 /**
  * POST /api/webhooks/smartstore
@@ -33,23 +41,35 @@ import { notifyCustom, isDiscordConfigured } from '@services/notifications/disco
  * Naver SmartStore webhook endpoint for order events.
  * Handles payment completion and triggers eSIM fulfillment.
  *
- * IMPORTANT: Naver webhooks do NOT retry on failure.
- * A polling cron job is required as a fallback mechanism.
+ * CRITICAL: Always returns 200 OK to acknowledge receipt.
+ * Naver webhooks do NOT retry on failure, so we must:
+ * 1. Persist to inbox immediately (dead letter queue)
+ * 2. Return 200 regardless of processing result
+ * 3. Process asynchronously (cron job retries failed entries)
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = uuidv4();
 
-  // Check if SmartStore integration is enabled
-  const config = getConfig();
-  if (!config.smartStore?.enabled) {
-    return NextResponse.json(
-      { error: 'SmartStore integration disabled' },
-      { status: 503 }
-    );
-  }
+  // Always return 200 to Naver - they don't retry
+  const createResponse = (data: Record<string, unknown>) => {
+    return NextResponse.json({
+      received: true,
+      correlationId,
+      durationMs: Date.now() - startTime,
+      ...data,
+    });
+  };
 
   try {
+    // Check if SmartStore integration is enabled
+    const config = getConfig();
+    if (!config.smartStore?.enabled) {
+      // Still return 200, but indicate disabled
+      console.log('SmartStore webhook received but integration disabled');
+      return createResponse({ handled: false, reason: 'integration_disabled' });
+    }
+
     // Get raw body for signature verification
     const body = await request.text();
     const signature = request.headers.get('x-naver-signature') || '';
@@ -57,22 +77,29 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     const auth = getSmartStoreAuth();
     if (!auth.verifyWebhookSignature(body, signature)) {
-      console.error('SmartStore webhook signature verification failed');
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      );
+      console.error(JSON.stringify({
+        level: 'error',
+        event: 'webhook_signature_invalid',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      }));
+      // Return 200 but log for security review
+      return createResponse({ handled: false, reason: 'invalid_signature' });
     }
 
     // Parse webhook payload
     let payload: NaverWebhookPayload;
     try {
       payload = JSON.parse(body) as NaverWebhookPayload;
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON payload' },
-        { status: 400 }
-      );
+    } catch (parseError) {
+      console.error(JSON.stringify({
+        level: 'error',
+        event: 'webhook_parse_error',
+        correlationId,
+        error: parseError instanceof Error ? parseError.message : 'Unknown',
+        timestamp: new Date().toISOString(),
+      }));
+      return createResponse({ handled: false, reason: 'invalid_json' });
     }
 
     console.log(
@@ -80,43 +107,144 @@ export async function POST(request: NextRequest) {
       `productOrderIds: ${payload.productOrderIds?.join(', ')}`
     );
 
-    // Handle different event types
+    // For non-critical events, just acknowledge
+    if (['ORDER_DELIVERING', 'ORDER_DELIVERED'].includes(payload.type)) {
+      return createResponse({ handled: true, type: payload.type });
+    }
+
+    // Check for duplicate (idempotency)
+    const existingEntry = await findExistingInboxEntry(
+      payload.type,
+      payload.productOrderIds || []
+    );
+    if (existingEntry) {
+      console.log(JSON.stringify({
+        level: 'info',
+        event: 'webhook_duplicate_detected',
+        correlationId,
+        existingEntryId: existingEntry.id,
+        timestamp: new Date().toISOString(),
+      }));
+      return createResponse({ handled: false, reason: 'duplicate', existingEntryId: existingEntry.id });
+    }
+
+    // CRITICAL: Persist to inbox BEFORE any processing
+    let inboxId: string;
+    try {
+      inboxId = await persistToInbox(payload, correlationId);
+    } catch (persistError) {
+      // This is critical - we couldn't save the webhook
+      console.error(JSON.stringify({
+        level: 'critical',
+        event: 'webhook_inbox_persist_failed',
+        correlationId,
+        error: persistError instanceof Error ? persistError.message : 'Unknown',
+        payload: JSON.stringify(payload).substring(0, 500),
+        timestamp: new Date().toISOString(),
+      }));
+
+      // Try to alert via Discord
+      await notifyCustom(
+        'CRITICAL: Webhook Inbox Persist Failed',
+        `웹훅을 저장하지 못했습니다. 수동 확인 필요!\n\nCorrelationId: ${correlationId}\nEvent: ${payload.type}\nOrders: ${payload.productOrderIds?.join(', ')}`,
+        'error'
+      ).catch(() => {});
+
+      // Still return 200 to prevent Naver from timing out
+      return createResponse({ handled: false, reason: 'inbox_persist_failed', queued: false });
+    }
+
+    // Process webhook asynchronously (fire-and-forget)
+    processWebhookAsync(payload, correlationId, inboxId, config, startTime).catch((error) => {
+      console.error(JSON.stringify({
+        level: 'error',
+        event: 'webhook_async_processing_failed',
+        correlationId,
+        inboxId,
+        error: error instanceof Error ? error.message : 'Unknown',
+        timestamp: new Date().toISOString(),
+      }));
+      // Cron job will retry from inbox
+    });
+
+    // Return 200 immediately - processing continues in background
+    return createResponse({ handled: true, queued: true, inboxId, type: payload.type });
+
+  } catch (error) {
+    // Catastrophic error - still return 200 but log everything
+    console.error(JSON.stringify({
+      level: 'critical',
+      event: 'webhook_catastrophic_failure',
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    }));
+
+    // Emergency Discord notification
+    await notifyCustom(
+      'CRITICAL: SmartStore Webhook Handler Failed',
+      `웹훅 핸들러 치명적 오류!\n\nCorrelationId: ${correlationId}\nError: ${error instanceof Error ? error.message : 'Unknown'}`,
+      'error'
+    ).catch(() => {});
+
+    return createResponse({ handled: false, reason: 'catastrophic_error' });
+  }
+}
+
+/**
+ * Process webhook asynchronously after persisting to inbox.
+ * This function is called fire-and-forget from the main handler.
+ * If it fails, the cron job will retry from the inbox.
+ */
+async function processWebhookAsync(
+  payload: NaverWebhookPayload,
+  correlationId: string,
+  inboxId: string,
+  config: ReturnType<typeof getConfig>,
+  startTime: number
+): Promise<void> {
+  try {
     switch (payload.type) {
       case 'ORDER_PAYMENT_COMPLETE':
-        // New flow: Send guidance alimtalk, dispatch order, set status to awaiting_confirmation
-        return handlePaymentComplete(payload, correlationId, config, startTime);
+        await handlePaymentComplete(payload, correlationId, config, startTime);
+        break;
 
       case 'ORDER_PURCHASE_DECIDED':
-        // Customer confirmed purchase on Naver - trigger eSIM fulfillment
-        return handlePurchaseDecided(payload, correlationId, config, startTime);
+        await handlePurchaseDecided(payload, correlationId, config, startTime);
+        break;
 
       case 'ORDER_CLAIM_REQUESTED':
-        return handleClaimRequest(payload, correlationId);
-
-      case 'ORDER_DELIVERING':
-      case 'ORDER_DELIVERED':
-        // These are sent when we dispatch - just acknowledge
-        return NextResponse.json({
-          received: true,
-          handled: true,
-          type: payload.type,
-        });
+        await handleClaimRequest(payload, correlationId);
+        break;
 
       default:
         console.log(`Unhandled SmartStore event type: ${payload.type}`);
-        return NextResponse.json({
-          received: true,
-          handled: false,
-          type: payload.type,
-        });
+        break;
     }
+
+    // Mark inbox entry as completed
+    await markInboxCompleted(inboxId);
+
   } catch (error) {
-    console.error('SmartStore webhook processing error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    // Mark inbox entry as failed - cron will retry
+    await markInboxFailed(
+      inboxId,
+      error instanceof Error ? error.message : 'Unknown error'
     );
+    throw error; // Re-throw for logging in caller
   }
+}
+
+/**
+ * Process webhook from inbox entry (called by cron job).
+ * Exported for use by process-webhook-inbox cron.
+ */
+export async function processWebhookFromInbox(entry: WebhookInboxEntry): Promise<void> {
+  const payload = parseInboxPayload(entry);
+  const config = getConfig();
+
+  await processWebhookAsync(payload, entry.correlation_id, entry.id, config, Date.now());
 }
 
 /**
@@ -126,15 +254,12 @@ async function handlePaymentComplete(
   payload: NaverWebhookPayload,
   correlationId: string,
   config: ReturnType<typeof getConfig>,
-  startTime: number
-): Promise<NextResponse> {
+  _startTime: number
+): Promise<void> {
   const { productOrderIds } = payload;
 
   if (!productOrderIds?.length) {
-    return NextResponse.json(
-      { error: 'No product order IDs provided' },
-      { status: 400 }
-    );
+    throw new Error('No product order IDs provided');
   }
 
   const pb = await getAdminPocketBase();
@@ -144,23 +269,12 @@ async function handlePaymentComplete(
   // Fetch full order details from Naver
   const ordersResult = await client.getProductOrders(productOrderIds);
   if (!ordersResult.success || !ordersResult.data) {
-    console.error('Failed to fetch orders from Naver:', ordersResult.errorMessage);
-    return NextResponse.json(
-      { error: 'Failed to fetch order details' },
-      { status: 502 }
-    );
+    throw new Error(`Failed to fetch orders from Naver: ${ordersResult.errorMessage}`);
   }
-
-  const results: Array<{
-    productOrderId: string;
-    status: 'success' | 'skipped' | 'failed';
-    orderId?: string;
-    error?: string;
-  }> = [];
 
   // Process each order
   for (const naverOrder of ordersResult.data) {
-    const result = await processNaverOrder(
+    await processNaverOrder(
       naverOrder,
       pb,
       productMapper,
@@ -168,16 +282,7 @@ async function handlePaymentComplete(
       correlationId,
       config
     );
-    results.push(result);
   }
-
-  return NextResponse.json({
-    received: true,
-    handled: true,
-    correlationId,
-    results,
-    durationMs: Date.now() - startTime,
-  });
 }
 
 /**
@@ -351,24 +456,24 @@ async function processNaverOrder(
 async function handleClaimRequest(
   payload: NaverWebhookPayload,
   correlationId: string
-): Promise<NextResponse> {
+): Promise<void> {
   const { productOrderIds } = payload;
 
-  console.log(
-    `SmartStore claim requested for orders: ${productOrderIds?.join(', ')}`,
-    `correlationId: ${correlationId}`
-  );
-
-  // For now, just log and acknowledge
-  // In the future, implement refund/cancellation logic
-  // TODO: Implement claim handling
-
-  return NextResponse.json({
-    received: true,
-    handled: true,
-    type: 'ORDER_CLAIM_REQUESTED',
+  console.log(JSON.stringify({
+    level: 'info',
+    event: 'claim_request_received',
+    productOrderIds,
+    correlationId,
     message: 'Claim request acknowledged, manual review required',
-  });
+    timestamp: new Date().toISOString(),
+  }));
+
+  // Notify admin about claim request
+  await notifyCustom(
+    '환불/취소 요청',
+    `주문 환불/취소 요청이 접수되었습니다. 수동 검토가 필요합니다.\n\n주문ID: ${productOrderIds?.join(', ')}\nCorrelationId: ${correlationId}`,
+    'warning'
+  );
 }
 
 /**
@@ -379,45 +484,25 @@ async function handlePurchaseDecided(
   payload: NaverWebhookPayload,
   correlationId: string,
   config: ReturnType<typeof getConfig>,
-  startTime: number
-): Promise<NextResponse> {
+  _startTime: number
+): Promise<void> {
   const { productOrderIds } = payload;
 
   if (!productOrderIds?.length) {
-    return NextResponse.json(
-      { error: 'No product order IDs provided' },
-      { status: 400 }
-    );
+    throw new Error('No product order IDs provided');
   }
 
   const pb = await getAdminPocketBase();
 
-  const results: Array<{
-    productOrderId: string;
-    status: 'success' | 'skipped' | 'failed';
-    orderId?: string;
-    error?: string;
-  }> = [];
-
   // Process each order
   for (const productOrderId of productOrderIds) {
-    const result = await processPurchaseConfirmation(
+    await processPurchaseConfirmation(
       productOrderId,
       pb,
       correlationId,
       config
     );
-    results.push(result);
   }
-
-  return NextResponse.json({
-    received: true,
-    handled: true,
-    type: 'ORDER_PURCHASE_DECIDED',
-    correlationId,
-    results,
-    durationMs: Date.now() - startTime,
-  });
 }
 
 /**

@@ -36,11 +36,19 @@
   "crons": [
     {
       "path": "/api/cron/sync-smartstore-orders",
-      "schedule": "0 9 * * *"
+      "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/process-webhook-inbox",
+      "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/retry-stuck-orders",
+      "schedule": "*/2 * * * *"
     },
     {
       "path": "/api/cron/smartstore-sync",
-      "schedule": "0 17 * * *"
+      "schedule": "0 */4 * * *"
     }
   ]
 }
