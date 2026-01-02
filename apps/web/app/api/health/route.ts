@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * Health Check Endpoint
@@ -105,7 +106,7 @@ export async function GET() {
           }
         }
       } catch (error) {
-        console.error('Health check orders error:', error);
+        logger.warn('health_check_orders_error', { error: error instanceof Error ? error.message : String(error) });
         // Non-critical, continue
       }
 
@@ -139,11 +140,11 @@ export async function GET() {
         }
       } catch (error) {
         // webhook_inbox collection might not exist yet - not critical
-        console.error('Health check webhook_inbox error:', error);
+        logger.warn('health_check_webhook_inbox_error', { error: error instanceof Error ? error.message : String(error) });
       }
     }
   } catch (error) {
-    console.error('Health check error:', error);
+    logger.error('health_check_error', error);
     result.status = 'unhealthy';
   }
 

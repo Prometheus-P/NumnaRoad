@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pb from '@/lib/pocketbase';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/products
  * 상품 목록 조회
  */
 export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const page = parseInt(searchParams.get('page') || '1');
+  const perPage = parseInt(searchParams.get('perPage') || '20');
+  const country = searchParams.get('country');
+  const search = searchParams.get('search');
+
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const perPage = parseInt(searchParams.get('perPage') || '20');
-    const country = searchParams.get('country');
-    const search = searchParams.get('search');
 
     // 필터 구성
     const filters: string[] = ['is_active=true'];
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Products API error:', error);
+    logger.error('products_api_error', error, { page, perPage, country, search });
     return NextResponse.json(
       {
         success: false,
