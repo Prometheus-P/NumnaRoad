@@ -1,0 +1,68 @@
+{
+  "name": "provider_health_logs",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "provider_slug",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "provider_name",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["healthy", "unhealthy", "degraded", "unknown"]
+      }
+    },
+    {
+      "name": "response_time_ms",
+      "type": "number",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "error_message",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 1000
+      }
+    },
+    {
+      "name": "checked_at",
+      "type": "date",
+      "required": true,
+      "options": {}
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_health_provider ON provider_health_logs (provider_slug)",
+    "CREATE INDEX idx_health_status ON provider_health_logs (status)",
+    "CREATE INDEX idx_health_checked ON provider_health_logs (checked_at)",
+    "CREATE INDEX idx_health_provider_checked ON provider_health_logs (provider_slug, checked_at)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}
