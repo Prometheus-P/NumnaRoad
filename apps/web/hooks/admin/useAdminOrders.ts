@@ -90,6 +90,18 @@ export interface BulkRetryResult {
   failed: number;
 }
 
+export interface RefundData {
+  reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer' | 'other';
+  amount?: number;
+}
+
+export interface RefundResult {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+}
+
 // =============================================================================
 // Query Keys
 // =============================================================================
@@ -154,10 +166,13 @@ export function useRetryOrder(orderId: string) {
 
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/orders/${orderId}/fulfill`, {
+      const res = await fetch(`/api/admin/orders/${orderId}/retry`, {
         method: 'POST',
       });
-      if (!res.ok) throw new Error('Retry failed');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Retry failed');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -264,4 +279,50 @@ export const RETRYABLE_STATES = [
  */
 export function isRetryableOrder(status: string): boolean {
   return RETRYABLE_STATES.includes(status as (typeof RETRYABLE_STATES)[number]);
+}
+
+/**
+ * Order states that can be refunded.
+ */
+export const REFUNDABLE_STATES = [
+  'delivered',
+  'pending_manual_fulfillment',
+  'provider_failed',
+  'failed',
+] as const;
+
+/**
+ * Check if an order can be refunded.
+ */
+export function isRefundableOrder(status: string, paymentStatus: string): boolean {
+  return (
+    REFUNDABLE_STATES.includes(status as (typeof REFUNDABLE_STATES)[number]) &&
+    paymentStatus === 'paid'
+  );
+}
+
+/**
+ * Refund an order.
+ */
+export function useRefundOrder(orderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ success: boolean; refund: RefundResult }, Error, RefundData | undefined>({
+    mutationFn: async (data?: RefundData) => {
+      const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data || {}),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Refund failed');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+  });
 }

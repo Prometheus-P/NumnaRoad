@@ -13,9 +13,12 @@ export {
   useBulkRetryOrders,
   useManualFulfillment,
   useResendEmail,
+  useRefundOrder,
   orderKeys,
   isRetryableOrder,
+  isRefundableOrder,
   RETRYABLE_STATES,
+  REFUNDABLE_STATES,
   type Order,
   type OrderDetail,
   type OrderLog,
@@ -23,6 +26,8 @@ export {
   type OrderListOptions,
   type ManualFulfillmentData,
   type BulkRetryResult,
+  type RefundData,
+  type RefundResult,
 } from './useAdminOrders';
 
 // Product hooks

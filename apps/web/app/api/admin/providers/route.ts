@@ -39,9 +39,14 @@ export async function GET(request: NextRequest) {
         const result = providers.map((provider) => ({
           id: provider.id,
           name: provider.name,
+          slug: provider.slug,
           priority: provider.priority || 1,
           isActive: provider.is_active !== false,
           apiEndpoint: provider.api_endpoint,
+          state: provider.circuit_breaker_state || 'CLOSED',
+          successRate: provider.success_rate || 1,
+          consecutiveFailures: provider.consecutive_failures || 0,
+          lastFailureAt: provider.last_failure_at,
         }));
 
         return NextResponse.json(result);
