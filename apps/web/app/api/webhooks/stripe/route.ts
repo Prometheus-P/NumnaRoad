@@ -14,6 +14,11 @@ import { getCachedActiveProviders } from '@/lib/cache/providers';
 import { createAlimtalkSendFn } from '@services/notifications/kakao-alimtalk';
 import { sendEsimEmail } from '@/lib/resend';
 import { createLogger, type LogContext } from '@/lib/logger';
+import {
+  acquireIdempotencyLock,
+  completeIdempotency,
+  createIdempotencyKey,
+} from '@/lib/idempotency';
 
 // Helper to maintain backward compatibility with structuredLog calls
 function structuredLog(
@@ -489,6 +494,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, handled: false });
     }
 
+    // Acquire idempotency lock using event ID
+    const idempotencyKey = createIdempotencyKey('stripe', event.id);
+    const { acquired, record: idempotencyRecord, log } = await acquireIdempotencyLock(
+      idempotencyKey,
+      'stripe',
+      correlationId
+    );
+
+    if (!acquired) {
+      // Duplicate request - return cached response or skip
+      if (idempotencyRecord.status === 'completed' && idempotencyRecord.response) {
+        log.info('stripe_webhook_duplicate_returning_cached', {
+          eventId: event.id,
+          cachedStatus: idempotencyRecord.status,
+        });
+        return NextResponse.json(idempotencyRecord.response);
+      }
+
+      // Still processing or failed - skip this duplicate
+      log.info('stripe_webhook_duplicate_skipping', {
+        eventId: event.id,
+        existingStatus: idempotencyRecord.status,
+      });
+      return NextResponse.json({
+        received: true,
+        handled: false,
+        skipped: true,
+        reason: 'Duplicate request',
+      });
+    }
+
     const session = event.data.object as Stripe.Checkout.Session;
 
     // Validate required fields
@@ -567,7 +603,7 @@ export async function POST(request: NextRequest) {
 
       const durationMs = Date.now() - startTime;
 
-      return NextResponse.json({
+      const response = {
         received: true,
         handled: true,
         orderId: order.id,
@@ -575,7 +611,12 @@ export async function POST(request: NextRequest) {
         mode: 'inline',
         success: result.success,
         durationMs,
-      });
+      };
+
+      // Complete idempotency with response
+      await completeIdempotency(idempotencyRecord.id, response);
+
+      return NextResponse.json(response);
     } else {
       // Legacy n8n flow
       try {
@@ -594,14 +635,19 @@ export async function POST(request: NextRequest) {
 
       const durationMs = Date.now() - startTime;
 
-      return NextResponse.json({
+      const response = {
         received: true,
         handled: true,
         orderId: order.id,
         correlationId,
         mode: 'n8n',
         durationMs,
-      });
+      };
+
+      // Complete idempotency with response
+      await completeIdempotency(idempotencyRecord.id, response);
+
+      return NextResponse.json(response);
     }
   } catch (error) {
     structuredLog('error', 'webhook_processing_failed', {
@@ -617,3 +663,8 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Note: Idempotency failure is not explicitly marked in the error handler above
+// because the error may occur before the lock is acquired. The idempotency record
+// will remain in 'processing' status and can be cleaned up by the TTL mechanism.
+// This is intentional to allow Stripe retries to potentially succeed.

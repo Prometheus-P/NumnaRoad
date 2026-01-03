@@ -36,6 +36,12 @@ import {
   type WebhookInboxEntry,
 } from '@/lib/webhook-inbox';
 import { logger } from '@/lib/logger';
+import {
+  acquireIdempotencyLock,
+  completeIdempotency,
+  failIdempotency,
+  createIdempotencyKey,
+} from '@/lib/idempotency';
 
 /**
  * POST /api/webhooks/smartstore
@@ -103,13 +109,43 @@ export async function POST(request: NextRequest) {
       return createResponse({ handled: true, type: payload.type });
     }
 
-    // Check for duplicate (idempotency)
+    // Create idempotency key from event type and product order IDs
+    const productOrderIds = payload.productOrderIds || [];
+    const idempotencyKey = createIdempotencyKey(
+      'smartstore',
+      payload.type,
+      ...productOrderIds.slice(0, 5) // Limit to 5 IDs to prevent key explosion
+    );
+
+    // Check for duplicate via idempotency module (primary check)
+    const { acquired, record: idempotencyRecord, log } = await acquireIdempotencyLock(
+      idempotencyKey,
+      'smartstore',
+      correlationId
+    );
+
+    if (!acquired) {
+      log.info('smartstore_webhook_idempotency_duplicate', {
+        type: payload.type,
+        productOrderIds,
+        existingStatus: idempotencyRecord.status,
+      });
+      return createResponse({
+        handled: false,
+        reason: 'duplicate',
+        existingRecordId: idempotencyRecord.id,
+      });
+    }
+
+    // Also check inbox for additional safety (legacy check)
     const existingEntry = await findExistingInboxEntry(
       payload.type,
-      payload.productOrderIds || []
+      productOrderIds
     );
     if (existingEntry) {
-      logger.info('smartstore_webhook_duplicate_detected', { correlationId, existingEntryId: existingEntry.id });
+      // Mark idempotency as completed since we found a duplicate in inbox
+      await completeIdempotency(idempotencyRecord.id, { duplicate: true, existingEntryId: existingEntry.id });
+      logger.info('smartstore_webhook_inbox_duplicate_detected', { correlationId, existingEntryId: existingEntry.id });
       return createResponse({ handled: false, reason: 'duplicate', existingEntryId: existingEntry.id });
     }
 
@@ -136,9 +172,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Process webhook asynchronously (fire-and-forget)
-    processWebhookAsync(payload, correlationId, inboxId, config, startTime).catch((error) => {
+    // Include idempotency record ID for completion/failure tracking
+    processWebhookAsync(payload, correlationId, inboxId, config, startTime, idempotencyRecord.id).catch((error) => {
       logger.error('smartstore_webhook_async_processing_failed', error, { correlationId, inboxId });
       // Cron job will retry from inbox
+      // Idempotency record will be marked as failed in processWebhookAsync
     });
 
     // Return 200 immediately - processing continues in background
@@ -169,7 +207,8 @@ async function processWebhookAsync(
   correlationId: string,
   inboxId: string,
   config: ReturnType<typeof getConfig>,
-  startTime: number
+  startTime: number,
+  idempotencyRecordId?: string
 ): Promise<void> {
   try {
     switch (payload.type) {
@@ -193,12 +232,30 @@ async function processWebhookAsync(
     // Mark inbox entry as completed
     await markInboxCompleted(inboxId);
 
+    // Mark idempotency as completed
+    if (idempotencyRecordId) {
+      await completeIdempotency(idempotencyRecordId, {
+        success: true,
+        inboxId,
+        processedAt: new Date().toISOString(),
+      });
+    }
+
   } catch (error) {
     // Mark inbox entry as failed - cron will retry
     await markInboxFailed(
       inboxId,
       error instanceof Error ? error.message : 'Unknown error'
     );
+
+    // Mark idempotency as failed
+    if (idempotencyRecordId) {
+      await failIdempotency(
+        idempotencyRecordId,
+        error instanceof Error ? error : String(error)
+      );
+    }
+
     throw error; // Re-throw for logging in caller
   }
 }

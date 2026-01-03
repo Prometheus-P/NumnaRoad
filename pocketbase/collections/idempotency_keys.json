@@ -1,0 +1,69 @@
+{
+  "name": "idempotency_keys",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "key",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {
+        "min": 1,
+        "max": 255
+      }
+    },
+    {
+      "name": "source",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["stripe", "smartstore", "airalo", "other"]
+      }
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["processing", "completed", "failed"]
+      }
+    },
+    {
+      "name": "response",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "expires_at",
+      "type": "date",
+      "required": true,
+      "options": {}
+    },
+    {
+      "name": "correlation_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 36
+      }
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_idempotency_key ON idempotency_keys (key)",
+    "CREATE INDEX idx_idempotency_expires ON idempotency_keys (expires_at)",
+    "CREATE INDEX idx_idempotency_source ON idempotency_keys (source)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}
