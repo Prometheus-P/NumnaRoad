@@ -1,0 +1,80 @@
+{
+  "name": "cron_execution_logs",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "job_name",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "instance_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "started_at",
+      "type": "date",
+      "required": true,
+      "options": {}
+    },
+    {
+      "name": "completed_at",
+      "type": "date",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "duration_ms",
+      "type": "number",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["running", "success", "failed", "timeout", "skipped"]
+      }
+    },
+    {
+      "name": "error_message",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 2000
+      }
+    },
+    {
+      "name": "items_processed",
+      "type": "number",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_cron_job_name ON cron_execution_logs (job_name)",
+    "CREATE INDEX idx_cron_status ON cron_execution_logs (status)",
+    "CREATE INDEX idx_cron_started ON cron_execution_logs (started_at)",
+    "CREATE INDEX idx_cron_job_started ON cron_execution_logs (job_name, started_at)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

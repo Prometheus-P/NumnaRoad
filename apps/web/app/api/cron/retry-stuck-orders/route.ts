@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import { verifyCronAuth } from '@/lib/admin-auth';
 import { acquireLock, releaseLock } from '@/lib/cron-lock';
+import { withCronMonitor, CronMonitorContext } from '@/lib/cron-monitor';
 import { logger } from '@/lib/logger';
 
 /**
@@ -17,10 +18,6 @@ import { logger } from '@/lib/logger';
 
 const JOB_NAME = 'retry-stuck-orders';
 
-// Stuck order states that need retry (reserved for future filtering)
-// TODO: Use for state-based filtering when implementing selective retry
-// const STUCK_STATES = ['fulfillment_started', 'payment_received'];
-
 // Max age for stuck orders (5 minutes)
 const MAX_STUCK_AGE_MS = 5 * 60 * 1000;
 
@@ -35,7 +32,10 @@ interface StuckOrder {
   correlation_id: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handleRetryStuckOrders(
+  request: NextRequest,
+  monitor: CronMonitorContext
+): Promise<NextResponse> {
   // Verify cron secret - fails closed if not configured
   const authResult = verifyCronAuth(request);
   if (!authResult.valid) {
@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
       expiresAt: lockResult.expiresAt?.toISOString(),
     });
 
+    monitor.markSkipped(`Lock held by ${lockResult.heldBy}`);
+
     return NextResponse.json({
       success: true,
       skipped: true,
@@ -75,6 +77,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (stuckOrders.items.length === 0) {
+      monitor.setItemsProcessed(0);
       return NextResponse.json({
         success: true,
         message: 'No stuck orders found',
@@ -109,25 +112,27 @@ export async function POST(request: NextRequest) {
 
     logger.info('cron_job_completed', { job: JOB_NAME, results });
 
+    // Track items processed for monitoring
+    monitor.setItemsProcessed(results.processed);
+    monitor.addMetadata('retried', results.retried);
+    monitor.addMetadata('failed', results.failed);
+
     return NextResponse.json({
       success: true,
       message: `Processed ${results.processed} stuck orders`,
       ...results,
     });
-  } catch (error) {
-    logger.error('cron_job_error', error, { job: JOB_NAME });
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
   } finally {
     // Always release the lock
     await releaseLock(JOB_NAME, lockResult.lockId);
   }
 }
+
+export const POST = withCronMonitor(JOB_NAME, handleRetryStuckOrders, {
+  expectedDurationMs: 60000, // 1 minute expected
+  alertOnFailure: true,
+  alertOnTimeout: true,
+});
 
 // Also support GET for manual triggering (with auth)
 export async function GET(request: NextRequest) {
