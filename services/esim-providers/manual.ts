@@ -21,6 +21,7 @@ import {
   notifyManualFulfillmentRequired,
   isDiscordConfigured,
 } from '../notifications';
+import { logger } from '../logger';
 
 /**
  * Extended purchase request with additional context for manual fulfillment
@@ -57,7 +58,7 @@ export class ManualProvider extends BaseProvider {
 
     // Check if Discord is configured
     if (!isDiscordConfigured()) {
-      console.warn('Discord webhook not configured - cannot send manual fulfillment notification');
+      logger.warn('manual_fulfillment_discord_not_configured');
       return {
         success: false,
         errorType: 'provider_error',
@@ -91,7 +92,7 @@ export class ManualProvider extends BaseProvider {
 
       return result;
     } catch (error) {
-      console.error('Failed to send manual fulfillment notification:', error);
+      logger.error('manual_fulfillment_notification_failed', error);
 
       return {
         success: false,

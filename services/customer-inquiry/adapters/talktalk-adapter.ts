@@ -12,6 +12,7 @@ import type {
   ReplyResult,
   FetchOptions,
 } from './types';
+import { logger } from '../../logger';
 
 // =============================================================================
 // Configuration
@@ -155,7 +156,7 @@ export class TalkTalkInquiryAdapter implements InquiryChannelAdapter {
       const result: TalkTalkMessageResponse = await response.json();
 
       if (!result.success || result.resultCode !== '00') {
-        console.error('[TalkTalkAdapter] Failed to send reply:', result);
+        logger.error('talktalk_reply_failed', undefined, { resultCode: result.resultCode, resultMessage: result.resultMessage });
         return {
           success: false,
           error: result.resultMessage || 'Failed to send TalkTalk message',
@@ -169,7 +170,7 @@ export class TalkTalkInquiryAdapter implements InquiryChannelAdapter {
         deliveryStatus: 'sent',
       };
     } catch (error) {
-      console.error('[TalkTalkAdapter] sendReply error:', error);
+      logger.error('talktalk_reply_error', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

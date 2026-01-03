@@ -8,6 +8,7 @@
  */
 
 import { SolapiMessageService } from 'solapi';
+import { logger } from '../logger';
 
 // =============================================================================
 // Types
@@ -194,7 +195,7 @@ export async function sendEsimDeliveryAlimtalk(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Kakao Alimtalk] Send failed:', errorMessage);
+    logger.error('alimtalk_esim_delivery_failed', error, { phone: formattedPhone });
 
     return {
       success: false,
@@ -260,13 +261,10 @@ export async function sendOrderReceivedAlimtalk(
       },
     });
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'order_received_alimtalk_sent',
+    logger.info('alimtalk_order_received_sent', {
       orderId: params.orderId,
       messageId: result.groupInfo?.groupId,
-      timestamp: new Date().toISOString(),
-    }));
+    });
 
     return {
       success: true,
@@ -274,13 +272,7 @@ export async function sendOrderReceivedAlimtalk(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'order_received_alimtalk_failed',
-      orderId: params.orderId,
-      error: errorMessage,
-      timestamp: new Date().toISOString(),
-    }));
+    logger.error('alimtalk_order_received_failed', error, { orderId: params.orderId });
 
     return {
       success: false,

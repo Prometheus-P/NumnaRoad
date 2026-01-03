@@ -10,6 +10,7 @@
  */
 
 import type { ErrorType } from '../esim-providers/types';
+import { logger } from '../logger';
 
 // =============================================================================
 // Types
@@ -256,7 +257,7 @@ export async function testWebhookConnection(): Promise<boolean> {
     await notifyCustom('🔔 Test', 'Telegram 알림이 정상 작동합니다.', 'info');
     return true;
   } catch (error) {
-    console.error('Telegram test failed:', error);
+    logger.error('telegram_webhook_test_failed', error);
     return false;
   }
 }

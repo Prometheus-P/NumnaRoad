@@ -37,6 +37,7 @@ import {
   isDiscordConfigured,
 } from '../notifications';
 import { AutomationLogger, createAutomationLogger } from '../logging';
+import { logger as structuredLogger } from '../logger';
 
 // =============================================================================
 // Types
@@ -482,7 +483,7 @@ export class FulfillmentService {
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
-        console.error('Failed to send Discord notification:', error);
+        structuredLogger.error('discord_notification_failed', error, { orderId: order.orderId });
       }
     }
 
@@ -595,7 +596,7 @@ export class FulfillmentService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       manualStep.fail({ message: errorMessage, type: 'unknown' });
-      console.error('Failed to attempt manual fulfillment:', error);
+      structuredLogger.error('manual_fulfillment_attempt_failed', error, { orderId: order.orderId });
       return null;
     }
   }

@@ -13,6 +13,7 @@ import type {
   ReplyResult,
   FetchOptions,
 } from './types';
+import { logger } from '../../logger';
 
 // =============================================================================
 // Configuration
@@ -81,7 +82,7 @@ export class EmailInquiryAdapter implements InquiryChannelAdapter {
       });
 
       if (error) {
-        console.error('[EmailAdapter] Failed to send reply:', error);
+        logger.error('email_reply_failed', undefined, { errorMessage: error.message });
         return {
           success: false,
           error: error.message,
@@ -95,7 +96,7 @@ export class EmailInquiryAdapter implements InquiryChannelAdapter {
         deliveryStatus: 'sent',
       };
     } catch (error) {
-      console.error('[EmailAdapter] sendReply error:', error);
+      logger.error('email_reply_error', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -20,6 +20,7 @@ import {
   registerProvider,
 } from './provider-factory';
 import { ProviderSlug, ErrorType } from './types';
+import { logger } from '../logger';
 
 const REDTEAGO_API_URL = process.env.REDTEAGO_API_URL || 'https://api.esimaccess.com/api/v1';
 
@@ -190,13 +191,13 @@ export class RedteaGOProvider extends BaseProvider {
 
       // Log low balance warning
       if (data.data.balance < 10) {
-        console.warn(`RedteaGO low balance warning: $${data.data.balance}`);
+        logger.warn('redteago_low_balance', { balance: data.data.balance });
       }
 
       // Check if we have sufficient balance (at least $1)
       return data.data.balance >= 1;
     } catch (error) {
-      console.error('RedteaGO health check failed:', error);
+      logger.error('redteago_health_check_failed', error);
       return false;
     }
   }
@@ -230,7 +231,7 @@ export class RedteaGOProvider extends BaseProvider {
 
       return response.json();
     } catch (error) {
-      console.error('Error fetching RedteaGO packages:', error);
+      logger.error('redteago_packages_fetch_failed', error);
       // Preserve error cause chain for debugging
       throw new Error('RedteaGO package fetch failed', { cause: error });
     }
@@ -266,7 +267,7 @@ export class RedteaGOProvider extends BaseProvider {
 
       return null;
     } catch (error) {
-      console.error('Error fetching RedteaGO balance:', error);
+      logger.error('redteago_balance_fetch_failed', error);
       return null;
     }
   }
@@ -293,7 +294,7 @@ export class RedteaGOProvider extends BaseProvider {
       errorMessage = body.msg || errorMessage;
     } catch (parseError) {
       // Log JSON parse failure but continue with HTTP status message
-      console.warn('Failed to parse error response body:', parseError);
+      logger.warn('redteago_error_response_parse_failed', { parseError: parseError instanceof Error ? parseError.message : 'Unknown' });
     }
 
     return {

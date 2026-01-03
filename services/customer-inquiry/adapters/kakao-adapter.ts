@@ -12,6 +12,7 @@ import type {
   ReplyResult,
   FetchOptions,
 } from './types';
+import { logger } from '../../logger';
 
 // =============================================================================
 // Configuration
@@ -115,7 +116,7 @@ export class KakaoInquiryAdapter implements InquiryChannelAdapter {
       const result: KakaoApiResponse<{ messageId: string }> = await response.json();
 
       if (!result.success || !response.ok) {
-        console.error('[KakaoAdapter] Failed to send reply:', result.error);
+        logger.error('kakao_reply_failed', undefined, { errorCode: result.error?.code, errorMessage: result.error?.message });
         return {
           success: false,
           error: result.error?.message || 'Failed to send Kakao message',
@@ -129,7 +130,7 @@ export class KakaoInquiryAdapter implements InquiryChannelAdapter {
         deliveryStatus: 'sent',
       };
     } catch (error) {
-      console.error('[KakaoAdapter] sendReply error:', error);
+      logger.error('kakao_reply_error', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

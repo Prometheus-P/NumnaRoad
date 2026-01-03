@@ -23,6 +23,7 @@ import {
   AiraloTopUpResponse,
   AiraloTopUpPackagesResponse,
 } from './types';
+import { logger } from '../logger';
 
 export class AiraloProvider extends BaseProvider {
   readonly slug: ProviderSlug = 'airalo';
@@ -153,7 +154,7 @@ export class AiraloProvider extends BaseProvider {
 
       return response.json();
     } catch (error) {
-      console.error('Error fetching Airalo packages:', error);
+      logger.error('airalo_packages_fetch_failed', error);
       throw error;
     }
   }
@@ -170,7 +171,7 @@ export class AiraloProvider extends BaseProvider {
 
       return allEsimProducts;
     } catch (error) {
-      console.error('Error syncing Airalo products:', error);
+      logger.error('airalo_products_sync_failed', error);
       throw error;
     }
   }
@@ -194,7 +195,7 @@ export class AiraloProvider extends BaseProvider {
 
       return response.json();
     } catch (error) {
-      console.error('Error fetching Airalo SIM instructions:', error);
+      logger.error('airalo_sim_instructions_fetch_failed', error);
       throw error;
     }
   }

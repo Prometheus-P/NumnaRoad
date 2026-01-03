@@ -6,6 +6,7 @@
  */
 
 import type PocketBase from 'pocketbase';
+import { logger } from '../logger';
 import type {
   InquiryChannelAdapter,
   InquiryChannel,
@@ -118,28 +119,28 @@ function initializeAdapters() {
   try {
     registerAdapter(getSmartStoreAdapter());
   } catch {
-    console.warn('[InquiryService] SmartStore adapter not available');
+    logger.warn('inquiry_adapter_not_available', { adapter: 'smartstore' });
   }
 
   // Email adapter
   try {
     registerAdapter(getEmailAdapter());
   } catch {
-    console.warn('[InquiryService] Email adapter not available');
+    logger.warn('inquiry_adapter_not_available', { adapter: 'email' });
   }
 
   // Kakao adapter
   try {
     registerAdapter(getKakaoAdapter());
   } catch {
-    console.warn('[InquiryService] Kakao adapter not available');
+    logger.warn('inquiry_adapter_not_available', { adapter: 'kakao' });
   }
 
   // TalkTalk adapter
   try {
     registerAdapter(getTalkTalkAdapter());
   } catch {
-    console.warn('[InquiryService] TalkTalk adapter not available');
+    logger.warn('inquiry_adapter_not_available', { adapter: 'talktalk' });
   }
 
   adaptersInitialized = true;

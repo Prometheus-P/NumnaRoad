@@ -19,6 +19,7 @@ import {
   notifyCustom,
   isDiscordConfigured,
 } from '../notifications';
+import { logger } from '../logger';
 
 // =============================================================================
 // Types
@@ -207,7 +208,7 @@ export class OrderStateMachine {
     metadata?: StateTransitionMetadata
   ): Promise<void> {
     if (!isDiscordConfigured()) {
-      console.warn('Discord not configured, skipping alert');
+      logger.warn('alert_skipped_discord_not_configured', { orderId, state });
       return;
     }
 
@@ -232,7 +233,7 @@ export class OrderStateMachine {
         );
       }
     } catch (error) {
-      console.error('Failed to send alert:', error);
+      logger.error('alert_send_failed', error, { orderId, state });
     }
   }
 }

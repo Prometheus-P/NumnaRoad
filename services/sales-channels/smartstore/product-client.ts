@@ -25,6 +25,7 @@ import type {
   ImageUploadResponse,
   ProductStatusType,
 } from './product-types';
+import { logger } from '../../logger';
 
 /** API base URL - use v2 for product APIs */
 const NAVER_API_BASE_URL =
@@ -514,7 +515,7 @@ export class SmartStoreProductClient {
       const result = await this.listProducts({ page: 0, size: 1 });
       return result.success;
     } catch (error) {
-      console.error('SmartStore Product API health check failed:', error);
+      logger.error('smartstore_product_api_health_check_failed', error);
       return false;
     }
   }

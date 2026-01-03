@@ -10,6 +10,7 @@
  */
 
 import { notifyCustom, isDiscordConfigured } from './discord-notifier';
+import { logger } from '../logger';
 
 export type AlertLevel = 'info' | 'warning' | 'error' | 'critical';
 
@@ -50,16 +51,8 @@ async function logToDatabase(alert: Alert): Promise<boolean> {
 
     return true;
   } catch (error) {
-    // Log to console as last resort
-    console.error(
-      JSON.stringify({
-        level: 'critical',
-        event: 'alert_database_failed',
-        alert,
-        error: error instanceof Error ? error.message : 'Unknown',
-        timestamp: new Date().toISOString(),
-      })
-    );
+    // Log as last resort when database fails
+    logger.error('alert_database_failed', error, { alert });
     return false;
   }
 }
@@ -90,15 +83,7 @@ async function sendDiscord(alert: Alert): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: 'warn',
-        event: 'alert_discord_failed',
-        alertTitle: alert.title,
-        error: error instanceof Error ? error.message : 'Unknown',
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.warn('alert_discord_failed', { alertTitle: alert.title, error: error instanceof Error ? error.message : 'Unknown' });
     return false;
   }
 }
@@ -146,15 +131,7 @@ This is an automated alert from NumnaRoad operations.
 
     return true;
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: 'warn',
-        event: 'alert_email_failed',
-        alertTitle: alert.title,
-        error: error instanceof Error ? error.message : 'Unknown',
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.warn('alert_email_failed', { alertTitle: alert.title, error: error instanceof Error ? error.message : 'Unknown' });
     return false;
   }
 }
@@ -214,15 +191,7 @@ export async function dispatchAlert(alert: Alert): Promise<AlertDispatchResult> 
 
   // Log if all channels failed
   if (!result.database && !result.discord && !result.email) {
-    console.error(
-      JSON.stringify({
-        level: 'critical',
-        event: 'all_alert_channels_failed',
-        alert,
-        errors: result.errors,
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.error('all_alert_channels_failed', undefined, { alert, errors: result.errors });
   }
 
   return result;

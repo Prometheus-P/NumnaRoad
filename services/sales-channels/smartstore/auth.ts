@@ -11,6 +11,7 @@
 
 import type { NaverAccessToken, NaverAuthConfig } from './types';
 import bcrypt from 'bcryptjs';
+import { logger } from '../../logger';
 
 const NAVER_AUTH_URL = 'https://api.commerce.naver.com/external/v1/oauth2/token';
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000; // Refresh 1 minute before expiry
@@ -140,10 +141,10 @@ export class SmartStoreAuth {
         expiresAt,
       };
 
-      console.log(`SmartStore token refreshed, expires at ${expiresAt.toISOString()}`);
+      logger.info('smartstore_token_refreshed', { expiresAt: expiresAt.toISOString() });
       return this.token.accessToken;
     } catch (error) {
-      console.error('Failed to refresh SmartStore token:', error);
+      logger.error('smartstore_token_refresh_failed', error);
       throw error;
     }
   }
@@ -178,7 +179,7 @@ export class SmartStoreAuth {
   ): boolean {
     const webhookSecret = secret || process.env.NAVER_COMMERCE_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.warn('Webhook secret not configured, skipping signature verification');
+      logger.warn('smartstore_webhook_secret_not_configured');
       return true; // Skip verification if secret not configured
     }
 
@@ -196,7 +197,7 @@ export class SmartStoreAuth {
         Buffer.from(expectedSignature)
       );
     } catch (error) {
-      console.error('Webhook signature verification failed:', error);
+      logger.error('smartstore_webhook_signature_verification_failed', error);
       return false;
     }
   }

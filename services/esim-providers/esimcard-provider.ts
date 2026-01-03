@@ -4,6 +4,8 @@
  * API Documentation: https://api.esimcard.com/docs
  */
 
+import { logger } from '../logger';
+
 // Legacy provider interface for eSIM Card
 interface ESIMProvider {
   readonly name: string;
@@ -61,7 +63,7 @@ export class ESIMCardProvider implements ESIMProvider {
     this.apiUrl = process.env.ESIM_CARD_API_URL || 'https://api.esimcard.com/v1';
 
     if (!this.apiKey) {
-      console.warn('⚠️ ESIM_CARD_API_KEY not set');
+      logger.warn('esimcard_api_key_not_set');
     }
   }
 
@@ -164,7 +166,7 @@ export class ESIMCardProvider implements ESIMProvider {
       if (response.status === 429) {
         const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
         if (attempt < this.maxRetries) {
-          console.log(`Rate limited. Retrying after ${retryAfter}s...`);
+          logger.info('esimcard_rate_limited_retrying', { retryAfter, attempt });
           await this.sleep(retryAfter * 1000);
           return this.fetchWithRetry(url, options, attempt + 1);
         }
@@ -172,7 +174,7 @@ export class ESIMCardProvider implements ESIMProvider {
 
       // 5xx 에러 재시도
       if (response.status >= 500 && attempt < this.maxRetries) {
-        console.log(`Server error (${response.status}). Retrying attempt ${attempt + 1}...`);
+        logger.info('esimcard_server_error_retrying', { status: response.status, attempt: attempt + 1 });
         await this.sleep(this.retryDelay * attempt);
         return this.fetchWithRetry(url, options, attempt + 1);
       }
@@ -184,7 +186,7 @@ export class ESIMCardProvider implements ESIMProvider {
       return response;
     } catch (error) {
       if (attempt < this.maxRetries && this.isRetryableError(error)) {
-        console.log(`Request failed. Retrying attempt ${attempt + 1}...`);
+        logger.info('esimcard_request_failed_retrying', { attempt: attempt + 1 });
         await this.sleep(this.retryDelay * attempt);
         return this.fetchWithRetry(url, options, attempt + 1);
       }

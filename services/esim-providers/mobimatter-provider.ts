@@ -4,6 +4,8 @@
  * API Documentation: https://api.mobimatter.com/docs
  */
 
+import { logger } from '../logger';
+
 // Legacy provider interface for MobiMatter
 interface ESIMProvider {
   readonly name: string;
@@ -61,7 +63,7 @@ export class MobiMatterProvider implements ESIMProvider {
     this.apiUrl = process.env.MOBIMATTER_API_URL || 'https://api.mobimatter.com/v1';
 
     if (!this.apiKey) {
-      console.warn('⚠️ MOBIMATTER_API_KEY not set');
+      logger.warn('mobimatter_api_key_not_set');
     }
   }
 
@@ -164,7 +166,7 @@ export class MobiMatterProvider implements ESIMProvider {
       if (response.status === 429) {
         const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
         if (attempt < this.maxRetries) {
-          console.log(`Rate limited. Retrying after ${retryAfter}s...`);
+          logger.info('mobimatter_rate_limited_retrying', { retryAfter, attempt });
           await this.sleep(retryAfter * 1000);
           return this.fetchWithRetry(url, options, attempt + 1);
         }
@@ -172,7 +174,7 @@ export class MobiMatterProvider implements ESIMProvider {
 
       // 5xx 에러 재시도
       if (response.status >= 500 && attempt < this.maxRetries) {
-        console.log(`Server error (${response.status}). Retrying attempt ${attempt + 1}...`);
+        logger.info('mobimatter_server_error_retrying', { status: response.status, attempt: attempt + 1 });
         await this.sleep(this.retryDelay * attempt);
         return this.fetchWithRetry(url, options, attempt + 1);
       }
@@ -184,7 +186,7 @@ export class MobiMatterProvider implements ESIMProvider {
       return response;
     } catch (error) {
       if (attempt < this.maxRetries && this.isRetryableError(error)) {
-        console.log(`Request failed. Retrying attempt ${attempt + 1}...`);
+        logger.info('mobimatter_request_failed_retrying', { attempt: attempt + 1 });
         await this.sleep(this.retryDelay * attempt);
         return this.fetchWithRetry(url, options, attempt + 1);
       }

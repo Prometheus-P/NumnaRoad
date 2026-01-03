@@ -6,6 +6,7 @@
 
 import { getSmartStoreClient } from '../../sales-channels/smartstore/client';
 import type { NaverInquiry } from '../../sales-channels/smartstore/types';
+import { logger } from '../../logger';
 import type {
   InquiryChannelAdapter,
   ExternalInquiry,
@@ -66,7 +67,7 @@ export class SmartStoreInquiryAdapter implements InquiryChannelAdapter {
     });
 
     if (!result.success || !result.data) {
-      console.error('[SmartStoreAdapter] Failed to fetch inquiries:', result.errorMessage);
+      logger.error('smartstore_inquiry_fetch_failed', undefined, { errorMessage: result.errorMessage });
       return [];
     }
 

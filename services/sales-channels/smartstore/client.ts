@@ -21,6 +21,7 @@ import type {
   SmartStoreResult,
   SmartStoreErrorType,
 } from './types';
+import { logger } from '../../logger';
 
 const NAVER_API_BASE_URL = process.env.NAVER_COMMERCE_API_URL || 'https://api.commerce.naver.com/external/v1';
 const DEFAULT_TIMEOUT_MS = 10000;
@@ -465,7 +466,7 @@ export class SmartStoreClient {
 
       return result.success;
     } catch (error) {
-      console.error('SmartStore health check failed:', error);
+      logger.error('smartstore_health_check_failed', error);
       return false;
     }
   }
