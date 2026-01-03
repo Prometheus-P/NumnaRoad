@@ -1,11 +1,26 @@
 /**
- * Environment configuration loader with validation
+ * Environment Configuration Module
  *
- * All environment variables are validated at startup to fail fast
- * if required configuration is missing.
+ * Centralized environment variable management with:
+ * - Type-safe configuration access
+ * - Startup validation for required variables
+ * - Default values for optional variables
+ * - Feature flag support
+ *
+ * Usage:
+ * ```typescript
+ * import { getConfig } from '@/lib/config';
+ *
+ * const config = getConfig();
+ * console.log(config.app.url);
+ * ```
  */
 
-interface Config {
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface Config {
   pocketbase: {
     url: string;
     adminEmail: string;
@@ -83,6 +98,25 @@ interface Config {
       orderReceivedTemplateId: string;
     };
   };
+  webhooks: {
+    airaloSecret: string;
+    cronSecret: string;
+    internalApiKey: string;
+  };
+  telegram: {
+    botToken: string;
+    errorChatId: string;
+  };
+}
+
+// =============================================================================
+// Validation Tracking
+// =============================================================================
+
+interface ValidationResult {
+  valid: boolean;
+  missing: string[];
+  warnings: string[];
 }
 
 let configInstance: Config | null = null;
@@ -223,6 +257,15 @@ export function getConfig(): Config {
         orderReceivedTemplateId: optionalEnv('KAKAO_ORDER_RECEIVED_TEMPLATE_ID', ''),
       },
     },
+    webhooks: {
+      airaloSecret: optionalEnv('AIRALO_WEBHOOK_SECRET', ''),
+      cronSecret: optionalEnv('CRON_SECRET', ''),
+      internalApiKey: optionalEnv('INTERNAL_API_KEY', ''),
+    },
+    telegram: {
+      botToken: optionalEnv('TELEGRAM_BOT_TOKEN', ''),
+      errorChatId: optionalEnv('TELEGRAM_ERROR_CHAT_ID', ''),
+    },
   };
 
   return configInstance;
@@ -245,4 +288,126 @@ export function getProviderApiKey(envVarName: string): string {
  */
 export function resetConfig(): void {
   configInstance = null;
+}
+
+// =============================================================================
+// Validation
+// =============================================================================
+
+/**
+ * Validate environment configuration.
+ * Returns validation result with missing required variables and warnings.
+ */
+export function validateConfig(): ValidationResult {
+  const missing: string[] = [];
+  const warnings: string[] = [];
+
+  // Required in all environments
+  const required = [
+    'POCKETBASE_URL',
+    'POCKETBASE_ADMIN_EMAIL',
+    'POCKETBASE_ADMIN_PASSWORD',
+    'RESEND_API_KEY',
+    'RESEND_FROM_EMAIL',
+  ];
+
+  // Required only if inline fulfillment is disabled
+  const inlineFulfillment = process.env.FEATURE_INLINE_FULFILLMENT === 'true';
+  if (!inlineFulfillment) {
+    required.push('N8N_WEBHOOK_URL', 'N8N_API_KEY');
+  }
+
+  // Check required variables
+  for (const name of required) {
+    if (!process.env[name]) {
+      missing.push(name);
+    }
+  }
+
+  // Warnings for production
+  if (process.env.NODE_ENV === 'production') {
+    const productionRecommended = [
+      'STRIPE_WEBHOOK_SECRET',
+      'CRON_SECRET',
+      'SENTRY_DSN',
+    ];
+
+    for (const name of productionRecommended) {
+      if (!process.env[name]) {
+        warnings.push(`${name} not set (recommended for production)`);
+      }
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing,
+    warnings,
+  };
+}
+
+/**
+ * Validate configuration at startup and log results.
+ * Call this during app initialization.
+ */
+export function validateConfigOnStartup(): void {
+  const result = validateConfig();
+
+  if (!result.valid) {
+    console.error('❌ Configuration validation failed:');
+    result.missing.forEach((name) => {
+      console.error(`   - Missing required: ${name}`);
+    });
+    throw new Error(`Missing required environment variables: ${result.missing.join(', ')}`);
+  }
+
+  if (result.warnings.length > 0) {
+    console.warn('⚠️ Configuration warnings:');
+    result.warnings.forEach((warning) => {
+      console.warn(`   - ${warning}`);
+    });
+  }
+
+  console.log('✅ Configuration validated successfully');
+}
+
+// =============================================================================
+// Environment Variable Summary
+// =============================================================================
+
+/**
+ * Get a summary of all environment variables used by the application.
+ * Useful for documentation and debugging.
+ */
+export function getEnvVarSummary(): {
+  required: string[];
+  optional: { name: string; default: string }[];
+} {
+  return {
+    required: [
+      'POCKETBASE_URL',
+      'POCKETBASE_ADMIN_EMAIL',
+      'POCKETBASE_ADMIN_PASSWORD',
+      'RESEND_API_KEY',
+      'RESEND_FROM_EMAIL',
+      'N8N_WEBHOOK_URL (if FEATURE_INLINE_FULFILLMENT=false)',
+      'N8N_API_KEY (if FEATURE_INLINE_FULFILLMENT=false)',
+    ],
+    optional: [
+      { name: 'NODE_ENV', default: 'development' },
+      { name: 'NEXT_PUBLIC_APP_URL', default: 'http://localhost:3000' },
+      { name: 'STRIPE_SECRET_KEY', default: '' },
+      { name: 'STRIPE_PUBLISHABLE_KEY', default: '' },
+      { name: 'STRIPE_WEBHOOK_SECRET', default: '' },
+      { name: 'DISCORD_WEBHOOK_URL', default: '' },
+      { name: 'SENTRY_DSN', default: '' },
+      { name: 'FEATURE_INLINE_FULFILLMENT', default: 'false' },
+      { name: 'FULFILLMENT_TIMEOUT_MS', default: '25000' },
+      { name: 'SMARTSTORE_ENABLED', default: 'false' },
+      { name: 'KAKAO_ALIMTALK_ENABLED', default: 'false' },
+      { name: 'CORS_ALLOWED_ORIGINS', default: '(env-based defaults)' },
+      { name: 'CRON_SECRET', default: '' },
+      { name: 'INTERNAL_API_KEY', default: '' },
+    ],
+  };
 }
