@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
+import { logger } from './logger';
 
 /**
  * Authentication utilities for API routes
@@ -118,7 +119,7 @@ export function verifyApiKey(request: NextRequest): boolean {
   const expectedKey = process.env.INTERNAL_API_KEY;
 
   if (!expectedKey) {
-    console.warn('INTERNAL_API_KEY not configured');
+    logger.warn('internal_api_key_not_configured');
     return false;
   }
 

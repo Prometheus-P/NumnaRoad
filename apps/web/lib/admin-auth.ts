@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
 import { cookies } from 'next/headers';
+import { logger } from './logger';
 
 const ADMIN_SESSION_COOKIE = 'pb_admin_auth';
 
@@ -143,7 +144,7 @@ export function verifyCronAuth(request: NextRequest): { valid: boolean; error?: 
 
   // Fail closed: if CRON_SECRET is not configured, reject all requests
   if (!cronSecret) {
-    console.error('[Security] CRON_SECRET not configured - rejecting cron request');
+    logger.error('cron_secret_not_configured');
     return { valid: false, error: 'Server misconfigured' };
   }
 

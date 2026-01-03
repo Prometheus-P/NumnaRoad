@@ -1,5 +1,6 @@
 import { getAdminPocketBase } from '@/lib/pocketbase';
 import type { EsimProvider } from '@services/esim-providers/types';
+import { logger } from '@/lib/logger';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -42,7 +43,7 @@ export async function getCachedActiveProviders(): Promise<EsimProvider[]> {
 
     return cachedProviders;
   } catch (error) {
-    console.error('Failed to fetch providers:', error);
+    logger.error('provider_cache_fetch_failed', error);
     // Return stale cache if available, otherwise empty array
     return cachedProviders || [];
   }

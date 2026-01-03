@@ -14,6 +14,7 @@
 
 import { getAdminPocketBase } from './pocketbase';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger';
 
 // =============================================================================
 // Types
@@ -137,16 +138,12 @@ async function tryAcquireLock(
         status: 'active',
       });
 
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          event: 'cron_lock_acquired',
-          jobName,
-          instanceId: INSTANCE_ID,
-          lockId: updated.id,
-          expiresAt: expiresAt.toISOString(),
-        })
-      );
+      logger.info('cron_lock_acquired', {
+        jobName,
+        instanceId: INSTANCE_ID,
+        lockId: updated.id,
+        expiresAt: expiresAt.toISOString(),
+      });
 
       return {
         acquired: true,
@@ -163,16 +160,12 @@ async function tryAcquireLock(
         status: 'active',
       });
 
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          event: 'cron_lock_acquired',
-          jobName,
-          instanceId: INSTANCE_ID,
-          lockId: created.id,
-          expiresAt: expiresAt.toISOString(),
-        })
-      );
+      logger.info('cron_lock_acquired', {
+        jobName,
+        instanceId: INSTANCE_ID,
+        lockId: created.id,
+        expiresAt: expiresAt.toISOString(),
+      });
 
       return {
         acquired: true,
@@ -183,14 +176,10 @@ async function tryAcquireLock(
   } catch (error) {
     // Race condition - another instance got the lock first
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          event: 'cron_lock_race_condition',
-          jobName,
-          instanceId: INSTANCE_ID,
-        })
-      );
+      logger.info('cron_lock_race_condition', {
+        jobName,
+        instanceId: INSTANCE_ID,
+      });
 
       return {
         acquired: false,
@@ -199,15 +188,10 @@ async function tryAcquireLock(
     }
 
     // DB error - log and proceed without lock (fail-open for availability)
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'cron_lock_error',
-        jobName,
-        instanceId: INSTANCE_ID,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      })
-    );
+    logger.error('cron_lock_error', error, {
+      jobName,
+      instanceId: INSTANCE_ID,
+    });
 
     // Fail-open: allow execution if DB is unavailable
     // This prioritizes availability over strict consistency
@@ -237,25 +221,16 @@ export async function releaseLock(jobName: string, lockId?: string): Promise<voi
       status: 'released',
     });
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'cron_lock_released',
-        jobName,
-        instanceId: INSTANCE_ID,
-        lockId,
-      })
-    );
+    logger.info('cron_lock_released', {
+      jobName,
+      instanceId: INSTANCE_ID,
+      lockId,
+    });
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'cron_lock_release_error',
-        jobName,
-        lockId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      })
-    );
+    logger.error('cron_lock_release_error', error, {
+      jobName,
+      lockId,
+    });
     // Don't throw - lock will expire naturally
   }
 }
@@ -290,14 +265,7 @@ export async function extendLock(lockId: string, additionalMs: number): Promise<
 
     return true;
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'cron_lock_extend_error',
-        lockId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      })
-    );
+    logger.error('cron_lock_extend_error', error, { lockId });
     return false;
   }
 }
@@ -331,16 +299,12 @@ export function withCronLock<T>(
     const lockResult = await acquireLock(jobName, options);
 
     if (!lockResult.acquired) {
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          event: 'cron_job_skipped',
-          jobName,
-          reason: 'lock_held',
-          heldBy: lockResult.heldBy,
-          expiresAt: lockResult.expiresAt?.toISOString(),
-        })
-      );
+      logger.info('cron_job_skipped', {
+        jobName,
+        reason: 'lock_held',
+        heldBy: lockResult.heldBy,
+        expiresAt: lockResult.expiresAt?.toISOString(),
+      });
 
       return new Response(
         JSON.stringify({
@@ -404,7 +368,7 @@ export async function cleanupExpiredLocks(): Promise<number> {
 
     return expiredLocks.length;
   } catch (error) {
-    console.error('Failed to cleanup expired locks:', error);
+    logger.error('cron_lock_cleanup_failed', error);
     return 0;
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from './logger';
 
 /**
  * Verify Airalo webhook signature using HMAC-SHA256
@@ -37,10 +38,8 @@ export function verifyAiraloWebhook(
     );
   } catch (error) {
     // Log with context for debugging - timing-safe comparison may fail on malformed signatures
-    console.error('[Webhook Verification] Airalo signature verification failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    logger.error('webhook_airalo_verification_failed', error, {
       signatureLength: signature?.length,
-      cause: error,
     });
     return false;
   }
@@ -90,11 +89,8 @@ export function verifyStripeWebhook(
       Buffer.from(expectedSignature, 'hex')
     );
   } catch (error) {
-    // Log with context for debugging
-    console.error('[Webhook Verification] Stripe signature verification failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    logger.error('webhook_stripe_verification_failed', error, {
       signatureFormat: signature?.substring(0, 10) + '...',
-      cause: error,
     });
     return false;
   }
@@ -138,12 +134,9 @@ export function verifyWebhookSignature(
       );
     }
   } catch (error) {
-    // Log with context for debugging
-    console.error('[Webhook Verification] Signature verification failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    logger.error('webhook_signature_verification_failed', error, {
       encoding,
       signatureLength: signature?.length,
-      cause: error,
     });
     return false;
   }

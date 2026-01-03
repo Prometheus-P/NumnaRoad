@@ -11,6 +11,8 @@
  * ```
  */
 
+import { logger } from './logger';
+
 export interface RetryOptions {
   /** Maximum number of retry attempts (default: 3) */
   maxRetries?: number;
@@ -193,15 +195,10 @@ export const pbRetry = createRetryWrapper({
   baseDelayMs: 100,
   maxDelayMs: 3000,
   onRetry: (attempt, error, delay) => {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'pocketbase_retry',
-        attempt,
-        error: error.message,
-        delayMs: delay,
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.warn('pocketbase_retry', {
+      attempt,
+      error: error.message,
+      delayMs: delay,
+    });
   },
 });
