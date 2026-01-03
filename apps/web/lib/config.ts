@@ -50,6 +50,9 @@ interface Config {
     isProduction: boolean;
     isDevelopment: boolean;
   };
+  cors: {
+    allowedOrigins: string[];
+  };
   featureFlags: {
     useInlineFulfillment: boolean;
   };
@@ -100,6 +103,32 @@ function requireEnv(name: string): string {
  */
 function optionalEnv(name: string, defaultValue: string): string {
   return process.env[name] ?? defaultValue;
+}
+
+/**
+ * Get CORS allowed origins based on environment
+ */
+function getCorsOrigins(nodeEnv: string): string[] {
+  // Custom origins from environment variable (comma-separated)
+  const customOrigins = process.env.CORS_ALLOWED_ORIGINS;
+  if (customOrigins) {
+    return customOrigins.split(',').map((origin) => origin.trim()).filter(Boolean);
+  }
+
+  // Default origins based on environment
+  if (nodeEnv === 'production') {
+    return [
+      'https://numnaroad.com',
+      'https://www.numnaroad.com',
+      'https://admin.numnaroad.com',
+    ];
+  }
+
+  // Development: allow localhost
+  return [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ];
 }
 
 /**
@@ -161,6 +190,9 @@ export function getConfig(): Config {
       url: optionalEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000'),
       isProduction: nodeEnv === 'production',
       isDevelopment: nodeEnv === 'development',
+    },
+    cors: {
+      allowedOrigins: getCorsOrigins(nodeEnv),
     },
     featureFlags: {
       useInlineFulfillment,

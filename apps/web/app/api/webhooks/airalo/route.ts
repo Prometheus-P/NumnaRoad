@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import { verifyAiraloWebhook } from '@/lib/webhook-verification';
-import { checkRateLimit, getClientIP, RateLimitPresets } from '@/lib/rate-limit';
+import { checkRateLimitByKey, getClientIP, RateLimitPresets } from '@/lib/rate-limit';
 import type { AiraloWebhookPayload } from '@services/esim-providers/types';
 import { logger } from '@/lib/logger';
 
@@ -25,7 +25,7 @@ interface PendingAsyncOrder {
 export async function POST(request: NextRequest) {
   // Rate limiting
   const clientIP = getClientIP(request);
-  const rateLimitResult = checkRateLimit(`webhook:airalo:${clientIP}`, RateLimitPresets.webhook);
+  const rateLimitResult = checkRateLimitByKey(`webhook:airalo:${clientIP}`, RateLimitPresets.webhook);
 
   if (!rateLimitResult.success) {
     return NextResponse.json(

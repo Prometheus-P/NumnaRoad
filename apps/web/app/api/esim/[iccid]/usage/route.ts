@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AiraloProvider } from '@services/esim-providers/airalo';
-import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
+import { checkRateLimitByKey, getClientIP } from '@/lib/rate-limit';
 import { getAdminPocketBase, Collections } from '@/lib/pocketbase';
 import type { EsimProvider } from '@services/esim-providers/types';
 import { logger } from '@/lib/logger';
@@ -61,7 +61,7 @@ export async function GET(
 
   // Check IP-based rate limit
   const clientIP = getClientIP(request);
-  const ipRateLimitResult = checkRateLimit(`usage:ip:${clientIP}`, USAGE_RATE_LIMIT);
+  const ipRateLimitResult = checkRateLimitByKey(`usage:ip:${clientIP}`, USAGE_RATE_LIMIT);
 
   if (!ipRateLimitResult.success) {
     return NextResponse.json(
@@ -77,7 +77,7 @@ export async function GET(
   }
 
   // Check per-SIM daily rate limit
-  const simRateLimitResult = checkRateLimit(`usage:sim:${iccid}`, SIM_DAILY_RATE_LIMIT);
+  const simRateLimitResult = checkRateLimitByKey(`usage:sim:${iccid}`, SIM_DAILY_RATE_LIMIT);
 
   if (!simRateLimitResult.success) {
     return NextResponse.json(
