@@ -1,0 +1,117 @@
+{
+  "name": "audit_logs",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "actor_id",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "actor_email",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 255
+      }
+    },
+    {
+      "name": "action",
+      "type": "select",
+      "required": true,
+      "options": {
+        "values": ["CREATE", "READ", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "EXPORT", "BULK_ACTION"]
+      }
+    },
+    {
+      "name": "resource_type",
+      "type": "text",
+      "required": true,
+      "options": {
+        "max": 100
+      }
+    },
+    {
+      "name": "resource_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 50
+      }
+    },
+    {
+      "name": "changes",
+      "type": "json",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "ip_address",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 45
+      }
+    },
+    {
+      "name": "user_agent",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 500
+      }
+    },
+    {
+      "name": "request_path",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 500
+      }
+    },
+    {
+      "name": "request_method",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 10
+      }
+    },
+    {
+      "name": "status_code",
+      "type": "number",
+      "required": false,
+      "options": {}
+    },
+    {
+      "name": "correlation_id",
+      "type": "text",
+      "required": false,
+      "options": {
+        "max": 36
+      }
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "required": false,
+      "options": {}
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_audit_actor ON audit_logs (actor_id)",
+    "CREATE INDEX idx_audit_action ON audit_logs (action)",
+    "CREATE INDEX idx_audit_resource ON audit_logs (resource_type, resource_id)",
+    "CREATE INDEX idx_audit_created ON audit_logs (created)",
+    "CREATE INDEX idx_audit_correlation ON audit_logs (correlation_id)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}
