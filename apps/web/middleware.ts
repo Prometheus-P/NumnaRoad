@@ -2,6 +2,7 @@
  * Next.js Middleware
  *
  * Handles:
+ * - Correlation ID generation/propagation for tracing
  * - CORS headers for API routes
  * - Admin API authentication
  * - i18n routing
@@ -16,6 +17,32 @@ import {
   rateLimitExceededResponse,
   addRateLimitHeaders,
 } from './lib/rate-limit';
+
+// =============================================================================
+// Correlation ID Configuration
+// =============================================================================
+
+const CORRELATION_ID_HEADER = 'x-correlation-id';
+
+/**
+ * Generate a correlation ID (simplified UUID without external dependency).
+ * For middleware, we avoid importing uuid to keep bundle size small.
+ */
+function generateCorrelationId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Get or create correlation ID from request.
+ */
+function getOrCreateCorrelationId(request: NextRequest): string {
+  const existing = request.headers.get(CORRELATION_ID_HEADER);
+  return existing || generateCorrelationId();
+}
 
 // =============================================================================
 // CORS Configuration
@@ -76,7 +103,12 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 /**
  * Add CORS headers to a response.
  */
-function addCorsHeaders(response: NextResponse, origin: string | null, isWebhook: boolean): NextResponse {
+function addCorsHeaders(
+  response: NextResponse,
+  origin: string | null,
+  isWebhook: boolean,
+  correlationId?: string
+): NextResponse {
   if (isWebhook) {
     // Webhooks allow any origin (they're secured by signatures)
     response.headers.set('Access-Control-Allow-Origin', '*');
@@ -89,6 +121,11 @@ function addCorsHeaders(response: NextResponse, origin: string | null, isWebhook
 
   // Add Vary header for proper caching
   response.headers.set('Vary', 'Origin');
+
+  // Add correlation ID header
+  if (correlationId) {
+    response.headers.set(CORRELATION_ID_HEADER, correlationId);
+  }
 
   return response;
 }
@@ -129,6 +166,9 @@ export async function middleware(request: NextRequest) {
   const isApiRoute = pathname.startsWith('/api/');
   const isWebhookRoute = WEBHOOK_PATHS.some(p => pathname.startsWith(p));
 
+  // Generate or extract correlation ID for all API requests
+  const correlationId = isApiRoute ? getOrCreateCorrelationId(request) : undefined;
+
   // Handle preflight OPTIONS requests for API routes
   if (isApiRoute && method === 'OPTIONS') {
     const headers = getCorsHeaders(origin);
@@ -165,7 +205,11 @@ export async function middleware(request: NextRequest) {
   // Skip additional middleware for webhooks and cron jobs (secured by signature/API keys)
   if (isWebhookRoute) {
     const response = NextResponse.next();
-    return addCorsHeaders(response, origin, true);
+    // Pass correlation ID to route handler via header
+    if (correlationId) {
+      response.headers.set(CORRELATION_ID_HEADER, correlationId);
+    }
+    return addCorsHeaders(response, origin, true, correlationId);
   }
 
   // Admin API protection
@@ -180,12 +224,15 @@ export async function middleware(request: NextRequest) {
 
       if (!rateLimitResult.success) {
         const response = rateLimitExceededResponse(rateLimitResult);
-        return addCorsHeaders(response, origin, false);
+        return addCorsHeaders(response, origin, false, correlationId);
       }
 
       const response = NextResponse.next();
       addRateLimitHeaders(response, rateLimitResult);
-      return addCorsHeaders(response, origin, false);
+      if (correlationId) {
+        response.headers.set(CORRELATION_ID_HEADER, correlationId);
+      }
+      return addCorsHeaders(response, origin, false, correlationId);
     }
 
     // Check for authentication token
@@ -198,7 +245,7 @@ export async function middleware(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       );
-      return addCorsHeaders(response, origin, false);
+      return addCorsHeaders(response, origin, false, correlationId);
     }
 
     // Apply rate limiting for authenticated admin requests
@@ -209,22 +256,28 @@ export async function middleware(request: NextRequest) {
 
     if (!rateLimitResult.success) {
       const response = rateLimitExceededResponse(rateLimitResult);
-      return addCorsHeaders(response, origin, false);
+      return addCorsHeaders(response, origin, false, correlationId);
     }
 
-    // Pass token to route handler via header
+    // Pass token and correlation ID to route handler via headers
     const response = NextResponse.next();
     if (token) {
       response.headers.set('x-admin-token', token);
     }
+    if (correlationId) {
+      response.headers.set(CORRELATION_ID_HEADER, correlationId);
+    }
     addRateLimitHeaders(response, rateLimitResult);
-    return addCorsHeaders(response, origin, false);
+    return addCorsHeaders(response, origin, false, correlationId);
   }
 
-  // Other API routes - just add CORS headers
+  // Other API routes - just add CORS headers and correlation ID
   if (isApiRoute) {
     const response = NextResponse.next();
-    return addCorsHeaders(response, origin, false);
+    if (correlationId) {
+      response.headers.set(CORRELATION_ID_HEADER, correlationId);
+    }
+    return addCorsHeaders(response, origin, false, correlationId);
   }
 
   // i18n routing for frontend pages
